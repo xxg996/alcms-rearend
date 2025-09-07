@@ -67,6 +67,9 @@ app.use('/api/resources', require('./routes/resources'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/tags', require('./routes/tags'));
 
+// 社区路由注册
+app.use('/api/community', require('./routes/community'));
+
 // API文档根路径
 app.get('/api', (req, res) => {
   res.json({
@@ -118,6 +121,40 @@ app.get('/api', (req, res) => {
           'DELETE /api/tags/:id': '删除标签',
           'GET /api/tags/search/query': '搜索标签',
           'GET /api/tags/popular/list': '热门标签'
+        }
+      },
+      community: {
+        boards: {
+          'GET /api/community/boards': '获取板块列表',
+          'POST /api/community/boards': '创建板块',
+          'GET /api/community/boards/:id': '获取板块详情',
+          'PUT /api/community/boards/:id': '更新板块',
+          'DELETE /api/community/boards/:id': '删除板块'
+        },
+        posts: {
+          'GET /api/community/posts': '获取帖子列表',
+          'POST /api/community/posts': '创建帖子',
+          'GET /api/community/posts/:id': '获取帖子详情',
+          'PUT /api/community/posts/:id': '更新帖子',
+          'DELETE /api/community/posts/:id': '删除帖子',
+          'PATCH /api/community/posts/:id/pin': '置顶帖子',
+          'PATCH /api/community/posts/:id/feature': '设置精华帖',
+          'PATCH /api/community/posts/:id/lock': '锁定帖子'
+        },
+        comments: {
+          'GET /api/community/posts/:postId/comments': '获取帖子评论',
+          'POST /api/community/comments': '创建评论',
+          'GET /api/community/comments/:id': '获取评论详情',
+          'PUT /api/community/comments/:id': '更新评论',
+          'DELETE /api/community/comments/:id': '删除评论'
+        },
+        interactions: {
+          'POST /api/community/interactions/like': '点赞/取消点赞',
+          'POST /api/community/interactions/favorite': '收藏/取消收藏',
+          'POST /api/community/interactions/share': '分享帖子',
+          'POST /api/community/interactions/report': '举报内容',
+          'GET /api/community/interactions/like/check': '检查点赞状态',
+          'GET /api/community/interactions/favorite/check': '检查收藏状态'
         }
       }
     },

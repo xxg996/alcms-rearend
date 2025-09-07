@@ -8,6 +8,7 @@
     "dev": "nodemon src/app.js",
     "migrate": "node database/migrate.js",
     "migrate-cms": "node database/migrate-cms.js",
+    "migrate-community": "node database/migrate-community.js",
     "create-admin": "node scripts/create-admin.js",
     "test-api": "node test-api.js"
   },
