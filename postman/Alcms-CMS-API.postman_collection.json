@@ -1,0 +1,897 @@
+{
+  "info": {
+    "name": "Alcms CMS 资源管理系统 API",
+    "description": "完整的Alcms CMS资源管理系统API集合，包含资源管理、分类管理、标签系统、下载控制等功能",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 认证管理",
+      "description": "用户认证相关接口",
+      "item": [
+        {
+          "name": "管理员登录",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@alcms.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "使用管理员账户登录，获取访问令牌"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.environment.set('accessToken', responseJson.data.tokens.accessToken);",
+                  "    pm.environment.set('refreshToken', responseJson.data.tokens.refreshToken);",
+                  "    pm.environment.set('userId', responseJson.data.user.id);",
+                  "    console.log('Admin tokens saved to environment');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📂 分类管理",
+      "description": "资源分类管理接口",
+      "item": [
+        {
+          "name": "获取分类树",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories?tree=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"],
+              "query": [
+                {
+                  "key": "tree",
+                  "value": "true",
+                  "description": "返回树形结构"
+                }
+              ]
+            },
+            "description": "获取完整的分类树结构，包含子分类"
+          }
+        },
+        {
+          "name": "获取分类详情",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/:categoryId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", ":categoryId"],
+              "variable": [
+                {
+                  "key": "categoryId",
+                  "value": "1",
+                  "description": "分类ID"
+                }
+              ]
+            },
+            "description": "获取指定分类的详细信息，包含面包屑导航"
+          }
+        },
+        {
+          "name": "创建分类",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"frontend\",\n  \"displayName\": \"前端开发\",\n  \"description\": \"前端技术和框架相关内容\",\n  \"parentId\": 1,\n  \"sortOrder\": 5,\n  \"iconUrl\": \"https://example.com/icons/frontend.svg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            },
+            "description": "创建新的资源分类，需要管理员权限"
+          }
+        },
+        {
+          "name": "更新分类",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"前端技术\",\n  \"description\": \"现代前端开发技术栈\",\n  \"sortOrder\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/:categoryId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", ":categoryId"],
+              "variable": [
+                {
+                  "key": "categoryId",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "更新分类信息，需要管理员权限"
+          }
+        },
+        {
+          "name": "获取热门分类",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/popular/list?limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "popular", "list"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "返回数量限制"
+                }
+              ]
+            },
+            "description": "获取最热门的分类列表"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏷️ 标签管理",
+      "description": "标签系统管理接口",
+      "item": [
+        {
+          "name": "获取标签列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tags?sortBy=usage_count&sortOrder=DESC&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags"],
+              "query": [
+                {
+                  "key": "sortBy",
+                  "value": "usage_count",
+                  "description": "排序字段"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "DESC",
+                  "description": "排序方向"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "数量限制"
+                }
+              ]
+            },
+            "description": "获取标签列表，支持搜索和排序"
+          }
+        },
+        {
+          "name": "搜索标签",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tags/search/query?q=tutorial&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags", "search", "query"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "tutorial",
+                  "description": "搜索关键词"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "结果数量"
+                }
+              ]
+            },
+            "description": "根据关键词搜索标签"
+          }
+        },
+        {
+          "name": "创建标签",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"react\",\n  \"displayName\": \"React\",\n  \"description\": \"React前端框架相关内容\",\n  \"color\": \"#61DAFB\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tags",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags"]
+            },
+            "description": "创建新标签，VIP用户及以上权限"
+          }
+        },
+        {
+          "name": "获取热门标签",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tags/popular/list?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags", "popular", "list"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "返回数量"
+                }
+              ]
+            },
+            "description": "获取使用频率最高的标签"
+          }
+        },
+        {
+          "name": "批量创建标签",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tags\": [\n    {\n      \"name\": \"vue\",\n      \"displayName\": \"Vue.js\",\n      \"description\": \"Vue.js框架\",\n      \"color\": \"#4FC08D\"\n    },\n    {\n      \"name\": \"angular\",\n      \"displayName\": \"Angular\",\n      \"description\": \"Angular框架\",\n      \"color\": \"#DD0031\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tags/batch-create",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags", "batch-create"]
+            },
+            "description": "批量创建多个标签"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📄 资源管理",
+      "description": "资源内容管理接口",
+      "item": [
+        {
+          "name": "获取资源列表",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/resources?page=1&limit=20&category=1&sortBy=created_at&sortOrder=DESC",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "resources"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "页码"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "每页数量"
+                },
+                {
+                  "key": "category",
+                  "value": "1",
+                  "description": "分类ID过滤"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "created_at",
+                  "description": "排序字段"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "DESC",
+                  "description": "排序方向"
+                }
+              ]
+            },
+            "description": "获取资源列表，支持分页、过滤、排序"
+          }
+        },
+        {
+          "name": "获取资源详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/resources/:resourceId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "resources", ":resourceId"],
+              "variable": [
+                {
+                  "key": "resourceId",
+                  "value": "1",
+                  "description": "资源ID"
+                }
+              ]
+            },
+            "description": "获取资源详细信息，包含标签和统计数据"
+          }
+        },
+        {
+          "name": "创建文章资源",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Vue3 + TypeScript 开发指南\",\n  \"description\": \"详细介绍Vue3结合TypeScript的开发技巧和最佳实践\",\n  \"content\": \"# Vue3 + TypeScript 开发指南\\n\\n本文将详细介绍如何使用Vue3和TypeScript进行现代前端开发...\\n\\n## 环境配置\\n\\n首先需要安装必要的依赖包...\\n\\n## 组件开发\\n\\n使用组合式API开发组件...\",\n  \"summary\": \"学习Vue3和TypeScript的完美结合\",\n  \"categoryId\": 9,\n  \"resourceTypeId\": 1,\n  \"coverImageUrl\": \"https://example.com/covers/vue3-ts.jpg\",\n  \"isPublic\": true,\n  \"isFree\": true,\n  \"tags\": [\"vue\", \"typescript\", \"tutorial\", \"frontend\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/resources",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "resources"]
+            },
+            "description": "创建文章类型的资源"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.environment.set('createdResourceId', responseJson.data.id);",
+                  "    console.log('Resource created with ID: ' + responseJson.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "创建视频资源",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Node.js 微服务架构实战\",\n  \"description\": \"深入讲解如何使用Node.js构建可扩展的微服务架构\",\n  \"summary\": \"企业级Node.js微服务开发\",\n  \"categoryId\": 9,\n  \"resourceTypeId\": 2,\n  \"coverImageUrl\": \"https://example.com/covers/nodejs-microservices.jpg\",\n  \"fileUrl\": \"https://video.example.com/nodejs-microservices.mp4\",\n  \"fileSize\": 1073741824,\n  \"fileMimeType\": \"video/mp4\",\n  \"duration\": 7200,\n  \"isPublic\": true,\n  \"isFree\": false,\n  \"requiredVipLevel\": \"vip\",\n  \"requiredPoints\": 200,\n  \"downloadLimit\": 3,\n  \"tags\": [\"nodejs\", \"microservices\", \"backend\", \"advanced\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/resources",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "resources"]
+            },
+            "description": "创建视频类型的付费资源，需要VIP权限和积分"
+          }
+        },
+        {
+          "name": "更新资源",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Vue3 + TypeScript 完整开发指南\",\n  \"description\": \"从入门到精通的Vue3 TypeScript开发教程\",\n  \"tags\": [\"vue3\", \"typescript\", \"tutorial\", \"frontend\", \"beginner\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/resources/:resourceId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "resources", ":resourceId"],
+              "variable": [
+                {
+                  "key": "resourceId",
+                  "value": "{{createdResourceId}}"
+                }
+              ]
+            },
+            "description": "更新资源信息，只有作者或管理员可以编辑"
+          }
+        },
+        {
+          "name": "下载资源",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/resources/:resourceId/download",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "resources", ":resourceId", "download"],
+              "variable": [
+                {
+                  "key": "resourceId",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "生成资源下载链接，会进行权限验证和记录"
+          }
+        },
+        {
+          "name": "搜索资源",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/resources/search/query?q=vue typescript&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "resources", "search", "query"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "vue typescript",
+                  "description": "搜索关键词"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "页码"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "每页数量"
+                }
+              ]
+            },
+            "description": "全文搜索资源，支持标题、描述、内容搜索"
+          }
+        },
+        {
+          "name": "高级搜索（多条件）",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/resources?search=vue&category=9&tags=tutorial,frontend&isFree=true&sortBy=view_count&sortOrder=DESC",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "resources"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "vue",
+                  "description": "关键词搜索"
+                },
+                {
+                  "key": "category",
+                  "value": "9",
+                  "description": "分类过滤"
+                },
+                {
+                  "key": "tags",
+                  "value": "tutorial,frontend",
+                  "description": "标签过滤（多个用逗号分隔）"
+                },
+                {
+                  "key": "isFree",
+                  "value": "true",
+                  "description": "只显示免费资源"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "view_count",
+                  "description": "按浏览量排序"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "DESC",
+                  "description": "降序排列"
+                }
+              ]
+            },
+            "description": "组合多种条件进行高级资源搜索"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 统计分析",
+      "description": "数据统计和分析接口",
+      "item": [
+        {
+          "name": "资源统计概览",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/resources/stats/overview",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "resources", "stats", "overview"]
+            },
+            "description": "获取资源的基本统计信息"
+          }
+        },
+        {
+          "name": "分类统计",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/admin/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "admin", "stats"]
+            },
+            "description": "获取分类使用统计，需要管理员权限"
+          }
+        },
+        {
+          "name": "标签统计",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tags/admin/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags", "admin", "stats"]
+            },
+            "description": "获取标签使用统计和分布，需要管理员权限"
+          }
+        },
+        {
+          "name": "详细统计（管理员）",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/resources/admin/stats/detailed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "resources", "admin", "stats", "detailed"]
+            },
+            "description": "获取详细的资源统计数据，包含日期趋势和作者统计"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛠️ 管理员功能",
+      "description": "管理员专用的高级功能",
+      "item": [
+        {
+          "name": "批量更新资源状态",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resourceIds\": [1, 2, 3],\n  \"updateData\": {\n    \"status\": \"published\",\n    \"is_public\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/resources/admin/batch-update",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "resources", "admin", "batch-update"]
+            },
+            "description": "批量更新多个资源的状态"
+          }
+        },
+        {
+          "name": "批量创建分类",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categories\": [\n    {\n      \"name\": \"backend\",\n      \"displayName\": \"后端开发\",\n      \"description\": \"后端技术和架构\",\n      \"parentId\": 1,\n      \"sortOrder\": 6\n    },\n    {\n      \"name\": \"devops\",\n      \"displayName\": \"DevOps\",\n      \"description\": \"运维和自动化\",\n      \"parentId\": 1,\n      \"sortOrder\": 7\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/admin/batch-create",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "admin", "batch-create"]
+            },
+            "description": "批量创建多个分类"
+          }
+        },
+        {
+          "name": "批量更新分类排序",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categories\": [\n    {\"id\": 1, \"sortOrder\": 1},\n    {\"id\": 2, \"sortOrder\": 2},\n    {\"id\": 3, \"sortOrder\": 3}\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/admin/batch-sort",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "admin", "batch-sort"]
+            },
+            "description": "批量更新分类显示顺序"
+          }
+        },
+        {
+          "name": "清理未使用标签",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tags/admin/cleanup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags", "admin", "cleanup"]
+            },
+            "description": "清理没有被任何资源使用的标签"
+          }
+        },
+        {
+          "name": "重新计算标签使用次数",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tags/admin/recalculate-usage",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags", "admin", "recalculate-usage"]
+            },
+            "description": "重新统计所有标签的使用次数"
+          }
+        },
+        {
+          "name": "获取所有资源（包含私有）",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/resources/admin/all?page=1&limit=20&status=all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "resources", "admin", "all"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "all",
+                  "description": "包含所有状态的资源"
+                }
+              ]
+            },
+            "description": "管理员查看所有资源，包括私有和草稿状态"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🧪 测试示例",
+      "description": "完整的API测试流程示例",
+      "item": [
+        {
+          "name": "完整工作流测试",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "1. 首先检查服务健康状态\n2. 然后依次执行：管理员登录 → 创建分类 → 创建标签 → 创建资源 → 搜索资源 → 查看统计"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Service is healthy', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.success).to.be.true;",
+                  "});",
+                  "",
+                  "console.log('🎯 Alcms CMS API 测试开始');",
+                  "console.log('📋 建议测试顺序：');",
+                  "console.log('1. 🔐 管理员登录');",
+                  "console.log('2. 📂 获取分类树');",
+                  "console.log('3. 🏷️ 获取标签列表');",
+                  "console.log('4. 📄 创建文章资源');",
+                  "console.log('5. 🔍 搜索资源');",
+                  "console.log('6. 📊 查看统计数据');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// 全局前置脚本",
+          "console.log('🚀 Alcms CMS API Request: ' + pm.request.method + ' ' + pm.request.url);"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// 全局测试脚本",
+          "pm.test('Response time is less than 2000ms', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+          "});",
+          "",
+          "pm.test('Response has success field', function () {",
+          "    const responseJson = pm.response.json();",
+          "    pm.expect(responseJson).to.have.property('success');",
+          "});"
+        ]
+      }
+    }
+  ]
+}

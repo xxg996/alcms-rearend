@@ -1,0 +1,293 @@
+/**
+ * 用户数据模型
+ * 处理用户相关的数据库操作
+ */
+
+const { query, getClient } = require('../config/database');
+const { hashPassword, verifyPassword } = require('../utils/password');
+const { hashToken } = require('../utils/jwt');
+
+class User {
+  /**
+   * 根据邮箱查找用户
+   * @param {string} email - 用户邮箱
+   * @returns {Promise<Object|null>} 用户信息或null
+   */
+  static async findByEmail(email) {
+    const result = await query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * 根据用户名查找用户
+   * @param {string} username - 用户名
+   * @returns {Promise<Object|null>} 用户信息或null
+   */
+  static async findByUsername(username) {
+    const result = await query(
+      'SELECT * FROM users WHERE username = $1',
+      [username]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * 根据ID查找用户
+   * @param {number} id - 用户ID
+   * @returns {Promise<Object|null>} 用户信息或null
+   */
+  static async findById(id) {
+    const result = await query(
+      'SELECT id, username, email, nickname, avatar_url, bio, status, created_at, updated_at FROM users WHERE id = $1',
+      [id]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * 创建新用户
+   * @param {Object} userData - 用户数据
+   * @returns {Promise<Object>} 创建的用户信息
+   */
+  static async create(userData) {
+    const { username, email, password, nickname } = userData;
+
+    // 检查用户名和邮箱是否已存在
+    const existingUser = await query(
+      'SELECT id FROM users WHERE username = $1 OR email = $2',
+      [username, email]
+    );
+
+    if (existingUser.rows.length > 0) {
+      throw new Error('用户名或邮箱已存在');
+    }
+
+    // 哈希密码
+    const passwordHash = await hashPassword(password);
+
+    // 插入新用户
+    const result = await query(
+      `INSERT INTO users (username, email, password_hash, nickname, status) 
+       VALUES ($1, $2, $3, $4, 'normal') 
+       RETURNING id, username, email, nickname, status, created_at`,
+      [username, email, passwordHash, nickname || username]
+    );
+
+    const newUser = result.rows[0];
+
+    // 为新用户分配默认角色（普通用户）
+    await this.assignRole(newUser.id, 'user');
+
+    return newUser;
+  }
+
+  /**
+   * 验证用户密码
+   * @param {string} email - 用户邮箱
+   * @param {string} password - 密码
+   * @returns {Promise<Object|null>} 验证成功返回用户信息，失败返回null
+   */
+  static async authenticate(email, password) {
+    const user = await query(
+      'SELECT id, username, email, password_hash, nickname, status FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (user.rows.length === 0) {
+      return null;
+    }
+
+    const userData = user.rows[0];
+
+    // 检查用户状态
+    if (userData.status !== 'normal') {
+      throw new Error(`账号已被${userData.status === 'banned' ? '封禁' : '冻结'}`);
+    }
+
+    // 验证密码
+    const isValidPassword = await verifyPassword(password, userData.password_hash);
+    if (!isValidPassword) {
+      return null;
+    }
+
+    // 返回用户信息（不包含密码哈希）
+    const { password_hash, ...userInfo } = userData;
+    return userInfo;
+  }
+
+  /**
+   * 更新用户信息
+   * @param {number} userId - 用户ID
+   * @param {Object} updateData - 更新的数据
+   * @returns {Promise<Object>} 更新后的用户信息
+   */
+  static async update(userId, updateData) {
+    const allowedFields = ['nickname', 'avatar_url', 'bio'];
+    const updateFields = [];
+    const values = [];
+    let paramIndex = 1;
+
+    for (const field of allowedFields) {
+      if (updateData[field] !== undefined) {
+        updateFields.push(`${field} = $${paramIndex}`);
+        values.push(updateData[field]);
+        paramIndex++;
+      }
+    }
+
+    if (updateFields.length === 0) {
+      throw new Error('没有可更新的字段');
+    }
+
+    values.push(userId);
+    const result = await query(
+      `UPDATE users SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $${paramIndex} 
+       RETURNING id, username, email, nickname, avatar_url, bio, status, updated_at`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('用户不存在');
+    }
+
+    return result.rows[0];
+  }
+
+  /**
+   * 修改用户状态
+   * @param {number} userId - 用户ID
+   * @param {string} status - 新状态 (normal, banned, frozen)
+   * @returns {Promise<Object>} 更新后的用户信息
+   */
+  static async updateStatus(userId, status) {
+    const validStatuses = ['normal', 'banned', 'frozen'];
+    if (!validStatuses.includes(status)) {
+      throw new Error('无效的用户状态');
+    }
+
+    const result = await query(
+      'UPDATE users SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, username, status',
+      [status, userId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('用户不存在');
+    }
+
+    return result.rows[0];
+  }
+
+  /**
+   * 为用户分配角色
+   * @param {number} userId - 用户ID
+   * @param {string} roleName - 角色名称
+   * @returns {Promise<void>}
+   */
+  static async assignRole(userId, roleName) {
+    const roleResult = await query(
+      'SELECT id FROM roles WHERE name = $1',
+      [roleName]
+    );
+
+    if (roleResult.rows.length === 0) {
+      throw new Error('角色不存在');
+    }
+
+    const roleId = roleResult.rows[0].id;
+
+    await query(
+      'INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2) ON CONFLICT (user_id, role_id) DO NOTHING',
+      [userId, roleId]
+    );
+  }
+
+  /**
+   * 获取用户的所有权限
+   * @param {number} userId - 用户ID
+   * @returns {Promise<Array>} 权限列表
+   */
+  static async getUserPermissions(userId) {
+    const result = await query(
+      `SELECT DISTINCT p.name, p.resource, p.action, p.display_name
+       FROM permissions p
+       JOIN role_permissions rp ON p.id = rp.permission_id
+       JOIN user_roles ur ON rp.role_id = ur.role_id
+       WHERE ur.user_id = $1`,
+      [userId]
+    );
+
+    return result.rows;
+  }
+
+  /**
+   * 获取用户的角色
+   * @param {number} userId - 用户ID
+   * @returns {Promise<Array>} 角色列表
+   */
+  static async getUserRoles(userId) {
+    const result = await query(
+      `SELECT r.name, r.display_name, r.description
+       FROM roles r
+       JOIN user_roles ur ON r.id = ur.role_id
+       WHERE ur.user_id = $1`,
+      [userId]
+    );
+
+    return result.rows;
+  }
+
+  /**
+   * 存储刷新令牌
+   * @param {number} userId - 用户ID
+   * @param {string} refreshToken - 刷新令牌
+   * @param {Date} expiresAt - 过期时间
+   * @returns {Promise<void>}
+   */
+  static async storeRefreshToken(userId, refreshToken, expiresAt) {
+    const tokenHash = hashToken(refreshToken);
+    
+    await query(
+      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+      [userId, tokenHash, expiresAt]
+    );
+  }
+
+  /**
+   * 验证刷新令牌
+   * @param {string} refreshToken - 刷新令牌
+   * @returns {Promise<Object|null>} 令牌信息或null
+   */
+  static async validateRefreshToken(refreshToken) {
+    const tokenHash = hashToken(refreshToken);
+    
+    const result = await query(
+      `SELECT rt.*, u.id as user_id, u.username, u.email 
+       FROM refresh_tokens rt
+       JOIN users u ON rt.user_id = u.id
+       WHERE rt.token_hash = $1 AND rt.expires_at > NOW() AND rt.is_revoked = FALSE`,
+      [tokenHash]
+    );
+
+    return result.rows[0] || null;
+  }
+
+  /**
+   * 撤销刷新令牌
+   * @param {string} refreshToken - 刷新令牌
+   * @returns {Promise<void>}
+   */
+  static async revokeRefreshToken(refreshToken) {
+    const tokenHash = hashToken(refreshToken);
+    
+    await query(
+      'UPDATE refresh_tokens SET is_revoked = TRUE WHERE token_hash = $1',
+      [tokenHash]
+    );
+  }
+}
+
+module.exports = User;
