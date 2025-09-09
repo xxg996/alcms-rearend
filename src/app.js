@@ -9,6 +9,9 @@ const cors = require('cors');
 const morgan = require('morgan');
 require('dotenv').config();
 
+// 导入 Swagger 配置
+const { swaggerDocument, swaggerUi, swaggerOptions } = require('./config/swagger');
+
 // 导入中间件
 const { 
   securityMiddleware, 
@@ -70,6 +73,9 @@ app.use('/api/tags', require('./routes/tags'));
 // 社区路由注册
 app.use('/api/community', require('./routes/community'));
 
+// Swagger API 文档
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
+
 // API文档根路径
 app.get('/api', (req, res) => {
   res.json({
@@ -77,6 +83,14 @@ app.get('/api', (req, res) => {
     message: 'Alcms 后端 API',
     version: '1.0.0',
     description: '基于Node.js、Express.js、PostgreSQL构建的用户权限管理系统',
+    documentation: {
+      swagger: '/api-docs',
+      postman: {
+        user_management: '/postman/Alcms-Backend-API.postman_collection.json',
+        cms_management: '/postman/Alcms-CMS-API.postman_collection.json',
+        environment: '/postman/Alcms-Environment.postman_environment.json'
+      }
+    },
     endpoints: {
       authentication: {
         'POST /api/auth/register': '用户注册',
@@ -87,10 +101,13 @@ app.get('/api', (req, res) => {
       },
       users: {
         'PUT /api/users/profile': '更新用户资料',
+        'POST /api/users': '创建用户（管理员）',
         'GET /api/users': '获取用户列表（管理员）',
         'GET /api/users/stats': '获取用户统计（管理员）',
         'GET /api/users/:userId': '获取指定用户信息',
+        'DELETE /api/users/:userId': '删除用户（管理员）',
         'PUT /api/users/:userId/status': '更新用户状态（管理员）',
+        'PATCH /api/users/:userId/freeze': '冻结/解冻用户（管理员）',
         'POST /api/users/:userId/roles': '分配用户角色（管理员）',
         'DELETE /api/users/:userId/roles': '移除用户角色（管理员）'
       },

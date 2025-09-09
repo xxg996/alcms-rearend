@@ -288,6 +288,102 @@ class User {
       [tokenHash]
     );
   }
+
+  /**
+   * 删除用户（管理员功能）
+   * @param {number} userId - 用户ID
+   * @returns {Promise<Object>} 被删除的用户信息
+   */
+  static async deleteUser(userId) {
+    const client = await getClient();
+    
+    try {
+      await client.query('BEGIN');
+
+      // 先获取用户信息
+      const userResult = await client.query(
+        'SELECT id, username, email, nickname FROM users WHERE id = $1',
+        [userId]
+      );
+
+      if (userResult.rows.length === 0) {
+        throw new Error('用户不存在');
+      }
+
+      const user = userResult.rows[0];
+
+      // 删除用户相关的数据（级联删除）
+      // 1. 删除刷新令牌
+      await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+      
+      // 2. 删除用户角色关联
+      await client.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
+      
+      // 3. 删除用户创建的资源（如果有的话）
+      // 这里可以根据业务需求决定是否保留资源但标记为已删除用户创建
+      
+      // 4. 删除用户本身
+      await client.query('DELETE FROM users WHERE id = $1', [userId]);
+
+      await client.query('COMMIT');
+      return user;
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * 管理员创建用户
+   * @param {Object} userData - 用户数据
+   * @param {string} userData.username - 用户名
+   * @param {string} userData.email - 邮箱
+   * @param {string} userData.password - 密码
+   * @param {string} [userData.nickname] - 昵称
+   * @param {string} [userData.roleName] - 初始角色
+   * @param {string} [userData.status] - 用户状态
+   * @returns {Promise<Object>} 创建的用户信息
+   */
+  static async createByAdmin(userData) {
+    const { username, email, password, nickname, roleName = 'user', status = 'normal' } = userData;
+
+    // 检查用户名和邮箱是否已存在
+    const existingUser = await query(
+      'SELECT id FROM users WHERE username = $1 OR email = $2',
+      [username, email]
+    );
+
+    if (existingUser.rows.length > 0) {
+      throw new Error('用户名或邮箱已存在');
+    }
+
+    // 验证状态值
+    const validStatuses = ['normal', 'banned', 'frozen'];
+    if (!validStatuses.includes(status)) {
+      throw new Error('无效的用户状态');
+    }
+
+    // 哈希密码
+    const passwordHash = await hashPassword(password);
+
+    // 插入新用户
+    const result = await query(
+      `INSERT INTO users (username, email, password_hash, nickname, status) 
+       VALUES ($1, $2, $3, $4, $5) 
+       RETURNING id, username, email, nickname, status, created_at`,
+      [username, email, passwordHash, nickname || username, status]
+    );
+
+    const newUser = result.rows[0];
+
+    // 为新用户分配指定角色
+    await this.assignRole(newUser.id, roleName);
+
+    return newUser;
+  }
 }
 
 module.exports = User;

@@ -5,6 +5,7 @@
 
 const User = require('../models/User');
 const { checkPasswordStrength } = require('../utils/password');
+const { body, validationResult } = require('express-validator');
 
 /**
  * 更新用户资料
@@ -352,6 +353,192 @@ const removeUserRole = async (req, res) => {
 };
 
 /**
+ * 管理员创建用户
+ */
+const createUser = async (req, res) => {
+  try {
+    // 输入验证
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: '输入验证失败',
+        errors: errors.array()
+      });
+    }
+
+    const { username, email, password, nickname, roleName, status } = req.body;
+
+    // 密码强度检查
+    const passwordCheck = checkPasswordStrength(password);
+    if (!passwordCheck.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: '密码强度不足',
+        requirements: passwordCheck.requirements
+      });
+    }
+
+    // 创建用户
+    const newUser = await User.createByAdmin({
+      username,
+      email,
+      password,
+      nickname,
+      roleName: roleName || 'user',
+      status: status || 'normal'
+    });
+
+    // 获取用户的角色信息
+    const userRoles = await User.getUserRoles(newUser.id);
+
+    res.status(201).json({
+      success: true,
+      message: '用户创建成功',
+      data: {
+        user: newUser,
+        roles: userRoles
+      }
+    });
+
+  } catch (error) {
+    console.error('创建用户失败:', error);
+    
+    if (error.message.includes('已存在')) {
+      return res.status(409).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    if (error.message.includes('无效的')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: '创建用户失败'
+    });
+  }
+};
+
+/**
+ * 管理员删除用户
+ */
+const deleteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // 检查是否尝试删除自己
+    if (parseInt(userId) === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        message: '不能删除自己的账户'
+      });
+    }
+
+    // 删除用户
+    const deletedUser = await User.deleteUser(userId);
+
+    // 记录操作日志
+    console.log(`管理员 ${req.user.username} 删除了用户 ${deletedUser.username} (ID: ${deletedUser.id})`);
+
+    res.json({
+      success: true,
+      message: '用户删除成功',
+      data: {
+        deletedUser: {
+          id: deletedUser.id,
+          username: deletedUser.username,
+          email: deletedUser.email,
+          nickname: deletedUser.nickname
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('删除用户失败:', error);
+    
+    if (error.message.includes('不存在')) {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: '删除用户失败'
+    });
+  }
+};
+
+/**
+ * 冻结/解冻用户
+ */
+const freezeUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
+
+    // 检查是否尝试修改自己的状态
+    if (parseInt(userId) === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        message: '不能冻结自己的账户'
+      });
+    }
+
+    // 获取用户当前状态
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
+    // 决定新状态（冻结<->解冻）
+    const newStatus = user.status === 'frozen' ? 'normal' : 'frozen';
+    const actionText = newStatus === 'frozen' ? '冻结' : '解冻';
+
+    // 更新用户状态
+    const updatedUser = await User.updateStatus(userId, newStatus);
+
+    // 记录操作日志
+    console.log(`管理员 ${req.user.username} ${actionText}了用户 ${updatedUser.username}${reason ? `，原因：${reason}` : ''}`);
+
+    res.json({
+      success: true,
+      message: `用户${actionText}成功`,
+      data: {
+        user: updatedUser,
+        action: actionText,
+        reason: reason || null
+      }
+    });
+
+  } catch (error) {
+    console.error(`用户冻结/解冻失败:`, error);
+    
+    if (error.message.includes('不存在')) {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: '用户状态更新失败'
+    });
+  }
+};
+
+/**
  * 获取用户统计信息（管理员功能）
  */
 const getUserStats = async (req, res) => {
@@ -409,5 +596,8 @@ module.exports = {
   updateUserStatus,
   assignUserRole,
   removeUserRole,
-  getUserStats
+  getUserStats,
+  createUser,
+  deleteUser,
+  freezeUser
 };
