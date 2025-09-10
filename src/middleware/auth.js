@@ -42,8 +42,14 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // 将用户信息添加到请求对象
-    req.user = user;
+    // 获取用户角色信息
+    const userRoles = await User.getUserRoles(decoded.userId);
+    
+    // 将用户信息和角色添加到请求对象
+    req.user = {
+      ...user,
+      roles: userRoles
+    };
     next();
   } catch (error) {
     console.error('Token验证失败:', error);
@@ -144,7 +150,12 @@ const optionalAuth = async (req, res, next) => {
       const user = await User.findById(decoded.userId);
       
       if (user && user.status === 'normal') {
-        req.user = user;
+        // 为可选认证也加载角色信息
+        const userRoles = await User.getUserRoles(decoded.userId);
+        req.user = {
+          ...user,
+          roles: userRoles
+        };
       }
     }
 

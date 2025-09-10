@@ -88,7 +88,7 @@ router.delete('/users/:userId/cancel',
 // 更新过期VIP用户
 router.post('/system/update-expired', 
   authenticateToken, 
-  requireRole('super_admin'), 
+  requireAdmin(), 
   vipController.updateExpiredVIP
 );
 

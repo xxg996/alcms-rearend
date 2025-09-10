@@ -79,7 +79,7 @@ router.post('/users/:userId/makeup',
 // 重置用户签到数据
 router.delete('/users/:userId/reset', 
   authenticateToken, 
-  requireRole('super_admin'), 
+  requireAdmin(), 
   checkinController.resetUserCheckins
 );
 

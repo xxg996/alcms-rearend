@@ -2007,7 +2007,7 @@ paths:
       responses: { '200': { description: 获取成功 } }
     delete:
       tags: [Card Key System]
-      summary: 删除整个批次（超级管理员功能）
+      summary: 删除整个批次（管理员功能）
       security: [{ BearerAuth: [] }]
       parameters: [{ name: batchId, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: 删除成功 } }
@@ -2021,7 +2021,7 @@ paths:
   /card-keys/{cardId}:
     delete:
       tags: [Card Key System]
-      summary: 删除卡密（超级管理员功能）
+      summary: 删除卡密（管理员功能）
       security: [{ BearerAuth: [] }]
       parameters: [{ name: cardId, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: 删除成功 } }
@@ -2181,7 +2181,7 @@ paths:
   /checkin/users/{userId}/reset:
     delete:
       tags: [Checkin System]
-      summary: 重置用户签到数据（超级管理员功能）
+      summary: 重置用户签到数据（管理员功能）
       security: [{ BearerAuth: [] }]
       parameters: [{ name: userId, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: 重置成功 } }

@@ -74,14 +74,14 @@ router.put('/:cardId/status',
 // 删除卡密
 router.delete('/:cardId', 
   authenticateToken, 
-  requireRole('super_admin'), 
+  requireAdmin(), 
   cardKeyController.deleteCard
 );
 
 // 删除整个批次
 router.delete('/batches/:batchId', 
   authenticateToken, 
-  requireRole('super_admin'), 
+  requireAdmin(), 
   cardKeyController.deleteBatch
 );
 
