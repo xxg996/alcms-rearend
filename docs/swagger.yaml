@@ -63,6 +63,14 @@ tags:
     description: 💭 社区评论管理相关接口
   - name: Community Interactions
     description: 👍 社区互动功能相关接口
+  - name: VIP System
+    description: 💎 VIP会员系统相关接口
+  - name: Card Key System
+    description: 🎫 卡密生成与兑换系统相关接口
+  - name: Points System
+    description: 💰 用户积分系统相关接口
+  - name: Checkin System
+    description: ✅ 每日签到系统相关接口
 
 components:
   securitySchemes:
@@ -700,6 +708,839 @@ components:
               items:
                 $ref: '#/components/schemas/CommunityBoard'
 
+    # VIP系统相关模型
+    VIPLevel:
+      type: object
+      properties:
+        level:
+          type: integer
+          description: VIP等级
+          example: 1
+        name:
+          type: string
+          description: VIP等级名称
+          example: "vip1"
+        display_name:
+          type: string
+          description: VIP等级显示名称
+          example: "黄金VIP"
+        description:
+          type: string
+          description: VIP等级描述
+          example: "享受基础VIP特权"
+        benefits:
+          type: object
+          description: VIP特权配置
+          example:
+            download_speed_boost: 2
+            daily_points_bonus: 50
+        price:
+          type: number
+          format: float
+          description: VIP价格
+          example: 29.99
+        duration_days:
+          type: integer
+          description: VIP有效天数
+          example: 30
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+
+    CreateVIPLevelRequest:
+      type: object
+      required:
+        - level
+        - name
+        - display_name
+      properties:
+        level:
+          type: integer
+          description: VIP等级（必须唯一）
+          example: 2
+        name:
+          type: string
+          description: VIP等级名称
+          example: "vip2"
+        display_name:
+          type: string
+          description: VIP等级显示名称
+          example: "铂金VIP"
+        description:
+          type: string
+          description: VIP等级描述
+          example: "享受高级VIP特权"
+        benefits:
+          type: object
+          description: VIP特权配置
+          example:
+            download_speed_boost: 3
+            daily_points_bonus: 100
+        price:
+          type: number
+          format: float
+          description: VIP价格
+          example: 59.99
+        duration_days:
+          type: integer
+          description: VIP有效天数
+          example: 30
+
+    UserVIPInfo:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: 用户ID
+          example: 1
+        username:
+          type: string
+          description: 用户名
+          example: "testuser"
+        is_vip:
+          type: boolean
+          description: 是否是VIP用户
+          example: true
+        vip_level:
+          type: integer
+          nullable: true
+          description: VIP等级
+          example: 1
+        vip_expire_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: VIP过期时间（null表示永久VIP）
+        vip_level_info:
+          $ref: '#/components/schemas/VIPLevel'
+        is_expired:
+          type: boolean
+          description: VIP是否已过期
+          example: false
+        is_permanent:
+          type: boolean
+          description: 是否为永久VIP
+          example: false
+
+    VIPOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 订单ID
+          example: 1
+        user_id:
+          type: integer
+          description: 用户ID
+          example: 1
+        type:
+          type: string
+          enum: [purchase, upgrade, extend, admin_set, card_redeem]
+          description: 订单类型
+          example: "purchase"
+        vip_level:
+          type: integer
+          description: VIP等级
+          example: 1
+        days:
+          type: integer
+          description: VIP天数
+          example: 30
+        amount:
+          type: number
+          format: float
+          description: 订单金额
+          example: 29.99
+        status:
+          type: string
+          enum: [pending, completed, failed, cancelled]
+          description: 订单状态
+          example: "completed"
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+
+    SetUserVIPRequest:
+      type: object
+      required:
+        - vip_level
+      properties:
+        vip_level:
+          type: integer
+          description: VIP等级
+          example: 1
+        days:
+          type: integer
+          description: VIP天数（0表示永久VIP）
+          example: 30
+          default: 30
+
+    ExtendUserVIPRequest:
+      type: object
+      required:
+        - days
+      properties:
+        days:
+          type: integer
+          description: 延长天数（0表示设为永久VIP）
+          example: 30
+
+    # 卡密系统相关模型
+    CardKey:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 卡密ID
+          example: 1
+        code:
+          type: string
+          description: 卡密代码
+          example: "ALCMS-1A2B-3C4D-5E6F"
+        type:
+          type: string
+          enum: [vip, points]
+          description: 卡密类型
+          example: "vip"
+        vip_level:
+          type: integer
+          nullable: true
+          description: VIP等级（VIP类型卡密）
+          example: 1
+        vip_days:
+          type: integer
+          nullable: true
+          description: VIP天数（VIP类型卡密）
+          example: 30
+        points:
+          type: integer
+          nullable: true
+          description: 积分数量（积分类型卡密）
+          example: 1000
+        status:
+          type: string
+          enum: [unused, used, expired, disabled]
+          description: 卡密状态
+          example: "unused"
+        batch_id:
+          type: string
+          description: 批次ID
+          example: "batch_20240101_001"
+        created_by:
+          type: integer
+          description: 创建者用户ID
+          example: 1
+        created_by_username:
+          type: string
+          description: 创建者用户名
+          example: "admin"
+        used_by:
+          type: integer
+          nullable: true
+          description: 使用者用户ID
+        used_by_username:
+          type: string
+          nullable: true
+          description: 使用者用户名
+        used_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 使用时间
+        expire_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 过期时间
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+
+    GenerateCardKeyRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [vip, points]
+          description: 卡密类型
+          example: "vip"
+          default: "vip"
+        vip_level:
+          type: integer
+          description: VIP等级（VIP类型时必填）
+          example: 1
+          default: 1
+        vip_days:
+          type: integer
+          description: VIP天数（VIP类型时使用）
+          example: 30
+          default: 30
+        points:
+          type: integer
+          description: 积分数量（积分类型时必填）
+          example: 1000
+          default: 0
+        expire_at:
+          type: string
+          format: date-time
+          description: 卡密过期时间（可选）
+
+    BatchGenerateCardKeyRequest:
+      allOf:
+        - $ref: '#/components/schemas/GenerateCardKeyRequest'
+        - type: object
+          required:
+            - count
+          properties:
+            count:
+              type: integer
+              description: 生成数量（1-1000）
+              example: 10
+              minimum: 1
+              maximum: 1000
+
+    RedeemCardKeyRequest:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          description: 卡密代码
+          example: "ALCMS-1A2B-3C4D-5E6F"
+
+    CardKeyStatistics:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: 总数量
+          example: 100
+        unused:
+          type: integer
+          description: 未使用数量
+          example: 80
+        used:
+          type: integer
+          description: 已使用数量
+          example: 15
+        expired:
+          type: integer
+          description: 已过期数量
+          example: 3
+        disabled:
+          type: integer
+          description: 已禁用数量
+          example: 2
+        by_type:
+          type: object
+          properties:
+            vip:
+              type: integer
+              example: 70
+            points:
+              type: integer
+              example: 30
+
+    CardKeyBatch:
+      type: object
+      properties:
+        batch_id:
+          type: string
+          description: 批次ID
+          example: "batch_20240101_001"
+        type:
+          type: string
+          description: 卡密类型
+          example: "vip"
+        count:
+          type: integer
+          description: 生成数量
+          example: 50
+        created_by_username:
+          type: string
+          description: 创建者用户名
+          example: "admin"
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+
+    # 积分系统相关模型
+    UserPoints:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: 用户ID
+          example: 1
+        username:
+          type: string
+          description: 用户名
+          example: "testuser"
+        current_points:
+          type: integer
+          description: 当前积分
+          example: 1500
+        total_earned:
+          type: integer
+          description: 累计获得积分
+          example: 5000
+        total_spent:
+          type: integer
+          description: 累计消费积分
+          example: 3500
+        last_activity_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最后活动时间
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+
+    PointsRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 记录ID
+          example: 1
+        user_id:
+          type: integer
+          description: 用户ID
+          example: 1
+        type:
+          type: string
+          enum: [earn, spend, transfer_in, transfer_out, admin_adjust]
+          description: 积分变动类型
+          example: "earn"
+        amount:
+          type: integer
+          description: 积分数量（正数为增加，负数为减少）
+          example: 100
+        balance_before:
+          type: integer
+          description: 变动前余额
+          example: 1400
+        balance_after:
+          type: integer
+          description: 变动后余额
+          example: 1500
+        source:
+          type: string
+          description: 积分来源
+          example: "daily_checkin"
+        description:
+          type: string
+          description: 变动描述
+          example: "每日签到奖励"
+        related_user_id:
+          type: integer
+          nullable: true
+          description: 关联用户ID（转账时使用）
+        admin_id:
+          type: integer
+          nullable: true
+          description: 管理员ID（管理员调整时使用）
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+
+    AdjustPointsRequest:
+      type: object
+      required:
+        - amount
+      properties:
+        amount:
+          type: integer
+          description: 调整积分数量（正数增加，负数减少）
+          example: 100
+        description:
+          type: string
+          description: 调整原因描述
+          example: "活动奖励"
+
+    TransferPointsRequest:
+      type: object
+      required:
+        - to_user_id
+        - amount
+      properties:
+        to_user_id:
+          type: integer
+          description: 接收用户ID
+          example: 2
+        amount:
+          type: integer
+          description: 转账积分数量
+          example: 100
+          minimum: 1
+          maximum: 10000
+        description:
+          type: string
+          description: 转账备注
+          example: "感谢帮助"
+
+    BatchGrantPointsRequest:
+      type: object
+      required:
+        - user_ids
+        - amount
+      properties:
+        user_ids:
+          type: array
+          items:
+            type: integer
+          description: 用户ID列表
+          example: [1, 2, 3, 4, 5]
+          maxItems: 1000
+        amount:
+          type: integer
+          description: 发放积分数量
+          example: 100
+          minimum: 1
+        description:
+          type: string
+          description: 发放原因描述
+          example: "新年活动奖励"
+
+    PointsLeaderboard:
+      type: object
+      properties:
+        rank:
+          type: integer
+          description: 排名
+          example: 1
+        user_id:
+          type: integer
+          description: 用户ID
+          example: 1
+        username:
+          type: string
+          description: 用户名
+          example: "topuser"
+        nickname:
+          type: string
+          description: 用户昵称
+          example: "积分达人"
+        points:
+          type: integer
+          description: 积分数量
+          example: 5000
+        rank_change:
+          type: integer
+          description: 排名变化（与上次相比）
+          example: 2
+
+    PointsStatistics:
+      type: object
+      properties:
+        total_users:
+          type: integer
+          description: 总用户数
+          example: 1000
+        active_users:
+          type: integer
+          description: 活跃用户数
+          example: 800
+        total_points_issued:
+          type: integer
+          description: 累计发放积分
+          example: 1000000
+        total_points_spent:
+          type: integer
+          description: 累计消费积分
+          example: 600000
+        avg_points_per_user:
+          type: number
+          format: float
+          description: 人均积分
+          example: 750.5
+        top_earners:
+          type: array
+          items:
+            $ref: '#/components/schemas/PointsLeaderboard'
+          description: 积分榜前10名
+
+    # 签到系统相关模型
+    CheckinRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 签到记录ID
+          example: 1
+        user_id:
+          type: integer
+          description: 用户ID
+          example: 1
+        checkin_date:
+          type: string
+          format: date
+          description: 签到日期
+          example: "2024-01-01"
+        consecutive_days:
+          type: integer
+          description: 连续签到天数
+          example: 7
+        points_earned:
+          type: integer
+          description: 获得积分
+          example: 20
+        bonus_points:
+          type: integer
+          description: 奖励积分
+          example: 30
+        total_points:
+          type: integer
+          description: 总计积分
+          example: 50
+        is_makeup:
+          type: boolean
+          description: 是否为补签
+          example: false
+        makeup_by:
+          type: integer
+          nullable: true
+          description: 补签操作者ID
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+
+    CheckinStatus:
+      type: object
+      properties:
+        checked_in_today:
+          type: boolean
+          description: 今日是否已签到
+          example: true
+        today_checkin:
+          $ref: '#/components/schemas/CheckinRecord'
+        stats:
+          $ref: '#/components/schemas/CheckinStats'
+        config:
+          type: object
+          properties:
+            daily_points:
+              type: integer
+              description: 每日基础积分
+              example: 10
+            consecutive_bonus:
+              type: object
+              description: 连续签到奖励配置
+              example:
+                "7": 50
+                "30": 200
+
+    CheckinStats:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: 用户ID
+          example: 1
+        total_checkins:
+          type: integer
+          description: 总签到次数
+          example: 150
+        consecutive_days:
+          type: integer
+          description: 当前连续签到天数
+          example: 7
+        max_consecutive_days:
+          type: integer
+          description: 最长连续签到天数
+          example: 30
+        current_month_checkins:
+          type: integer
+          description: 本月签到次数
+          example: 15
+        total_points_earned:
+          type: integer
+          description: 签到累计获得积分
+          example: 3500
+        last_checkin_date:
+          type: string
+          format: date
+          nullable: true
+          description: 最后签到日期
+          example: "2024-01-01"
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+
+    CheckinConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 配置ID
+          example: 1
+        name:
+          type: string
+          description: 配置名称
+          example: "默认签到配置"
+        description:
+          type: string
+          description: 配置描述
+          example: "每日签到基础积分10，连续签到有额外奖励"
+        daily_points:
+          type: integer
+          description: 每日基础积分
+          example: 10
+        consecutive_bonus:
+          type: object
+          description: 连续签到奖励配置
+          example:
+            "7": 50
+            "30": 200
+            "100": 1000
+        monthly_reset:
+          type: boolean
+          description: 是否月度重置连续天数
+          example: true
+        is_active:
+          type: boolean
+          description: 是否激活
+          example: true
+        created_by:
+          type: integer
+          description: 创建者ID
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+
+    CreateCheckinConfigRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: 配置名称
+          example: "新年签到活动"
+        description:
+          type: string
+          description: 配置描述
+          example: "新年期间签到获得双倍积分"
+        daily_points:
+          type: integer
+          description: 每日基础积分
+          example: 20
+          default: 10
+        consecutive_bonus:
+          type: object
+          description: 连续签到奖励配置
+          example:
+            "7": 100
+            "30": 500
+          default: {}
+        monthly_reset:
+          type: boolean
+          description: 是否月度重置连续天数
+          example: false
+          default: true
+
+    MakeupCheckinRequest:
+      type: object
+      required:
+        - date
+      properties:
+        date:
+          type: string
+          format: date
+          description: 补签日期（YYYY-MM-DD格式）
+          example: "2024-01-01"
+
+    CheckinLeaderboard:
+      type: object
+      properties:
+        rank:
+          type: integer
+          description: 排名
+          example: 1
+        user_id:
+          type: integer
+          description: 用户ID
+          example: 1
+        username:
+          type: string
+          description: 用户名
+          example: "checkin_master"
+        nickname:
+          type: string
+          description: 用户昵称
+          example: "签到达人"
+        value:
+          type: integer
+          description: 排行数值（根据类型不同）
+          example: 365
+        rank_change:
+          type: integer
+          description: 排名变化
+          example: 1
+
+    CheckinStatistics:
+      type: object
+      properties:
+        total_users:
+          type: integer
+          description: 总用户数
+          example: 1000
+        today_checkins:
+          type: integer
+          description: 今日签到用户数
+          example: 650
+        avg_consecutive_days:
+          type: number
+          format: float
+          description: 平均连续签到天数
+          example: 8.5
+        total_points_distributed:
+          type: integer
+          description: 累计发放积分
+          example: 500000
+        monthly_stats:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+                example: "2024-01"
+              checkin_count:
+                type: integer
+                example: 15000
+              unique_users:
+                type: integer
+                example: 800
+
   responses:
     UnauthorizedError:
       description: 未授权访问
@@ -999,6 +1840,357 @@ paths:
       security: [{ BearerAuth: [] }]
       responses:
         '200': { description: OK }
+
+  # VIP系统相关接口
+  /vip/levels:
+    get:
+      tags: [VIP System]
+      summary: 获取所有VIP等级配置
+      responses: { '200': { description: 获取成功 } }
+    post:
+      tags: [VIP System]
+      summary: 创建VIP等级配置（管理员功能）
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateVIPLevelRequest' }
+      responses: { '201': { description: 创建成功 } }
+  /vip/levels/{level}:
+    get:
+      tags: [VIP System]
+      summary: 获取指定VIP等级配置
+      parameters: [{ name: level, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 获取成功 } }
+    put:
+      tags: [VIP System]
+      summary: 更新VIP等级配置（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: level, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 更新成功 } }
+    delete:
+      tags: [VIP System]
+      summary: 删除VIP等级配置（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: level, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 删除成功 } }
+  /vip/my-info:
+    get:
+      tags: [VIP System]
+      summary: 获取当前用户VIP信息
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 获取成功 } }
+  /vip/my-orders:
+    get:
+      tags: [VIP System]
+      summary: 获取当前用户订单历史
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 获取成功 } }
+  /vip/orders/{orderId}:
+    get:
+      tags: [VIP System]
+      summary: 获取订单详情
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: orderId, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 获取成功 } }
+  /vip/users/{userId}/info:
+    get:
+      tags: [VIP System]
+      summary: 获取用户VIP信息（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: userId, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 获取成功 } }
+  /vip/users/{userId}/set:
+    post:
+      tags: [VIP System]
+      summary: 设置用户VIP（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: userId, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetUserVIPRequest' }
+      responses: { '200': { description: 设置成功 } }
+  /vip/users/{userId}/extend:
+    post:
+      tags: [VIP System]
+      summary: 延长用户VIP时间（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: userId, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExtendUserVIPRequest' }
+      responses: { '200': { description: 延长成功 } }
+  /vip/users/{userId}/cancel:
+    delete:
+      tags: [VIP System]
+      summary: 取消用户VIP（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: userId, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 取消成功 } }
+  /vip/system/update-expired:
+    post:
+      tags: [VIP System]
+      summary: 更新过期VIP用户（系统任务）
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 更新成功 } }
+
+  # 卡密系统相关接口
+  /card-keys/redeem:
+    post:
+      tags: [Card Key System]
+      summary: 兑换卡密
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RedeemCardKeyRequest' }
+      responses: { '200': { description: 兑换成功 } }
+  /card-keys/info/{code}:
+    get:
+      tags: [Card Key System]
+      summary: 查询卡密信息
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: code, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: 查询成功 } }
+  /card-keys/generate/single:
+    post:
+      tags: [Card Key System]
+      summary: 生成单个卡密（管理员功能）
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GenerateCardKeyRequest' }
+      responses: { '201': { description: 生成成功 } }
+  /card-keys/generate/batch:
+    post:
+      tags: [Card Key System]
+      summary: 批量生成卡密（管理员功能）
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BatchGenerateCardKeyRequest' }
+      responses: { '201': { description: 批量生成成功 } }
+  /card-keys/list:
+    get:
+      tags: [Card Key System]
+      summary: 获取卡密列表（管理员功能）
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 获取成功 } }
+  /card-keys/statistics:
+    get:
+      tags: [Card Key System]
+      summary: 获取卡密统计信息（管理员功能）
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 获取成功 } }
+  /card-keys/batches:
+    get:
+      tags: [Card Key System]
+      summary: 获取批次列表（管理员功能）
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 获取成功 } }
+  /card-keys/batches/{batchId}:
+    get:
+      tags: [Card Key System]
+      summary: 获取批次详情（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: batchId, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: 获取成功 } }
+    delete:
+      tags: [Card Key System]
+      summary: 删除整个批次（超级管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: batchId, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: 删除成功 } }
+  /card-keys/{cardId}/status:
+    put:
+      tags: [Card Key System]
+      summary: 更新卡密状态（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: cardId, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 更新成功 } }
+  /card-keys/{cardId}:
+    delete:
+      tags: [Card Key System]
+      summary: 删除卡密（超级管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: cardId, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 删除成功 } }
+
+  # 积分系统相关接口
+  /points/my-info:
+    get:
+      tags: [Points System]
+      summary: 获取当前用户积分信息
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 获取成功 } }
+  /points/my-records:
+    get:
+      tags: [Points System]
+      summary: 获取当前用户积分记录
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 获取成功 } }
+  /points/my-rank:
+    get:
+      tags: [Points System]
+      summary: 获取当前用户积分排名
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 获取成功 } }
+  /points/transfer:
+    post:
+      tags: [Points System]
+      summary: 积分转账
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransferPointsRequest' }
+      responses: { '200': { description: 转账成功 } }
+  /points/leaderboard:
+    get:
+      tags: [Points System]
+      summary: 获取积分排行榜
+      responses: { '200': { description: 获取成功 } }
+  /points/users/{userId}/info:
+    get:
+      tags: [Points System]
+      summary: 获取用户积分信息（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: userId, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 获取成功 } }
+  /points/users/{userId}/records:
+    get:
+      tags: [Points System]
+      summary: 获取用户积分记录（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: userId, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 获取成功 } }
+  /points/users/{userId}/adjust:
+    post:
+      tags: [Points System]
+      summary: 调整用户积分（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: userId, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdjustPointsRequest' }
+      responses: { '200': { description: 调整成功 } }
+  /points/batch/grant:
+    post:
+      tags: [Points System]
+      summary: 批量发放积分（管理员功能）
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BatchGrantPointsRequest' }
+      responses: { '200': { description: 批量发放完成 } }
+  /points/statistics:
+    get:
+      tags: [Points System]
+      summary: 获取积分统计（管理员功能）
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 获取成功 } }
+
+  # 签到系统相关接口
+  /checkin/check:
+    post:
+      tags: [Checkin System]
+      summary: 执行签到
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 签到成功 } }
+  /checkin/my-status:
+    get:
+      tags: [Checkin System]
+      summary: 获取当前用户签到状态
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 获取成功 } }
+  /checkin/my-history:
+    get:
+      tags: [Checkin System]
+      summary: 获取当前用户签到历史
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 获取成功 } }
+  /checkin/leaderboard:
+    get:
+      tags: [Checkin System]
+      summary: 获取签到排行榜
+      responses: { '200': { description: 获取成功 } }
+  /checkin/configs:
+    get:
+      tags: [Checkin System]
+      summary: 获取所有签到配置（管理员功能）
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 获取成功 } }
+    post:
+      tags: [Checkin System]
+      summary: 创建签到配置（管理员功能）
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCheckinConfigRequest' }
+      responses: { '201': { description: 创建成功 } }
+  /checkin/configs/{configId}:
+    put:
+      tags: [Checkin System]
+      summary: 更新签到配置（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: configId, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 更新成功 } }
+  /checkin/users/{userId}/info:
+    get:
+      tags: [Checkin System]
+      summary: 获取用户签到信息（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: userId, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 获取成功 } }
+  /checkin/users/{userId}/history:
+    get:
+      tags: [Checkin System]
+      summary: 获取用户签到历史（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: userId, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 获取成功 } }
+  /checkin/users/{userId}/makeup:
+    post:
+      tags: [Checkin System]
+      summary: 补签功能（管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: userId, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MakeupCheckinRequest' }
+      responses: { '200': { description: 补签成功 } }
+  /checkin/users/{userId}/reset:
+    delete:
+      tags: [Checkin System]
+      summary: 重置用户签到数据（超级管理员功能）
+      security: [{ BearerAuth: [] }]
+      parameters: [{ name: userId, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: 重置成功 } }
+  /checkin/statistics:
+    get:
+      tags: [Checkin System]
+      summary: 获取签到统计（管理员功能）
+      security: [{ BearerAuth: [] }]
+      responses: { '200': { description: 获取成功 } }
     delete:
       tags: [Categories]
       summary: 删除分类
