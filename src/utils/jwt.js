@@ -96,13 +96,19 @@ function hashToken(token) {
 /**
  * 生成完整的令牌对（访问令牌 + 刷新令牌）
  * @param {Object} user - 用户信息
+ * @param {Array} roles - 用户角色列表（可选）
  * @returns {Object} 包含访问令牌和刷新令牌的对象
  */
-function generateTokenPair(user) {
+function generateTokenPair(user, roles = []) {
   const payload = {
     userId: user.id,
     username: user.username,
-    email: user.email
+    email: user.email,
+    roles: roles.map(role => ({
+      id: role.role_id || role.id,
+      name: role.role_name || role.name,
+      level: role.level
+    }))
   };
 
   const accessToken = generateAccessToken(payload);

@@ -108,8 +108,8 @@ const requireRole = (roles) => {
         });
       }
 
-      // 获取用户角色
-      const userRoles = await User.getUserRoles(req.user.id);
+      // 从JWT payload中获取角色信息（避免数据库查询）
+      const userRoles = req.user.roles || [];
       const hasRole = userRoles.some(role => requiredRoles.includes(role.name));
 
       if (!hasRole) {
@@ -197,10 +197,19 @@ const requireOwnershipOrAdmin = async (req, res, next) => {
   }
 };
 
+/**
+ * 检查用户是否为管理员（基于JWT角色信息）
+ * @returns {Function} 中间件函数
+ */
+const requireAdmin = () => {
+  return requireRole(['admin', 'super_admin']);
+};
+
 module.exports = {
   authenticateToken,
   requirePermission,
   requireRole,
+  requireAdmin,
   optionalAuth,
   requireOwnershipOrAdmin
 };

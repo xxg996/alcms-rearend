@@ -65,8 +65,11 @@ const register = async (req, res) => {
       nickname
     });
 
+    // 获取用户角色信息
+    const userRoles = await User.getUserRoles(newUser.id);
+    
     // 生成令牌对
-    const tokens = generateTokenPair(newUser);
+    const tokens = generateTokenPair(newUser, userRoles);
 
     // 存储刷新令牌
     const refreshTokenExpiry = new Date();
@@ -128,16 +131,16 @@ const login = async (req, res) => {
       });
     }
 
+    // 获取用户角色信息
+    const userRoles = await User.getUserRoles(user.id);
+    
     // 生成令牌对
-    const tokens = generateTokenPair(user);
+    const tokens = generateTokenPair(user, userRoles);
 
     // 存储刷新令牌
     const refreshTokenExpiry = new Date();
     refreshTokenExpiry.setDate(refreshTokenExpiry.getDate() + 7);
     await User.storeRefreshToken(user.id, tokens.refreshToken, refreshTokenExpiry);
-
-    // 获取用户角色信息
-    const userRoles = await User.getUserRoles(user.id);
 
     res.json({
       success: true,
@@ -205,7 +208,10 @@ const refreshToken = async (req, res) => {
       email: tokenRecord.email
     };
     
-    const newTokens = generateTokenPair(user);
+    // 获取用户角色信息
+    const userRoles = await User.getUserRoles(user.id);
+    
+    const newTokens = generateTokenPair(user, userRoles);
 
     // 撤销旧的刷新令牌
     await User.revokeRefreshToken(refreshToken);

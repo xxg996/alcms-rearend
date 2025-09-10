@@ -5,7 +5,7 @@ info:
     Alcms CMS 资源管理系统后端 API
     
     基于 Node.js + Express.js + PostgreSQL 构建的现代化内容管理系统，
-    集成了完整的用户权限管理和多媒体资源管理功能。
+    集成了完整的用户权限管理、多媒体资源管理和微社区功能。
     
     ## 核心特性
     - 🔐 JWT 双令牌认证机制
@@ -14,6 +14,17 @@ info:
     - 💬 微社区系统
     - 🔍 全文搜索功能
     - 📊 数据统计分析
+    
+    ## 快速开始
+    1. 登录获取访问令牌
+    2. 在请求头中添加: `Authorization: Bearer <token>`
+    3. 开始使用API功能
+    
+    ## API前缀说明
+    - **认证相关**: `/api/auth/*`
+    - **用户管理**: `/api/users/*`  
+    - **CMS资源**: `/api/resources/*`, `/api/categories/*`, `/api/tags/*`
+    - **微社区**: `/api/community/*`
     
   version: 1.0.0
   contact:
@@ -31,23 +42,23 @@ servers:
 
 tags:
   - name: Authentication
-    description: 用户认证相关接口
+    description: 🔐 用户认证相关接口
   - name: Users
-    description: 用户管理相关接口
+    description: 👥 用户管理相关接口
   - name: Resources
-    description: 资源管理相关接口
+    description: 📄 资源管理相关接口
   - name: Categories
-    description: 分类管理相关接口
+    description: 📂 分类管理相关接口
   - name: Tags
-    description: 标签管理相关接口
+    description: 🏷️ 标签管理相关接口
   - name: Community Boards
-    description: 社区板块管理相关接口
+    description: 🏠 社区板块管理相关接口
   - name: Community Posts
-    description: 社区帖子管理相关接口
+    description: 📝 社区帖子管理相关接口
   - name: Community Comments
-    description: 社区评论管理相关接口
+    description: 💭 社区评论管理相关接口
   - name: Community Interactions
-    description: 社区互动功能相关接口
+    description: 👍 社区互动功能相关接口
 
 components:
   securitySchemes:
@@ -68,9 +79,14 @@ components:
         message:
           type: string
           description: 响应消息
+        timestamp:
+          type: string
+          format: date-time
+          description: 响应时间戳
       required:
         - success
         - message
+        - timestamp
 
     ErrorResponse:
       allOf:
@@ -106,23 +122,176 @@ components:
         nickname:
           type: string
           description: 昵称
-          example: "管理员"
-        avatar_url:
+          example: "系统管理员"
+        avatar:
           type: string
-          format: uri
           nullable: true
           description: 头像URL
-          example: "https://example.com/avatar.jpg"
         bio:
           type: string
           nullable: true
           description: 个人简介
-          example: "系统管理员"
         status:
           type: string
           enum: [normal, banned, frozen]
           description: 用户状态
           example: "normal"
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最后登录时间
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+          description: 用户角色列表
+
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 角色ID
+          example: 1
+        name:
+          type: string
+          description: 角色名称
+          example: "admin"
+        display_name:
+          type: string
+          description: 显示名称
+          example: "管理员"
+        description:
+          type: string
+          description: 角色描述
+          example: "系统管理员，具有最高权限"
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: 邮箱
+          example: "admin@alcms.com"
+        password:
+          type: string
+          description: 密码
+          example: "admin123"
+
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+          description: 用户名
+          example: "newuser"
+        email:
+          type: string
+          format: email
+          description: 邮箱
+          example: "user@example.com"
+        password:
+          type: string
+          description: 密码
+          example: "password123"
+        nickname:
+          type: string
+          description: 昵称
+          example: "新用户"
+
+    AuthResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                user:
+                  $ref: '#/components/schemas/User'
+                tokens:
+                  type: object
+                  properties:
+                    accessToken:
+                      type: string
+                      description: 访问令牌
+                    refreshToken:
+                      type: string
+                      description: 刷新令牌
+                    tokenType:
+                      type: string
+                      example: "Bearer"
+                    expiresIn:
+                      type: string
+                      example: "1h"
+
+    # 社区相关模型
+    CommunityBoard:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 板块ID
+          example: 1
+        name:
+          type: string
+          description: 板块名称（唯一标识）
+          example: "tech"
+        display_name:
+          type: string
+          description: 显示名称
+          example: "技术交流"
+        description:
+          type: string
+          description: 板块描述
+          example: "编程技术、开发经验分享"
+        icon_url:
+          type: string
+          nullable: true
+          description: 图标URL
+        cover_image_url:
+          type: string
+          nullable: true
+          description: 封面图片URL
+        sort_order:
+          type: integer
+          description: 排序顺序
+          example: 1
+        is_active:
+          type: boolean
+          description: 是否激活
+          example: true
+        post_count:
+          type: integer
+          description: 帖子数量
+          example: 42
+        last_post_id:
+          type: integer
+          nullable: true
+          description: 最新帖子ID
+        last_post_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最新帖子时间
+        moderator_ids:
+          type: array
+          items:
+            type: integer
+          description: 版主用户ID列表
         created_at:
           type: string
           format: date-time
@@ -131,461 +300,424 @@ components:
           type: string
           format: date-time
           description: 更新时间
-      required:
-        - id
-        - username
-        - email
-        - nickname
-        - status
 
-    Role:
+    CreateBoardRequest:
       type: object
+      required:
+        - name
+        - display_name
       properties:
         name:
           type: string
-          description: 角色名称
-          example: "admin"
+          description: 板块名称（唯一标识）
+          example: "ai-discussion"
         display_name:
           type: string
-          description: 角色显示名称
-          example: "管理员"
+          description: 显示名称
+          example: "AI技术讨论"
         description:
           type: string
-          description: 角色描述
-          example: "系统管理员角色"
+          description: 板块描述
+          example: "人工智能、机器学习、深度学习技术交流"
+        icon_url:
+          type: string
+          description: 图标URL
+        sort_order:
+          type: integer
+          description: 排序顺序
+          example: 12
+        moderator_ids:
+          type: array
+          items:
+            type: integer
+          description: 版主用户ID列表
 
-    Permission:
-      type: object
-      properties:
-        name:
-          type: string
-          description: 权限名称
-          example: "user:list"
-        resource:
-          type: string
-          description: 资源名称
-          example: "user"
-        action:
-          type: string
-          description: 操作名称
-          example: "list"
-        display_name:
-          type: string
-          description: 权限显示名称
-          example: "查看用户列表"
-
-    # 认证相关模型
-    LoginRequest:
-      type: object
-      properties:
-        email:
-          type: string
-          format: email
-          description: 登录邮箱
-          example: "admin@alcms.com"
-        password:
-          type: string
-          description: 登录密码
-          example: "admin123"
-      required:
-        - email
-        - password
-
-    RegisterRequest:
-      type: object
-      properties:
-        username:
-          type: string
-          minLength: 3
-          maxLength: 50
-          pattern: "^[a-zA-Z0-9_]+$"
-          description: 用户名（只能包含字母、数字、下划线）
-          example: "newuser"
-        email:
-          type: string
-          format: email
-          description: 邮箱
-          example: "newuser@example.com"
-        password:
-          type: string
-          minLength: 8
-          maxLength: 128
-          description: 密码（至少8位）
-          example: "password123"
-        nickname:
-          type: string
-          maxLength: 100
-          description: 昵称
-          example: "新用户"
-      required:
-        - username
-        - email
-        - password
-
-    TokenPair:
-      type: object
-      properties:
-        accessToken:
-          type: string
-          description: 访问令牌
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        refreshToken:
-          type: string
-          description: 刷新令牌
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        tokenType:
-          type: string
-          description: 令牌类型
-          example: "Bearer"
-        expiresIn:
-          type: string
-          description: 过期时间
-          example: "1h"
-
-    AuthResponse:
-      allOf:
-        - $ref: '#/components/schemas/BaseResponse'
-        - type: object
-          properties:
-            success:
-              type: boolean
-              example: true
-            data:
-              type: object
-              properties:
-                user:
-                  allOf:
-                    - $ref: '#/components/schemas/User'
-                    - type: object
-                      properties:
-                        roles:
-                          type: array
-                          items:
-                            $ref: '#/components/schemas/Role'
-                tokens:
-                  $ref: '#/components/schemas/TokenPair'
-
-    # 用户管理相关模型
-    CreateUserRequest:
-      type: object
-      properties:
-        username:
-          type: string
-          minLength: 3
-          maxLength: 50
-          pattern: "^[a-zA-Z0-9_]+$"
-          description: 用户名
-          example: "newuser"
-        email:
-          type: string
-          format: email
-          description: 邮箱
-          example: "newuser@example.com"
-        password:
-          type: string
-          minLength: 8
-          maxLength: 128
-          description: 密码
-          example: "password123"
-        nickname:
-          type: string
-          maxLength: 100
-          description: 昵称
-          example: "新用户"
-        roleName:
-          type: string
-          enum: [user, vip, moderator, admin]
-          description: 初始角色
-          example: "user"
-        status:
-          type: string
-          enum: [normal, banned, frozen]
-          description: 用户状态
-          example: "normal"
-      required:
-        - username
-        - email
-        - password
-
-    UpdateUserStatusRequest:
-      type: object
-      properties:
-        status:
-          type: string
-          enum: [normal, banned, frozen]
-          description: 用户状态
-          example: "banned"
-        reason:
-          type: string
-          maxLength: 500
-          description: 操作原因
-          example: "违规行为"
-      required:
-        - status
-
-    FreezeUserRequest:
-      type: object
-      properties:
-        reason:
-          type: string
-          maxLength: 500
-          description: 冻结/解冻原因
-          example: "账户异常活动"
-
-    AssignRoleRequest:
-      type: object
-      properties:
-        roleName:
-          type: string
-          enum: [user, vip, moderator, admin]
-          description: 角色名称
-          example: "vip"
-      required:
-        - roleName
-
-    UpdateProfileRequest:
-      type: object
-      properties:
-        nickname:
-          type: string
-          minLength: 1
-          maxLength: 100
-          description: 昵称
-          example: "新昵称"
-        avatar_url:
-          type: string
-          format: uri
-          maxLength: 500
-          description: 头像URL
-          example: "https://example.com/new-avatar.jpg"
-        bio:
-          type: string
-          maxLength: 500
-          description: 个人简介
-          example: "这是我的个人简介"
-
-    UserListResponse:
-      allOf:
-        - $ref: '#/components/schemas/BaseResponse'
-        - type: object
-          properties:
-            success:
-              type: boolean
-              example: true
-            data:
-              type: object
-              properties:
-                users:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/User'
-                pagination:
-                  type: object
-                  properties:
-                    page:
-                      type: integer
-                      description: 当前页码
-                      example: 1
-                    limit:
-                      type: integer
-                      description: 每页数量
-                      example: 20
-                    total:
-                      type: integer
-                      description: 总数量
-                      example: 100
-                    totalPages:
-                      type: integer
-                      description: 总页数
-                      example: 5
-
-    UserStatsResponse:
-      allOf:
-        - $ref: '#/components/schemas/BaseResponse'
-        - type: object
-          properties:
-            success:
-              type: boolean
-              example: true
-            data:
-              type: object
-              properties:
-                totalUsers:
-                  type: integer
-                  description: 总用户数
-                  example: 1000
-                activeUsers:
-                  type: integer
-                  description: 正常用户数
-                  example: 950
-                bannedUsers:
-                  type: integer
-                  description: 封禁用户数
-                  example: 30
-                frozenUsers:
-                  type: integer
-                  description: 冻结用户数
-                  example: 20
-                recentRegistrations:
-                  type: integer
-                  description: 近7天注册数
-                  example: 50
-                roleStats:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      display_name:
-                        type: string
-                        example: "普通用户"
-                      user_count:
-                        type: integer
-                        example: 800
-
-    # 资源相关模型
-    Resource:
+    CommunityPost:
       type: object
       properties:
         id:
           type: integer
-          description: 资源ID
+          description: 帖子ID
           example: 1
         title:
           type: string
-          description: 资源标题
-          example: "Vue3开发教程"
-        description:
-          type: string
-          description: 资源描述
-          example: "详细的Vue3开发指南"
+          description: 帖子标题
+          example: "Vue 3 + TypeScript 最佳实践"
         content:
           type: string
-          nullable: true
-          description: 资源内容
-        file_url:
+          description: 帖子内容
+        content_type:
           type: string
-          format: uri
-          nullable: true
-          description: 文件URL
-        thumbnail_url:
+          enum: [markdown, html]
+          description: 内容格式
+          example: "markdown"
+        summary:
           type: string
-          format: uri
-          nullable: true
-          description: 缩略图URL
-        file_size:
+          description: 摘要
+          example: "分享Vue 3结合TypeScript的开发经验"
+        author_id:
           type: integer
-          nullable: true
-          description: 文件大小（字节）
-        duration:
+          description: 作者ID
+          example: 1
+        board_id:
           type: integer
-          nullable: true
-          description: 时长（秒）
-        is_free:
-          type: boolean
-          description: 是否免费
-          example: false
-        required_vip_level:
-          type: string
-          enum: [none, vip, premium]
-          nullable: true
-          description: 所需VIP等级
-        required_points:
-          type: integer
-          description: 所需积分
-          example: 100
-        download_count:
-          type: integer
-          description: 下载次数
-          example: 150
-        view_count:
-          type: integer
-          description: 查看次数
-          example: 1000
-        like_count:
-          type: integer
-          description: 点赞次数
-          example: 50
+          description: 板块ID
+          example: 3
         status:
           type: string
-          enum: [draft, reviewing, published, archived]
-          description: 资源状态
+          enum: [draft, reviewing, published, rejected, deleted]
+          description: 帖子状态
           example: "published"
-        is_public:
+        is_pinned:
           type: boolean
-          description: 是否公开
-          example: true
+          description: 是否置顶
+          example: false
+        is_featured:
+          type: boolean
+          description: 是否精华
+          example: false
+        is_locked:
+          type: boolean
+          description: 是否锁定
+          example: false
+        view_count:
+          type: integer
+          description: 浏览数
+          example: 156
+        reply_count:
+          type: integer
+          description: 回复数
+          example: 8
+        like_count:
+          type: integer
+          description: 点赞数
+          example: 23
+        favorite_count:
+          type: integer
+          description: 收藏数
+          example: 12
+        share_count:
+          type: integer
+          description: 分享数
+          example: 5
+        published_at:
+          type: string
+          format: date-time
+          description: 发布时间
         created_at:
           type: string
           format: date-time
+          description: 创建时间
         updated_at:
           type: string
           format: date-time
+          description: 更新时间
+        # 关联数据
+        author_username:
+          type: string
+          description: 作者用户名
+          example: "developer"
+        author_nickname:
+          type: string
+          description: 作者昵称
+          example: "前端开发者"
+        board_name:
+          type: string
+          description: 板块名称
+          example: "frontend"
+        board_display_name:
+          type: string
+          description: 板块显示名称
+          example: "前端开发"
+        tags:
+          type: array
+          items:
+            type: string
+          description: 标签列表
+          example: ["vue", "typescript", "frontend"]
 
-    # 分页参数
-    PaginationQuery:
+    CreatePostRequest:
+      type: object
+      required:
+        - title
+        - content
+        - board_id
+      properties:
+        title:
+          type: string
+          description: 帖子标题
+          example: "Vue 3 + TypeScript 开发指南"
+        content:
+          type: string
+          description: 帖子内容
+          example: "# Vue 3 + TypeScript 开发指南\n\n本文将分享..."
+        content_type:
+          type: string
+          enum: [markdown, html]
+          description: 内容格式
+          default: "markdown"
+        summary:
+          type: string
+          description: 摘要
+          example: "完整的Vue 3 + TypeScript开发指南"
+        board_id:
+          type: integer
+          description: 板块ID
+          example: 3
+        tags:
+          type: array
+          items:
+            type: string
+          description: 标签列表
+          example: ["vue", "typescript"]
+        status:
+          type: string
+          enum: [draft, published]
+          description: 帖子状态
+          default: "published"
+
+    CommunityComment:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 评论ID
+          example: 1
+        content:
+          type: string
+          description: 评论内容
+          example: "感谢分享！这个教程很实用。"
+        author_id:
+          type: integer
+          description: 作者ID
+          example: 2
+        post_id:
+          type: integer
+          description: 帖子ID
+          example: 1
+        parent_id:
+          type: integer
+          nullable: true
+          description: 父评论ID（楼中楼）
+        reply_to_user_id:
+          type: integer
+          nullable: true
+          description: 回复目标用户ID
+        floor_number:
+          type: integer
+          description: 楼层号
+          example: 1
+        like_count:
+          type: integer
+          description: 点赞数
+          example: 5
+        is_deleted:
+          type: boolean
+          description: 是否删除
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+        # 关联数据
+        author_username:
+          type: string
+          description: 作者用户名
+          example: "user123"
+        author_nickname:
+          type: string
+          description: 作者昵称
+          example: "技术爱好者"
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommunityComment'
+          description: 子评论列表
+
+    CreateCommentRequest:
+      type: object
+      required:
+        - content
+        - post_id
+      properties:
+        content:
+          type: string
+          description: 评论内容
+          example: "感谢分享！想问一下关于TypeScript类型定义的问题。"
+        post_id:
+          type: integer
+          description: 帖子ID
+          example: 1
+        parent_id:
+          type: integer
+          description: 父评论ID（楼中楼回复）
+        reply_to_user_id:
+          type: integer
+          description: 回复目标用户ID
+
+    # 互动相关模型
+    LikeRequest:
+      type: object
+      required:
+        - target_type
+        - target_id
+      properties:
+        target_type:
+          type: string
+          enum: [post, comment]
+          description: 点赞目标类型
+          example: "post"
+        target_id:
+          type: integer
+          description: 目标ID
+          example: 1
+
+    FavoriteRequest:
+      type: object
+      required:
+        - post_id
+      properties:
+        post_id:
+          type: integer
+          description: 帖子ID
+          example: 1
+
+    ShareRequest:
+      type: object
+      required:
+        - post_id
+      properties:
+        post_id:
+          type: integer
+          description: 帖子ID
+          example: 1
+        platform:
+          type: string
+          enum: [wechat, weibo, qq, link]
+          description: 分享平台
+          default: "link"
+
+    ReportRequest:
+      type: object
+      required:
+        - target_type
+        - target_id
+        - reason
+      properties:
+        target_type:
+          type: string
+          enum: [post, comment, user]
+          description: 举报目标类型
+          example: "post"
+        target_id:
+          type: integer
+          description: 目标ID
+          example: 1
+        reason:
+          type: string
+          enum: [spam, inappropriate, harassment, fake, other]
+          description: 举报原因
+          example: "inappropriate"
+        description:
+          type: string
+          description: 详细描述
+          example: "内容包含不当言论"
+
+    # 分页响应
+    Pagination:
       type: object
       properties:
         page:
           type: integer
-          minimum: 1
-          description: 页码
+          description: 当前页码
           example: 1
         limit:
           type: integer
-          minimum: 1
-          maximum: 100
           description: 每页数量
           example: 20
-
-    # 搜索参数
-    SearchQuery:
-      type: object
-      properties:
-        search:
-          type: string
-          description: 搜索关键词
-          example: "vue"
-        status:
-          type: string
-          description: 状态筛选
-        category:
+        total:
           type: integer
-          description: 分类ID筛选
-        tags:
-          type: string
-          description: 标签筛选（逗号分隔）
-          example: "frontend,tutorial"
-        sortBy:
-          type: string
-          enum: [created_at, updated_at, view_count, download_count, like_count]
-          description: 排序字段
-          example: "created_at"
-        sortOrder:
-          type: string
-          enum: [ASC, DESC]
-          description: 排序方向
-          example: "DESC"
+          description: 总数量
+          example: 100
+        total_pages:
+          type: integer
+          description: 总页数
+          example: 5
+        has_next:
+          type: boolean
+          description: 是否有下一页
+          example: true
+        has_prev:
+          type: boolean
+          description: 是否有上一页
+          example: false
+
+    PostListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CommunityPost'
+                pagination:
+                  $ref: '#/components/schemas/Pagination'
+
+    CommentListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CommunityComment'
+                pagination:
+                  $ref: '#/components/schemas/Pagination'
+
+    BoardListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/CommunityBoard'
 
   responses:
     UnauthorizedError:
-      description: 未授权 - JWT令牌无效或已过期
+      description: 未授权访问
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             success: false
-            message: "无效的访问令牌"
+            message: "访问令牌无效或已过期"
+            timestamp: "2024-01-01T00:00:00.000Z"
 
     ForbiddenError:
-      description: 禁止访问 - 权限不足
+      description: 权限不足
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             success: false
-            message: "权限不足"
+            message: "权限不足，无法执行此操作"
+            timestamp: "2024-01-01T00:00:00.000Z"
 
     NotFoundError:
       description: 资源不存在
@@ -595,27 +727,66 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             success: false
-            message: "资源不存在"
+            message: "请求的资源不存在"
+            timestamp: "2024-01-01T00:00:00.000Z"
 
-    ValidationError:
-      description: 输入验证错误
+    BadRequestError:
+      description: 请求参数错误
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             success: false
-            message: "输入验证失败"
-            errors:
-              - msg: "用户名长度必须在3-50个字符之间"
-                param: "username"
-                location: "body"
+            message: "请求参数验证失败"
+            timestamp: "2024-01-01T00:00:00.000Z"
 
-security:
-  - BearerAuth: []
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "服务器内部错误"
+            timestamp: "2024-01-01T00:00:00.000Z"
 
 paths:
   # 认证相关接口
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: 用户登录
+      description: 使用邮箱和密码登录系统
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          description: 登录失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: "邮箱或密码错误"
+                timestamp: "2024-01-01T00:00:00.000Z"
+
   /auth/register:
     post:
       tags:
@@ -637,162 +808,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          $ref: '#/components/responses/BadRequestError'
         '409':
-          description: 用户名或邮箱已存在
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /auth/login:
-    post:
-      tags:
-        - Authentication
-      summary: 用户登录
-      description: 使用邮箱和密码登录
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
-      responses:
-        '200':
-          description: 登录成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          description: 邮箱或密码错误
+          description: 用户已存在
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 success: false
-                message: "邮箱或密码错误"
-        '403':
-          description: 账户被封禁或冻结
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /auth/refresh:
-    post:
-      tags:
-        - Authentication
-      summary: 刷新访问令牌
-      description: 使用刷新令牌获取新的访问令牌
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refreshToken:
-                  type: string
-                  description: 刷新令牌
-              required:
-                - refreshToken
-      responses:
-        '200':
-          description: 令牌刷新成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/BaseResponse'
-                  - type: object
-                    properties:
-                      success:
-                        type: boolean
-                        example: true
-                      data:
-                        type: object
-                        properties:
-                          tokens:
-                            $ref: '#/components/schemas/TokenPair'
-        '400':
-          description: 缺少刷新令牌
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: 无效的刷新令牌
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /auth/logout:
-    post:
-      tags:
-        - Authentication
-      summary: 用户登出
-      description: 撤销刷新令牌，用户登出
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refreshToken:
-                  type: string
-                  description: 刷新令牌
-              required:
-                - refreshToken
-      responses:
-        '200':
-          description: 登出成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BaseResponse'
-              example:
-                success: true
-                message: "登出成功"
-        '400':
-          description: 缺少刷新令牌
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '500':
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                message: "邮箱或用户名已被使用"
+                timestamp: "2024-01-01T00:00:00.000Z"
 
   /auth/profile:
     get:
@@ -800,6 +826,8 @@ paths:
         - Authentication
       summary: 获取当前用户信息
       description: 获取当前登录用户的详细信息
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: 获取成功
@@ -810,126 +838,255 @@ paths:
                   - $ref: '#/components/schemas/BaseResponse'
                   - type: object
                     properties:
-                      success:
-                        type: boolean
-                        example: true
                       data:
-                        type: object
-                        properties:
-                          user:
-                            allOf:
-                              - $ref: '#/components/schemas/User'
-                              - type: object
-                                properties:
-                                  roles:
-                                    type: array
-                                    items:
-                                      $ref: '#/components/schemas/Role'
-                                  permissions:
-                                    type: array
-                                    items:
-                                      $ref: '#/components/schemas/Permission'
+                        $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
-        '500':
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
-  # 用户管理相关接口
-  /users/profile:
-    put:
+  /auth/logout:
+    post:
       tags:
-        - Users
-      summary: 更新用户资料
-      description: 更新当前用户的个人资料
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateProfileRequest'
+        - Authentication
+      summary: 用户登出
+      description: 登出当前用户并使令牌失效
+      security:
+        - BearerAuth: []
       responses:
         '200':
-          description: 更新成功
+          description: 登出成功
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/BaseResponse'
-                  - type: object
-                    properties:
-                      success:
-                        type: boolean
-                        example: true
-                      data:
-                        type: object
-                        properties:
-                          user:
-                            $ref: '#/components/schemas/User'
-        '400':
-          $ref: '#/components/responses/ValidationError'
+                $ref: '#/components/schemas/BaseResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
 
+  # 用户管理（最小可用定义）
   /users:
     get:
-      tags:
-        - Users
+      tags: [Users]
       summary: 获取用户列表
-      description: 获取用户列表（管理员功能）
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [Users]
+      summary: 创建用户（管理员）
+      security: [{ BearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+
+  /users/{userId}:
+    get:
+      tags: [Users]
+      summary: 获取指定用户信息
       parameters:
-        - name: page
+        - { name: userId, in: path, required: true, schema: { type: integer } }
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    delete:
+      tags: [Users]
+      summary: 删除用户（管理员）
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: integer } }
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /users/profile:
+    put:
+      tags: [Users]
+      summary: 更新用户资料
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  /users/{userId}/status:
+    put:
+      tags: [Users]
+      summary: 更新用户状态（管理员）
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: integer } }
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  # 资源管理（最小可用定义）
+  /resources:
+    get:
+      tags: [Resources]
+      summary: 获取资源列表
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [Resources]
+      summary: 创建资源
+      security: [{ BearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+
+  /resources/{id}:
+    get:
+      tags: [Resources]
+      summary: 获取资源详情
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Resources]
+      summary: 更新资源
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [Resources]
+      summary: 删除资源
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  /resources/{id}/download:
+    post:
+      tags: [Resources]
+      summary: 下载资源
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  # 分类管理（最小可用定义）
+  /categories:
+    get:
+      tags: [Categories]
+      summary: 获取分类列表
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [Categories]
+      summary: 创建分类
+      security: [{ BearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+
+  /categories/{id}:
+    get:
+      tags: [Categories]
+      summary: 获取分类详情
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Categories]
+      summary: 更新分类
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [Categories]
+      summary: 删除分类
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  # 标签管理（最小可用定义）
+  /tags:
+    get:
+      tags: [Tags]
+      summary: 获取标签列表
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [Tags]
+      summary: 创建标签
+      security: [{ BearerAuth: [] }]
+      responses:
+        '201': { description: Created }
+
+  /tags/{id}:
+    get:
+      tags: [Tags]
+      summary: 获取标签详情
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Tags]
+      summary: 更新标签
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [Tags]
+      summary: 删除标签
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  # 社区板块管理
+  /community/boards:
+    get:
+      tags:
+        - Community Boards
+      summary: 获取板块列表
+      description: 获取社区板块列表，支持统计信息和状态筛选
+      parameters:
+        - name: includeStats
           in: query
           schema:
-            type: integer
-            minimum: 1
-            default: 1
-          description: 页码
-        - name: limit
+            type: boolean
+            default: false
+          description: 是否包含统计信息
+        - name: activeOnly
           in: query
           schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-          description: 每页数量
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [normal, banned, frozen]
-          description: 状态筛选
-        - name: search
-          in: query
-          schema:
-            type: string
-          description: 搜索关键词（用户名、邮箱、昵称）
+            type: boolean
+            default: true
+          description: 仅显示激活的板块
       responses:
         '200':
           description: 获取成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserListResponse'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
+                $ref: '#/components/schemas/BoardListResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
     post:
       tags:
-        - Users
-      summary: 创建用户
-      description: 管理员创建新用户
+        - Community Boards
+      summary: 创建板块
+      description: 创建新的社区板块（需要管理员权限）
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateUserRequest'
+              $ref: '#/components/schemas/CreateBoardRequest'
       responses:
         '201':
           description: 创建成功
@@ -940,333 +1097,1035 @@ paths:
                   - $ref: '#/components/schemas/BaseResponse'
                   - type: object
                     properties:
-                      success:
-                        type: boolean
-                        example: true
                       data:
-                        type: object
-                        properties:
-                          user:
-                            $ref: '#/components/schemas/User'
-                          roles:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/Role'
+                        $ref: '#/components/schemas/CommunityBoard'
         '400':
-          $ref: '#/components/responses/ValidationError'
+          $ref: '#/components/responses/BadRequestError'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
-        '409':
-          description: 用户名或邮箱已存在
 
-  /users/stats:
+  /community/boards/{id}:
     get:
       tags:
-        - Users
-      summary: 获取用户统计
-      description: 获取用户统计信息（管理员功能）
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserStatsResponse'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
-
-  /users/{userId}:
-    get:
-      tags:
-        - Users
-      summary: 获取指定用户信息
-      description: 获取指定用户的详细信息
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 用户ID
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/BaseResponse'
-                  - type: object
-                    properties:
-                      success:
-                        type: boolean
-                        example: true
-                      data:
-                        type: object
-                        properties:
-                          user:
-                            $ref: '#/components/schemas/User'
-                          roles:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/Role'
-                          permissions:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/Permission'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-
-    delete:
-      tags:
-        - Users
-      summary: 删除用户
-      description: 管理员删除指定用户
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 用户ID
-      responses:
-        '200':
-          description: 删除成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/BaseResponse'
-                  - type: object
-                    properties:
-                      success:
-                        type: boolean
-                        example: true
-                      data:
-                        type: object
-                        properties:
-                          deletedUser:
-                            type: object
-                            properties:
-                              id:
-                                type: integer
-                                example: 123
-                              username:
-                                type: string
-                                example: "deleteduser"
-                              email:
-                                type: string
-                                example: "user@example.com"
-                              nickname:
-                                type: string
-                                example: "已删除用户"
-        '400':
-          description: 不能删除自己的账户
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-
-  /users/{userId}/status:
-    put:
-      tags:
-        - Users
-      summary: 更新用户状态
-      description: 管理员更新用户状态（封禁/冻结/解除）
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 用户ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateUserStatusRequest'
-      responses:
-        '200':
-          description: 更新成功
-        '400':
-          description: 不能修改自己的状态或无效参数
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-
-  /users/{userId}/freeze:
-    patch:
-      tags:
-        - Users
-      summary: 冻结/解冻用户
-      description: 管理员冻结或解冻指定用户
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 用户ID
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FreezeUserRequest'
-      responses:
-        '200':
-          description: 操作成功
-        '400':
-          description: 不能冻结自己的账户
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-
-  /users/{userId}/roles:
-    post:
-      tags:
-        - Users
-      summary: 分配用户角色
-      description: 管理员为用户分配角色
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 用户ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AssignRoleRequest'
-      responses:
-        '200':
-          description: 分配成功
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-
-    delete:
-      tags:
-        - Users
-      summary: 移除用户角色
-      description: 管理员移除用户的指定角色
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 用户ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AssignRoleRequest'
-      responses:
-        '200':
-          description: 移除成功
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-
-  # CMS 资源管理接口（简化版）
-  /resources:
-    get:
-      tags:
-        - Resources
-      summary: 获取资源列表
-      responses:
-        "200":
-          description: 获取成功
-    post:
-      tags:
-        - Resources
-      summary: 创建资源
-      responses:
-        "201":
-          description: 创建成功
-
-  /resources/{id}:
-    get:
-      tags:
-        - Resources
-      summary: 获取资源详情
+        - Community Boards
+      summary: 获取板块详情
+      description: 根据ID获取板块详细信息
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: integer
+          description: 板块ID
       responses:
-        "200":
+        '200':
           description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommunityBoard'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
 
-  # 分类管理接口
-  /categories:
-    get:
+    put:
       tags:
-        - Categories
-      summary: 获取分类列表
+        - Community Boards
+      summary: 更新板块
+      description: 更新板块信息（需要管理员权限）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 板块ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBoardRequest'
       responses:
-        "200":
-          description: 获取成功
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommunityBoard'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
 
-  # 标签管理接口  
-  /tags:
-    get:
+    delete:
       tags:
-        - Tags
-      summary: 获取标签列表
+        - Community Boards
+      summary: 删除板块
+      description: 删除板块（需要管理员权限）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 板块ID
       responses:
-        "200":
-          description: 获取成功
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
 
-  # 社区管理接口
-  /community/boards:
+  /community/boards/search/query:
     get:
       tags:
         - Community Boards
-      summary: 获取板块列表
+      summary: 搜索板块
+      description: 根据关键词搜索板块
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 搜索关键词
+          example: "技术"
       responses:
-        "200":
-          description: 获取成功
+        '200':
+          description: 搜索成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
 
+  /community/boards/{id}/stats:
+    get:
+      tags:
+        - Community Boards
+      summary: 获取板块统计
+      description: 获取指定板块的统计信息
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 板块ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          display_name:
+                            type: string
+                          total_posts:
+                            type: string
+                          total_comments:
+                            type: string
+                          unique_authors:
+                            type: string
+                          latest_post_time:
+                            type: string
+                            format: date-time
+                          avg_view_count:
+                            type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # 社区帖子管理
   /community/posts:
     get:
       tags:
         - Community Posts
       summary: 获取帖子列表
+      description: 获取社区帖子列表，支持分页、筛选、排序
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: 页码
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: 每页数量
+        - name: board_id
+          in: query
+          schema:
+            type: integer
+          description: 板块ID筛选
+        - name: author_id
+          in: query
+          schema:
+            type: integer
+          description: 作者ID筛选
+        - name: status
+          in: query
+          schema:
+            type: string
+            default: "published"
+          description: 状态筛选
+        - name: is_pinned
+          in: query
+          schema:
+            type: boolean
+          description: 是否置顶筛选
+        - name: is_featured
+          in: query
+          schema:
+            type: boolean
+          description: 是否精华筛选
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            default: "last_reply_time"
+          description: 排序字段
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: "DESC"
+          description: 排序方向
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: 搜索关键词
+        - name: tags
+          in: query
+          schema:
+            type: string
+          description: 标签筛选（逗号分隔）
       responses:
-        "200":
+        '200':
           description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostListResponse'
 
+    post:
+      tags:
+        - Community Posts
+      summary: 创建帖子
+      description: 创建新帖子（需要登录）
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommunityPost'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /community/posts/{id}:
+    get:
+      tags:
+        - Community Posts
+      summary: 获取帖子详情
+      description: 获取帖子详情，会自动增加浏览数
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 帖子ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommunityPost'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Community Posts
+      summary: 更新帖子
+      description: 更新帖子内容（仅作者或管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 帖子ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommunityPost'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Community Posts
+      summary: 删除帖子
+      description: 删除帖子（仅作者或管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 帖子ID
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /community/posts/search/query:
+    get:
+      tags:
+        - Community Posts
+      summary: 搜索帖子
+      description: 全文搜索帖子内容
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 搜索关键词
+          example: "vue typescript"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: 页码
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: 每页数量
+        - name: board_id
+          in: query
+          schema:
+            type: integer
+          description: 限制在特定板块搜索
+      responses:
+        '200':
+          description: 搜索成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /community/posts/hot/list:
+    get:
+      tags:
+        - Community Posts
+      summary: 获取热门帖子
+      description: 获取热门帖子列表
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+          description: 返回数量
+        - name: board_id
+          in: query
+          schema:
+            type: integer
+          description: 板块ID（可选）
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 7
+          description: 统计天数
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CommunityPost'
+
+  /community/posts/{id}/pin:
+    patch:
+      tags:
+        - Community Posts
+      summary: 置顶帖子
+      description: 置顶/取消置顶帖子（需要版主权限）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 帖子ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_pinned:
+                  type: boolean
+                  default: true
+                  description: 是否置顶
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommunityPost'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /community/posts/{id}/feature:
+    patch:
+      tags:
+        - Community Posts
+      summary: 设置精华帖
+      description: 设置/取消精华帖（需要版主权限）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 帖子ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_featured:
+                  type: boolean
+                  default: true
+                  description: 是否精华
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommunityPost'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /community/posts/{id}/lock:
+    patch:
+      tags:
+        - Community Posts
+      summary: 锁定帖子
+      description: 锁定/解锁帖子（需要版主权限）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 帖子ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_locked:
+                  type: boolean
+                  default: true
+                  description: 是否锁定
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommunityPost'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # 社区评论管理
+  /community/posts/{post_id}/comments:
+    get:
+      tags:
+        - Community Comments
+      summary: 获取帖子评论
+      description: 获取帖子的评论列表
+      parameters:
+        - name: post_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 帖子ID
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: 页码
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: 每页数量
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            default: "created_at"
+          description: 排序字段
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: "ASC"
+          description: 排序方向
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentListResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /community/comments:
+    post:
+      tags:
+        - Community Comments
+      summary: 创建评论
+      description: 创建新评论（主评论或回复）
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommentRequest'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommunityComment'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /community/comments/{id}:
+    get:
+      tags:
+        - Community Comments
+      summary: 获取评论详情
+      description: 获取单个评论的详细信息
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 评论ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommunityComment'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Community Comments
+      summary: 更新评论
+      description: 更新评论内容（仅作者）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 评论ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  description: 评论内容
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommunityComment'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Community Comments
+      summary: 删除评论
+      description: 删除评论（仅作者或管理员）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 评论ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: 删除原因
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # 社区互动功能
+  /community/interactions/like:
+    post:
+      tags:
+        - Community Interactions
+      summary: 点赞/取消点赞
+      description: 对帖子或评论进行点赞或取消点赞
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LikeRequest'
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          is_liked:
+                            type: boolean
+                            description: 是否已点赞
+                          like_count:
+                            type: integer
+                            description: 点赞总数
+                          action:
+                            type: string
+                            enum: [liked, unliked]
+                            description: 操作类型
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /community/interactions/favorite:
+    post:
+      tags:
+        - Community Interactions
+      summary: 收藏/取消收藏
+      description: 收藏或取消收藏帖子
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FavoriteRequest'
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          is_favorited:
+                            type: boolean
+                            description: 是否已收藏
+                          favorite_count:
+                            type: integer
+                            description: 收藏总数
+                          action:
+                            type: string
+                            enum: [favorited, unfavorited]
+                            description: 操作类型
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /community/interactions/share:
+    post:
+      tags:
+        - Community Interactions
+      summary: 分享帖子
+      description: 分享帖子到指定平台
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareRequest'
+      responses:
+        '200':
+          description: 分享成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          share_count:
+                            type: integer
+                            description: 分享总数
+                          share_url:
+                            type: string
+                            description: 分享链接
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /community/interactions/report:
+    post:
+      tags:
+        - Community Interactions
+      summary: 举报内容
+      description: 举报帖子、评论或用户
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportRequest'
+      responses:
+        '201':
+          description: 举报成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          report_id:
+                            type: integer
+                            description: 举报ID
+                          status:
+                            type: string
+                            description: 举报状态
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /community/interactions/like/check:
+    get:
+      tags:
+        - Community Interactions
+      summary: 检查点赞状态
+      description: 检查当前用户是否点赞了指定内容
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: target_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [post, comment]
+          description: 目标类型
+        - name: target_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: 目标ID
+      responses:
+        '200':
+          description: 检查成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          is_liked:
+                            type: boolean
+                            description: 是否已点赞
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /community/interactions/favorite/check:
+    get:
+      tags:
+        - Community Interactions
+      summary: 检查收藏状态
+      description: 检查当前用户是否收藏了指定帖子
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: post_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: 帖子ID
+      responses:
+        '200':
+          description: 检查成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          is_favorited:
+                            type: boolean
+                            description: 是否已收藏
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
