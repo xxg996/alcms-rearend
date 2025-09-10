@@ -21,10 +21,19 @@ const {
   sqlInjectionProtection,
   xssProtection 
 } = require('./middleware/security');
+const { 
+  validateJsonRequest, 
+  notFoundHandler, 
+  globalErrorHandler 
+} = require('./middleware/errorHandler');
 
 // 导入路由
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
+const vipRoutes = require('./routes/vip');
+const cardKeyRoutes = require('./routes/cardKey');
+const pointsRoutes = require('./routes/points');
+const checkinRoutes = require('./routes/checkin');
 
 // 创建Express应用实例
 const app = express();
@@ -43,6 +52,9 @@ if (process.env.NODE_ENV !== 'test') {
 // 请求体解析中间件
 app.use(express.json({ limit: bodySizeLimit }));
 app.use(express.urlencoded({ extended: true, limit: bodySizeLimit }));
+
+// JSON请求验证中间件
+app.use(validateJsonRequest);
 
 // 安全防护中间件
 app.use(sqlInjectionProtection);
@@ -64,6 +76,10 @@ app.get('/health', (req, res) => {
 // API路由注册
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/vip', vipRoutes);
+app.use('/api/card-keys', cardKeyRoutes);
+app.use('/api/points', pointsRoutes);
+app.use('/api/checkin', checkinRoutes);
 
 // CMS路由注册
 app.use('/api/resources', require('./routes/resources'));
@@ -173,6 +189,82 @@ app.get('/api', (req, res) => {
           'GET /api/community/interactions/like/check': '检查点赞状态',
           'GET /api/community/interactions/favorite/check': '检查收藏状态'
         }
+      },
+      vip: {
+        levels: {
+          'GET /api/vip/levels': '获取VIP等级配置',
+          'GET /api/vip/levels/:level': '获取指定VIP等级',
+          'POST /api/vip/levels': '创建VIP等级（管理员）',
+          'PUT /api/vip/levels/:level': '更新VIP等级（管理员）',
+          'DELETE /api/vip/levels/:level': '删除VIP等级（管理员）'
+        },
+        user: {
+          'GET /api/vip/my-info': '获取我的VIP信息',
+          'GET /api/vip/my-orders': '获取我的订单历史',
+          'GET /api/vip/orders/:orderId': '获取订单详情',
+          'GET /api/vip/users/:userId/info': '获取用户VIP信息（管理员）',
+          'POST /api/vip/users/:userId/set': '设置用户VIP（管理员）',
+          'POST /api/vip/users/:userId/extend': '延长用户VIP（管理员）',
+          'DELETE /api/vip/users/:userId/cancel': '取消用户VIP（管理员）'
+        },
+        system: {
+          'POST /api/vip/system/update-expired': '更新过期VIP用户（系统）'
+        }
+      },
+      cardKeys: {
+        user: {
+          'POST /api/card-keys/redeem': '兑换卡密',
+          'GET /api/card-keys/info/:code': '查询卡密信息'
+        },
+        admin: {
+          'POST /api/card-keys/generate/single': '生成单个卡密（管理员）',
+          'POST /api/card-keys/generate/batch': '批量生成卡密（管理员）',
+          'GET /api/card-keys/list': '获取卡密列表（管理员）',
+          'GET /api/card-keys/statistics': '获取卡密统计（管理员）',
+          'GET /api/card-keys/batches': '获取批次列表（管理员）',
+          'GET /api/card-keys/batches/:batchId': '获取批次详情（管理员）',
+          'PUT /api/card-keys/:cardId/status': '更新卡密状态（管理员）',
+          'DELETE /api/card-keys/:cardId': '删除卡密（超级管理员）',
+          'DELETE /api/card-keys/batches/:batchId': '删除批次（超级管理员）'
+        }
+      },
+      points: {
+        user: {
+          'GET /api/points/my-info': '获取我的积分信息',
+          'GET /api/points/my-records': '获取我的积分记录',
+          'GET /api/points/my-rank': '获取我的积分排名',
+          'POST /api/points/transfer': '积分转账'
+        },
+        public: {
+          'GET /api/points/leaderboard': '获取积分排行榜'
+        },
+        admin: {
+          'GET /api/points/users/:userId/info': '获取用户积分信息（管理员）',
+          'GET /api/points/users/:userId/records': '获取用户积分记录（管理员）',
+          'POST /api/points/users/:userId/adjust': '调整用户积分（管理员）',
+          'POST /api/points/batch/grant': '批量发放积分（管理员）',
+          'GET /api/points/statistics': '获取积分统计（管理员）'
+        }
+      },
+      checkin: {
+        user: {
+          'POST /api/checkin/check': '执行签到',
+          'GET /api/checkin/my-status': '获取我的签到状态',
+          'GET /api/checkin/my-history': '获取我的签到历史'
+        },
+        public: {
+          'GET /api/checkin/leaderboard': '获取签到排行榜'
+        },
+        admin: {
+          'GET /api/checkin/configs': '获取签到配置（管理员）',
+          'POST /api/checkin/configs': '创建签到配置（管理员）',
+          'PUT /api/checkin/configs/:configId': '更新签到配置（管理员）',
+          'GET /api/checkin/users/:userId/info': '获取用户签到信息（管理员）',
+          'GET /api/checkin/users/:userId/history': '获取用户签到历史（管理员）',
+          'POST /api/checkin/users/:userId/makeup': '补签功能（管理员）',
+          'DELETE /api/checkin/users/:userId/reset': '重置用户签到数据（超级管理员）',
+          'GET /api/checkin/statistics': '获取签到统计（管理员）'
+        }
       }
     },
     features: [
@@ -192,74 +284,30 @@ app.get('/api', (req, res) => {
       '下载权限控制（VIP/积分/次数限制）',
       '防盗链保护（签名链接）',
       '全文搜索',
-      '资源统计分析'
+      '资源统计分析',
+      'VIP会员系统',
+      'VIP等级管理（支持无限期VIP）',
+      '卡密生成与兑换系统',
+      '批量卡密管理',
+      'VIP订单记录与统计',
+      '用户积分系统',
+      '积分获得与消费记录',
+      '积分转账功能',
+      '积分排行榜',
+      '每日签到系统',
+      '连续签到奖励',
+      '签到配置管理',
+      '签到统计与排行'
     ]
   });
 });
 
 // 404处理
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: '请求的端点不存在',
-    path: req.originalUrl,
-    method: req.method
-  });
-});
+app.use('*', notFoundHandler);
 
 // 全局错误处理中间件
-app.use((err, req, res, next) => {
-  console.error('全局错误:', err);
+app.use(globalErrorHandler);
 
-  // 如果响应已经发送，则交给默认错误处理器
-  if (res.headersSent) {
-    return next(err);
-  }
-
-  // JWT错误处理
-  if (err.name === 'JsonWebTokenError') {
-    return res.status(401).json({
-      success: false,
-      message: '无效的访问令牌'
-    });
-  }
-
-  if (err.name === 'TokenExpiredError') {
-    return res.status(401).json({
-      success: false,
-      message: '访问令牌已过期'
-    });
-  }
-
-  // 数据库错误处理
-  if (err.code === '23505') { // PostgreSQL唯一约束违反
-    return res.status(409).json({
-      success: false,
-      message: '数据已存在'
-    });
-  }
-
-  // 验证错误处理
-  if (err.name === 'ValidationError') {
-    return res.status(400).json({
-      success: false,
-      message: '输入验证失败',
-      errors: err.errors
-    });
-  }
-
-  // 默认错误响应
-  const statusCode = err.statusCode || err.status || 500;
-  const message = process.env.NODE_ENV === 'production' 
-    ? '服务器内部错误' 
-    : err.message;
-
-  res.status(statusCode).json({
-    success: false,
-    message,
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
-  });
-});
 
 // 启动服务器
 const PORT = process.env.PORT || 3000;

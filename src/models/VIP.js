@@ -1,0 +1,301 @@
+/**
+ * VIP系统数据模型
+ * 处理VIP等级、购买记录等相关数据操作
+ */
+
+const db = require('../config/database');
+
+class VIP {
+  /**
+   * 获取所有VIP等级配置
+   */
+  static async getAllLevels() {
+    const query = `
+      SELECT * FROM vip_levels 
+      WHERE is_active = true 
+      ORDER BY level ASC
+    `;
+    const result = await db.query(query);
+    return result.rows;
+  }
+
+  /**
+   * 根据等级获取VIP配置
+   */
+  static async getLevelById(level) {
+    const query = `
+      SELECT * FROM vip_levels 
+      WHERE level = $1 AND is_active = true
+    `;
+    const result = await db.query(query, [level]);
+    return result.rows[0];
+  }
+
+  /**
+   * 创建VIP等级配置
+   */
+  static async createLevel(levelData) {
+    const {
+      level,
+      name,
+      display_name,
+      description,
+      benefits,
+      price,
+      duration_days
+    } = levelData;
+
+    const query = `
+      INSERT INTO vip_levels (level, name, display_name, description, benefits, price, duration_days)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `;
+    const values = [level, name, display_name, description, benefits, price, duration_days];
+    const result = await db.query(query, values);
+    return result.rows[0];
+  }
+
+  /**
+   * 更新VIP等级配置
+   */
+  static async updateLevel(level, updateData) {
+    const fields = [];
+    const values = [];
+    let paramCount = 1;
+
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] !== undefined) {
+        fields.push(`${key} = $${paramCount}`);
+        values.push(updateData[key]);
+        paramCount++;
+      }
+    });
+
+    if (fields.length === 0) {
+      throw new Error('没有提供更新数据');
+    }
+
+    values.push(level);
+    const query = `
+      UPDATE vip_levels 
+      SET ${fields.join(', ')}
+      WHERE level = $${paramCount}
+      RETURNING *
+    `;
+
+    const result = await db.query(query, values);
+    return result.rows[0];
+  }
+
+  /**
+   * 删除VIP等级配置（软删除）
+   */
+  static async deleteLevel(level) {
+    const query = `
+      UPDATE vip_levels 
+      SET is_active = false 
+      WHERE level = $1
+      RETURNING *
+    `;
+    const result = await db.query(query, [level]);
+    return result.rows[0];
+  }
+
+  /**
+   * 获取用户VIP信息
+   */
+  static async getUserVIPInfo(userId) {
+    const query = `
+      SELECT 
+        u.id,
+        u.username,
+        u.is_vip,
+        u.vip_level,
+        u.vip_expire_at,
+        u.vip_activated_at,
+        vl.name as vip_name,
+        vl.display_name as vip_display_name,
+        vl.benefits as vip_benefits
+      FROM users u
+      LEFT JOIN vip_levels vl ON u.vip_level = vl.level
+      WHERE u.id = $1
+    `;
+    const result = await db.query(query, [userId]);
+    return result.rows[0];
+  }
+
+  /**
+   * 为用户设置VIP
+   */
+  static async setUserVIP(userId, vipLevel, days = 30) {
+    let expireAt = null;
+    
+    // 如果days为0，表示无限期VIP
+    if (days > 0) {
+      expireAt = new Date();
+      expireAt.setDate(expireAt.getDate() + days);
+    }
+
+    const query = `
+      UPDATE users 
+      SET 
+        is_vip = true,
+        vip_level = $2,
+        vip_expire_at = $3,
+        vip_activated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await db.query(query, [userId, vipLevel, expireAt]);
+    return result.rows[0];
+  }
+
+  /**
+   * 延长用户VIP时间
+   */
+  static async extendUserVIP(userId, days) {
+    // 如果days为0，设置为无限期
+    if (days === 0) {
+      const query = `
+        UPDATE users 
+        SET vip_expire_at = NULL
+        WHERE id = $1
+        RETURNING *
+      `;
+      const result = await db.query(query, [userId]);
+      return result.rows[0];
+    }
+
+    const query = `
+      UPDATE users 
+      SET vip_expire_at = CASE 
+        WHEN vip_expire_at IS NULL OR vip_expire_at < CURRENT_TIMESTAMP 
+        THEN CURRENT_TIMESTAMP + INTERVAL '${days} days'
+        ELSE vip_expire_at + INTERVAL '${days} days'
+      END
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await db.query(query, [userId]);
+    return result.rows[0];
+  }
+
+  /**
+   * 取消用户VIP
+   */
+  static async cancelUserVIP(userId) {
+    const query = `
+      UPDATE users 
+      SET 
+        is_vip = false,
+        vip_level = 0,
+        vip_expire_at = NULL
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await db.query(query, [userId]);
+    return result.rows[0];
+  }
+
+  /**
+   * 检查并更新过期的VIP用户
+   */
+  static async updateExpiredVIP() {
+    const query = `
+      UPDATE users 
+      SET is_vip = false, vip_level = 0
+      WHERE is_vip = true 
+        AND vip_expire_at IS NOT NULL 
+        AND vip_expire_at < CURRENT_TIMESTAMP
+      RETURNING id, username, vip_expire_at
+    `;
+    const result = await db.query(query);
+    return result.rows;
+  }
+
+  /**
+   * 创建VIP购买订单
+   */
+  static async createOrder(orderData) {
+    const {
+      user_id,
+      vip_level,
+      price,
+      duration_days,
+      payment_method,
+      order_no,
+      card_key_code
+    } = orderData;
+
+    let expireAt = null;
+    if (duration_days > 0) {
+      expireAt = new Date();
+      expireAt.setDate(expireAt.getDate() + duration_days);
+    }
+
+    const query = `
+      INSERT INTO vip_orders 
+      (user_id, vip_level, price, duration_days, expire_at, payment_method, order_no, card_key_code)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `;
+    const values = [user_id, vip_level, price, duration_days, expireAt, payment_method, order_no, card_key_code];
+    const result = await db.query(query, values);
+    return result.rows[0];
+  }
+
+  /**
+   * 更新订单状态
+   */
+  static async updateOrderStatus(orderId, status) {
+    const query = `
+      UPDATE vip_orders 
+      SET status = $2
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await db.query(query, [orderId, status]);
+    return result.rows[0];
+  }
+
+  /**
+   * 获取用户订单历史
+   */
+  static async getUserOrders(userId, limit = 10, offset = 0) {
+    const query = `
+      SELECT 
+        vo.*,
+        vl.name as vip_name,
+        vl.display_name as vip_display_name
+      FROM vip_orders vo
+      LEFT JOIN vip_levels vl ON vo.vip_level = vl.level
+      WHERE vo.user_id = $1
+      ORDER BY vo.created_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+    const result = await db.query(query, [userId, limit, offset]);
+    return result.rows;
+  }
+
+  /**
+   * 获取订单详情
+   */
+  static async getOrderById(orderId) {
+    const query = `
+      SELECT 
+        vo.*,
+        u.username,
+        u.email,
+        vl.name as vip_name,
+        vl.display_name as vip_display_name
+      FROM vip_orders vo
+      LEFT JOIN users u ON vo.user_id = u.id
+      LEFT JOIN vip_levels vl ON vo.vip_level = vl.level
+      WHERE vo.id = $1
+    `;
+    const result = await db.query(query, [orderId]);
+    return result.rows[0];
+  }
+}
+
+module.exports = VIP;

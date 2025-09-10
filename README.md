@@ -477,45 +477,6 @@ POST /api/categories/admin/batch-create
 - **分类排序** - 批量更新分类显示顺序
 - **资源审核** - 管理员审核和发布资源
 
-## 📡 API 文档
-
-### Postman 集合
-项目提供了完整的 Postman API 文档集合：
-
-#### 📁 用户管理 API
-- **文件**: `postman/Alcms-Backend-API.postman_collection.json`
-- **功能**: 用户注册、登录、权限管理、角色分配
-
-#### 📁 CMS 管理 API  
-- **文件**: `postman/Alcms-CMS-API.postman_collection.json`
-- **功能**: 资源管理、分类管理、标签系统、搜索功能
-
-#### 📁 社区管理 API
-- **端点**: `/api/community/*`
-- **功能**: 板块管理、帖子发布、评论系统、互动功能、社区治理
-
-#### 🔧 环境配置
-- **文件**: `postman/Alcms-Environment.postman_environment.json`
-- **功能**: API 基础地址、Token 自动管理
-
-### 使用方法
-1. **导入 Postman 集合**
-   ```bash
-   # 导入以下文件到 Postman
-   - Alcms-CMS-API.postman_collection.json
-   - Alcms-Environment.postman_environment.json
-   ```
-
-2. **快速测试流程**
-   ```
-   管理员登录 → 获取分类树 → 创建资源 → 搜索测试 → 查看统计
-   ```
-
-3. **自动化测试**
-   ```bash
-   npm run test-api  # 运行完整的 API 自动化测试
-   ```
-
 ## 🎯 NPM 脚本命令
 
 | 命令 | 功能 | 说明 |
@@ -528,58 +489,6 @@ POST /api/categories/admin/batch-create
 | `npm run create-admin` | 创建管理员 | 创建初始管理员账户 |
 | `npm run test-api` | API 自动化测试 | 测试所有 API 端点 |
 
-## 🔧 开发指南
-
-### 添加新的资源类型
-1. **更新数据库**
-   ```sql
-   INSERT INTO resource_types (name, display_name, description) 
-   VALUES ('new_type', '新类型', '新资源类型描述');
-   ```
-
-2. **更新控制器**
-   - 在 `resourceController.js` 中添加特定类型的处理逻辑
-   - 实现类型特有的验证和处理
-
-3. **更新前端**
-   - 添加对应的上传和展示组件
-   - 更新 Postman 测试用例
-
-### 扩展权限系统
-1. **添加新权限**
-   ```sql
-   INSERT INTO permissions (name, display_name, description, resource, action) 
-   VALUES ('new_permission', '新权限', '新权限描述', 'resource_name', 'action_type');
-   ```
-
-2. **分配给角色**
-   ```sql
-   INSERT INTO role_permissions (role_id, permission_id) 
-   VALUES (role_id, permission_id);
-   ```
-
-3. **更新中间件**
-   - 在 `auth.js` 中添加权限检查逻辑
-
-### 扩展社区功能
-1. **添加新板块**
-   ```javascript
-   POST /api/community/boards
-   {
-     "name": "new_board",
-     "displayName": "新板块",
-     "description": "板块描述"
-   }
-   ```
-
-2. **自定义互动类型**
-   - 扩展 `community_likes` 表的 `target_type` 字段
-   - 在 `CommunityInteraction` 模型中添加新的互动逻辑
-
-3. **增强搜索功能**
-   - 优化PostgreSQL全文搜索配置
-   - 添加自定义分词器
-   - 实现搜索结果高亮
 
 ## ⚡ 性能优化
 
