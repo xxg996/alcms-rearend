@@ -935,6 +935,169 @@ components:
               items:
                 $ref: '#/components/schemas/CommunityBoard'
 
+    # 分类管理系统相关模型
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 分类ID
+          example: 1
+        name:
+          type: string
+          description: 分类名称（唯一标识）
+          example: "frontend"
+        display_name:
+          type: string
+          description: 分类显示名称
+          example: "前端开发"
+        description:
+          type: string
+          nullable: true
+          description: 分类描述
+          example: "前端开发相关资源分类"
+        parent_id:
+          type: integer
+          nullable: true
+          description: 父分类ID（顶级分类为null）
+          example: null
+        sort_order:
+          type: integer
+          description: 排序顺序
+          example: 0
+        icon_url:
+          type: string
+          nullable: true
+          description: 分类图标URL
+          example: "https://example.com/icons/frontend.png"
+        is_active:
+          type: boolean
+          description: 是否激活
+          example: true
+        resource_count:
+          type: integer
+          description: 该分类下的资源数量
+          example: 25
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+        # 关联数据
+        parent_name:
+          type: string
+          nullable: true
+          description: 父分类名称
+          example: null
+        parent_display_name:
+          type: string
+          nullable: true
+          description: 父分类显示名称
+          example: null
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+          description: 子分类列表（仅在树形结构时包含）
+
+    CreateCategoryRequest:
+      type: object
+      required:
+        - name
+        - display_name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '^[a-zA-Z0-9_-]+$'
+          description: 分类名称（英文标识，1-100个字符，只能包含字母、数字、下划线和横线）
+          example: "frontend"
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 分类显示名称（1-100个字符）
+          example: "前端开发"
+        description:
+          type: string
+          maxLength: 500
+          description: 分类描述（最多500个字符）
+          example: "前端开发相关技术资源分类"
+        parent_id:
+          type: integer
+          nullable: true
+          description: 父分类ID（创建顶级分类时为null）
+          example: null
+        sort_order:
+          type: integer
+          minimum: 0
+          default: 0
+          description: 排序顺序（数字越小越靠前）
+          example: 0
+        icon_url:
+          type: string
+          maxLength: 500
+          description: 分类图标URL（最多500个字符）
+          example: "https://example.com/icons/frontend.png"
+
+    UpdateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '^[a-zA-Z0-9_-]+$'
+          description: 分类名称（英文标识）
+          example: "frontend-dev"
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 分类显示名称
+          example: "前端开发技术"
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 分类描述
+          example: "前端开发相关技术资源分类，包括框架、工具等"
+        parent_id:
+          type: integer
+          nullable: true
+          description: 父分类ID
+          example: 2
+        sort_order:
+          type: integer
+          minimum: 0
+          description: 排序顺序
+          example: 1
+        icon_url:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 分类图标URL
+          example: "https://example.com/icons/frontend-new.png"
+        is_active:
+          type: boolean
+          description: 是否激活
+          example: true
+
+    CategoryListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Category'
+              description: 分类列表（可能是扁平列表或树形结构）
+
     # VIP系统相关模型
     VIPLevel:
       type: object
@@ -3357,14 +3520,444 @@ paths:
       summary: 获取签到统计（管理员功能）
       security: [{ BearerAuth: [] }]
       responses: { '200': { description: 获取成功 } }
+
+  # 分类管理系统
+  /categories:
+    get:
+      tags: [Categories]
+      summary: 获取分类列表
+      description: 获取所有激活的分类列表，支持层级结构显示和多种查询选项
+      parameters:
+        - name: page
+          in: query
+          description: 页码（从1开始，仅在tree=false时有效）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          description: 每页数量（1-100，仅在tree=false时有效）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+        - name: tree
+          in: query
+          description: 是否返回树形结构
+          required: false
+          schema:
+            type: boolean
+            default: true
+            example: true
+        - name: include_inactive
+          in: query
+          description: 是否包含非激活分类（仅管理员可用）
+          required: false
+          schema:
+            type: boolean
+            default: false
+            example: false
+        - name: parent_id
+          in: query
+          description: 父分类ID（获取指定父分类下的子分类，null获取根分类）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+        - name: search
+          in: query
+          description: 搜索关键词（搜索分类名称和显示名称）
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+            example: "前端"
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryListResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags: [Categories]
+      summary: 创建分类
+      description: 创建新的分类，需要category:create权限
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '201':
+          description: 分类创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Category'
+        '400':
+          description: 输入验证失败或分类名称已存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /categories/popular/list:
+    get:
+      tags: [Categories]
+      summary: 获取热门分类
+      description: 根据资源数量和查看次数获取热门分类，按受欢迎程度排序
+      parameters:
+        - name: limit
+          in: query
+          description: 返回数量限制
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+            example: 10
+        - name: time_range
+          in: query
+          description: 统计时间范围（天数）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
+            example: 30
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryListResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /categories/{id}:
+    get:
+      tags: [Categories]
+      summary: 获取分类详情
+      description: 获取指定分类的详细信息和统计数据
+      parameters:
+        - name: id
+          in: path
+          description: 分类ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Category'
+        '404':
+          description: 分类不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags: [Categories]
+      summary: 更新分类
+      description: 更新分类信息，需要category:update权限
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 分类ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Category'
+        '400':
+          description: 输入验证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: 分类不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     delete:
       tags: [Categories]
       summary: 删除分类
+      description: 删除分类，需要category:delete权限（不能删除有子分类或关联资源的分类）
+      security:
+        - BearerAuth: []
       parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      security: [{ BearerAuth: [] }]
+        - name: id
+          in: path
+          description: 分类ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
       responses:
-        '200': { description: OK }
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '400':
+          description: 分类有子分类或关联资源，无法删除
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: 分类不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /categories/admin/batch-create:
+    post:
+      tags: [Categories]
+      summary: 批量创建分类（管理员功能）
+      description: 管理员批量创建多个分类
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - categories
+              properties:
+                categories:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CreateCategoryRequest'
+                  minItems: 1
+                  maxItems: 20
+                  description: 要创建的分类列表
+      responses:
+        '201':
+          description: 批量创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          created:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Category'
+                          errors:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                index:
+                                  type: integer
+                                error:
+                                  type: string
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /categories/admin/batch-sort:
+    patch:
+      tags: [Categories]
+      summary: 批量更新分类排序（管理员功能）
+      description: 管理员批量更新分类的排序顺序
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - categories
+              properties:
+                categories:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - id
+                      - sort_order
+                    properties:
+                      id:
+                        type: integer
+                        description: 分类ID
+                      sort_order:
+                        type: integer
+                        description: 新的排序顺序
+                  minItems: 1
+                  maxItems: 50
+                  description: 要更新排序的分类列表
+      responses:
+        '200':
+          description: 排序更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /categories/admin/stats:
+    get:
+      tags: [Categories]
+      summary: 获取分类统计信息（管理员功能）
+      description: 管理员获取详细的分类统计数据
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          overview:
+                            type: object
+                            properties:
+                              total_categories:
+                                type: integer
+                                description: 分类总数
+                              root_categories:
+                                type: integer
+                                description: 根分类数
+                              sub_categories:
+                                type: integer
+                                description: 子分类数
+                              active_categories:
+                                type: integer
+                                description: 激活分类数
+                          usage:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                name:
+                                  type: string
+                                display_name:
+                                  type: string
+                                resource_count:
+                                  type: integer
+                                total_views:
+                                  type: integer
+                            description: 分类使用情况
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   # 标签管理系统
   /tags:
