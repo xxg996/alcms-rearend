@@ -3,7 +3,7 @@
  * 处理点赞、收藏、分享、举报等互动功能
  */
 
-const { query } = require('../config/database');
+const { query, getClient } = require('../config/database');
 
 class CommunityInteraction {
   /**
@@ -14,7 +14,7 @@ class CommunityInteraction {
    * @returns {Promise<Object>} 操作结果
    */
   static async toggleLike(userId, targetType, targetId) {
-    const client = await require('../config/database').getClient();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -74,7 +74,7 @@ class CommunityInteraction {
    * @returns {Promise<Object>} 操作结果
    */
   static async toggleFavorite(userId, postId) {
-    const client = await require('../config/database').getClient();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -135,7 +135,7 @@ class CommunityInteraction {
    * @returns {Promise<Object>} 分享结果
    */
   static async sharePost(userId, postId, platform = 'link') {
-    const client = await require('../config/database').getClient();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');

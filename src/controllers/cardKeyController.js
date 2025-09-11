@@ -46,7 +46,7 @@ const generateSingleCard = async (req, res) => {
       vip_days: parseInt(vip_days),
       points: parseInt(points),
       expire_at: expire_at ? new Date(expire_at) : null
-    }, req.user.userId);
+    }, req.user.id);
 
     res.status(201).json({
       success: true,
@@ -145,7 +145,7 @@ const redeemCard = async (req, res) => {
       });
     }
 
-    const result = await CardKey.redeemCardKey(code.trim().toUpperCase(), req.user.userId);
+    const result = await CardKey.redeemCardKey(code.trim().toUpperCase(), req.user.id);
 
     let responseMessage = '卡密兑换成功';
     if (result.cardKey.type === 'vip') {
@@ -214,7 +214,7 @@ const getCardInfo = async (req, res) => {
 
     // 检查权限：只有管理员或卡密使用者才能查看详细信息
     const isAdmin = req.user.roles?.some(role => ['admin', 'super_admin'].includes(role.name));
-    const isUser = cardKey.used_by === req.user.userId;
+    const isUser = cardKey.used_by === req.user.id;
 
     let responseData = {
       code: cardKey.code,
@@ -280,7 +280,7 @@ const getCardsList = async (req, res) => {
     // 非超级管理员只能查看自己创建的卡密
     const isSuperAdmin = req.user.roles?.some(role => role.name === 'super_admin');
     if (!isSuperAdmin) {
-      options.created_by = req.user.userId;
+      options.created_by = req.user.id;
     }
 
     const cardKeys = await CardKey.getCardKeys(options);
@@ -330,7 +330,7 @@ const getBatchesList = async (req, res) => {
 
     // 非超级管理员只能查看自己创建的批次
     const isSuperAdmin = req.user.roles?.some(role => role.name === 'super_admin');
-    const createdBy = isSuperAdmin ? null : req.user.userId;
+    const createdBy = isSuperAdmin ? null : req.user.id;
 
     const batches = await CardKey.getBatches(createdBy, parseInt(limit), parseInt(offset));
 
@@ -365,7 +365,7 @@ const getBatchDetails = async (req, res) => {
     // 非超级管理员只能查看自己创建的批次
     const isSuperAdmin = req.user.roles?.some(role => role.name === 'super_admin');
     if (!isSuperAdmin) {
-      options.created_by = req.user.userId;
+      options.created_by = req.user.id;
     }
 
     const cardKeys = await CardKey.getCardKeys(options);

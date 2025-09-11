@@ -3,14 +3,14 @@
  * 处理用户积分管理、积分记录等相关数据操作
  */
 
-const db = require('../config/database');
+const { query, getClient } = require('../config/database');
 
 class Points {
   /**
    * 获取用户积分信息
    */
   static async getUserPoints(userId) {
-    const query = `
+    const queryStr = `
       SELECT 
         id,
         username,
@@ -20,7 +20,7 @@ class Points {
       FROM users 
       WHERE id = $1
     `;
-    const result = await db.query(query, [userId]);
+    const result = await query(queryStr, [userId]);
     return result.rows[0];
   }
 
@@ -28,7 +28,7 @@ class Points {
    * 增加用户积分
    */
   static async addPoints(userId, amount, source, description = '', relatedId = null, relatedType = null) {
-    const client = await db.connect();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -97,7 +97,7 @@ class Points {
    * 扣除用户积分
    */
   static async deductPoints(userId, amount, source, description = '', relatedId = null, relatedType = null) {
-    const client = await db.connect();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -164,7 +164,7 @@ class Points {
    * 管理员调整用户积分
    */
   static async adjustPoints(userId, amount, description = '', adminId = null) {
-    const client = await db.connect();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -229,7 +229,7 @@ class Points {
    * 获取用户积分记录
    */
   static async getUserPointsRecords(userId, limit = 20, offset = 0) {
-    const query = `
+    const queryStr = `
       SELECT 
         pr.*,
         u.username
@@ -239,7 +239,7 @@ class Points {
       ORDER BY pr.created_at DESC
       LIMIT $2 OFFSET $3
     `;
-    const result = await db.query(query, [userId, limit, offset]);
+    const result = await query(queryStr, [userId, limit, offset]);
     return result.rows;
   }
 
@@ -273,7 +273,7 @@ class Points {
       ? 'WHERE ' + whereConditions.join(' AND ')
       : '';
 
-    const query = `
+    const queryStr = `
       SELECT 
         type,
         source,
@@ -286,7 +286,7 @@ class Points {
       ORDER BY type, source
     `;
 
-    const result = await db.query(query, values);
+    const result = await query(queryStr, values);
     return result.rows;
   }
 
@@ -296,7 +296,7 @@ class Points {
   static async getPointsLeaderboard(type = 'current', limit = 50) {
     const pointsField = type === 'total' ? 'total_points' : 'points';
     
-    const query = `
+    const queryStr = `
       SELECT 
         id,
         username,
@@ -309,7 +309,7 @@ class Points {
       ORDER BY ${pointsField} DESC
       LIMIT $1
     `;
-    const result = await db.query(query, [limit]);
+    const result = await query(queryStr, [limit]);
     return result.rows;
   }
 
@@ -319,7 +319,7 @@ class Points {
   static async getUserPointsRank(userId, type = 'current') {
     const pointsField = type === 'total' ? 'total_points' : 'points';
     
-    const query = `
+    const queryStr = `
       WITH ranked_users AS (
         SELECT 
           id,
@@ -332,7 +332,7 @@ class Points {
       )
       SELECT * FROM ranked_users WHERE id = $1
     `;
-    const result = await db.query(query, [userId]);
+    const result = await query(queryStr, [userId]);
     return result.rows[0];
   }
 
@@ -340,7 +340,7 @@ class Points {
    * 批量转移积分（管理员功能）
    */
   static async transferPointsBatch(transfers, adminId) {
-    const client = await db.connect();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -377,7 +377,7 @@ class Points {
    * 系统批量发放积分
    */
   static async batchGrantPoints(userIds, amount, source, description = '') {
-    const client = await db.connect();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');

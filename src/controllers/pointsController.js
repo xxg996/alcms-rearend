@@ -10,7 +10,7 @@ const Points = require('../models/Points');
  */
 const getMyPoints = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const pointsInfo = await Points.getUserPoints(userId);
     
     if (!pointsInfo) {
@@ -39,7 +39,7 @@ const getMyPoints = async (req, res) => {
  */
 const getMyPointsRecords = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const { limit = 20, offset = 0 } = req.query;
     
     const records = await Points.getUserPointsRecords(userId, parseInt(limit), parseInt(offset));
@@ -126,7 +126,7 @@ const adjustUserPoints = async (req, res) => {
       });
     }
 
-    const adminId = req.user.userId;
+    const adminId = req.user.id;
     const result = await Points.adjustPoints(parseInt(userId), parseInt(amount), description, adminId);
     
     res.json({
@@ -241,7 +241,7 @@ const getPointsLeaderboard = async (req, res) => {
  */
 const getMyPointsRank = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const { type = 'current' } = req.query;
     
     if (!['current', 'total'].includes(type)) {
@@ -310,7 +310,7 @@ const getPointsStatistics = async (req, res) => {
  */
 const transferPoints = async (req, res) => {
   try {
-    const fromUserId = req.user.userId;
+    const fromUserId = req.user.id;
     const { to_user_id, amount, description = '' } = req.body;
 
     if (!to_user_id || to_user_id === fromUserId) {

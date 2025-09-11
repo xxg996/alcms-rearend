@@ -3,7 +3,7 @@
  * 处理用户签到、签到配置等相关数据操作
  */
 
-const db = require('../config/database');
+const { query, getClient } = require('../config/database');
 const Points = require('./Points');
 
 class Checkin {
@@ -11,13 +11,13 @@ class Checkin {
    * 获取当前激活的签到配置
    */
   static async getActiveConfig() {
-    const query = `
+    const queryStr = `
       SELECT * FROM checkin_configs 
       WHERE is_active = true 
       ORDER BY created_at DESC 
       LIMIT 1
     `;
-    const result = await db.query(query);
+    const result = await query(queryStr);
     return result.rows[0];
   }
 
@@ -25,7 +25,7 @@ class Checkin {
    * 获取所有签到配置
    */
   static async getAllConfigs() {
-    const query = `
+    const queryStr = `
       SELECT 
         cc.*,
         u.username as created_by_username
@@ -33,7 +33,7 @@ class Checkin {
       LEFT JOIN users u ON cc.created_by = u.id
       ORDER BY cc.created_at DESC
     `;
-    const result = await db.query(query);
+    const result = await query(queryStr);
     return result.rows;
   }
 
@@ -49,14 +49,14 @@ class Checkin {
       monthly_reset = true
     } = configData;
 
-    const query = `
+    const queryStr = `
       INSERT INTO checkin_configs 
       (name, description, daily_points, consecutive_bonus, monthly_reset, created_by)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
     const values = [name, description, daily_points, consecutive_bonus, monthly_reset, createdBy];
-    const result = await db.query(query, values);
+    const result = await query(queryStr, values);
     return result.rows[0];
   }
 
@@ -81,14 +81,14 @@ class Checkin {
     }
 
     values.push(configId);
-    const query = `
+    const queryStr = `
       UPDATE checkin_configs 
       SET ${fields.join(', ')}
       WHERE id = $${paramCount}
       RETURNING *
     `;
 
-    const result = await db.query(query, values);
+    const result = await query(queryStr, values);
     return result.rows[0];
   }
 
@@ -98,11 +98,11 @@ class Checkin {
   static async getTodayCheckinStatus(userId) {
     const today = new Date().toISOString().split('T')[0];
     
-    const query = `
+    const queryStr = `
       SELECT * FROM user_checkins 
       WHERE user_id = $1 AND checkin_date = $2
     `;
-    const result = await db.query(query, [userId, today]);
+    const result = await query(queryStr, [userId, today]);
     return result.rows[0];
   }
 
@@ -110,14 +110,14 @@ class Checkin {
    * 获取用户连续签到天数
    */
   static async getUserConsecutiveDays(userId) {
-    const query = `
+    const queryStr = `
       SELECT consecutive_days, checkin_date
       FROM user_checkins
       WHERE user_id = $1
       ORDER BY checkin_date DESC
       LIMIT 1
     `;
-    const result = await db.query(query, [userId]);
+    const result = await query(queryStr, [userId]);
     
     if (result.rows.length === 0) {
       return 0;
@@ -153,7 +153,7 @@ class Checkin {
    * 执行用户签到
    */
   static async performCheckin(userId) {
-    const client = await db.connect();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -247,7 +247,7 @@ class Checkin {
    * 获取用户签到历史
    */
   static async getUserCheckinHistory(userId, limit = 30, offset = 0) {
-    const query = `
+    const queryStr = `
       SELECT 
         uc.*,
         cc.name as config_name,
@@ -258,7 +258,7 @@ class Checkin {
       ORDER BY uc.checkin_date DESC
       LIMIT $2 OFFSET $3
     `;
-    const result = await db.query(query, [userId, limit, offset]);
+    const result = await query(queryStr, [userId, limit, offset]);
     return result.rows;
   }
 
@@ -266,7 +266,7 @@ class Checkin {
    * 获取用户签到统计
    */
   static async getUserCheckinStats(userId) {
-    const query = `
+    const queryStr = `
       SELECT 
         COUNT(*) as total_checkins,
         SUM(points_earned + bonus_points) as total_points_earned,
@@ -277,7 +277,7 @@ class Checkin {
       FROM user_checkins 
       WHERE user_id = $1
     `;
-    const result = await db.query(query, [userId]);
+    const result = await query(queryStr, [userId]);
     
     // 获取当前连续签到天数
     const consecutiveDays = await this.getUserConsecutiveDays(userId);
@@ -293,11 +293,11 @@ class Checkin {
    * 获取签到排行榜
    */
   static async getCheckinLeaderboard(type = 'consecutive', limit = 50) {
-    let query;
+    let queryStr;
     
     if (type === 'consecutive') {
       // 当前连续签到天数排行
-      query = `
+      queryStr = `
         SELECT 
           u.id,
           u.username,
@@ -319,7 +319,7 @@ class Checkin {
       `;
     } else if (type === 'total') {
       // 总签到次数排行
-      query = `
+      queryStr = `
         SELECT 
           u.id,
           u.username,
@@ -335,7 +335,7 @@ class Checkin {
       `;
     } else {
       // 本月签到次数排行
-      query = `
+      queryStr = `
         SELECT 
           u.id,
           u.username,
@@ -352,7 +352,7 @@ class Checkin {
       `;
     }
     
-    const result = await db.query(query, [limit]);
+    const result = await query(queryStr, [limit]);
     return result.rows;
   }
 
@@ -378,7 +378,7 @@ class Checkin {
 
     const whereClause = whereConditions.join(' AND ');
 
-    const query = `
+    const queryStr = `
       SELECT 
         COUNT(DISTINCT user_id) as unique_users,
         COUNT(*) as total_checkins,
@@ -390,7 +390,7 @@ class Checkin {
       WHERE ${whereClause}
     `;
 
-    const result = await db.query(query, values);
+    const result = await query(queryStr, values);
     return result.rows[0];
   }
 
@@ -398,12 +398,12 @@ class Checkin {
    * 重置用户签到数据（管理员功能）
    */
   static async resetUserCheckins(userId) {
-    const query = `
+    const queryStr = `
       DELETE FROM user_checkins 
       WHERE user_id = $1
       RETURNING COUNT(*) as deleted_count
     `;
-    const result = await db.query(query, [userId]);
+    const result = await query(queryStr, [userId]);
     return { deleted_count: result.rowCount };
   }
 
@@ -411,7 +411,7 @@ class Checkin {
    * 补签功能（管理员或特殊权限）
    */
   static async makeupCheckin(userId, date, adminId = null) {
-    const client = await db.connect();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');

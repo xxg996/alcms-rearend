@@ -3,7 +3,7 @@
  * 处理卡密生成、兑换、查询等相关数据操作
  */
 
-const db = require('../config/database');
+const { query, getClient } = require('../config/database');
 const crypto = require('crypto');
 
 class CardKey {
@@ -42,14 +42,14 @@ class CardKey {
 
     const code = this.generateCode();
     
-    const query = `
+    const queryStr = `
       INSERT INTO card_keys 
       (code, type, vip_level, vip_days, points, expire_at, batch_id, created_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
     const values = [code, type, vip_level, vip_days, points, expire_at, batch_id, createdBy];
-    const result = await db.query(query, values);
+    const result = await query(queryStr, values);
     return result.rows[0];
   }
 
@@ -59,9 +59,10 @@ class CardKey {
   static async createBatchCardKeys(cardData, count, createdBy = null) {
     const batchId = this.generateBatchId();
     const cardKeys = [];
+    const client = await getClient();
 
     try {
-      await db.query('BEGIN');
+      await client.query('BEGIN');
 
       for (let i = 0; i < count; i++) {
         const cardKey = await this.createCardKey({
@@ -71,15 +72,17 @@ class CardKey {
         cardKeys.push(cardKey);
       }
 
-      await db.query('COMMIT');
+      await client.query('COMMIT');
       return {
         batch_id: batchId,
         count: cardKeys.length,
         card_keys: cardKeys
       };
     } catch (error) {
-      await db.query('ROLLBACK');
+      await client.query('ROLLBACK');
       throw error;
+    } finally {
+      client.release();
     }
   }
 
@@ -87,7 +90,7 @@ class CardKey {
    * 根据代码查询卡密
    */
   static async getByCode(code) {
-    const query = `
+    const queryStr = `
       SELECT 
         ck.*,
         u.username as used_by_username,
@@ -97,7 +100,7 @@ class CardKey {
       LEFT JOIN users c ON ck.created_by = c.id
       WHERE ck.code = $1
     `;
-    const result = await db.query(query, [code]);
+    const result = await query(queryStr, [code]);
     return result.rows[0];
   }
 
@@ -105,8 +108,10 @@ class CardKey {
    * 兑换卡密
    */
   static async redeemCardKey(code, userId) {
+    const client = await getClient();
+    
     try {
-      await db.query('BEGIN');
+      await client.query('BEGIN');
 
       // 查询卡密信息
       const cardKey = await this.getByCode(code);
@@ -124,13 +129,13 @@ class CardKey {
       }
 
       // 标记卡密为已使用
-      const updateQuery = `
+      const updateQueryStr = `
         UPDATE card_keys 
         SET status = 'used', used_by = $2, used_at = CURRENT_TIMESTAMP
         WHERE code = $1
         RETURNING *
       `;
-      await db.query(updateQuery, [code, userId]);
+      await client.query(updateQueryStr, [code, userId]);
 
       // 根据卡密类型执行相应操作
       let result = { cardKey };
@@ -175,11 +180,13 @@ class CardKey {
         );
       }
 
-      await db.query('COMMIT');
+      await client.query('COMMIT');
       return result;
     } catch (error) {
-      await db.query('ROLLBACK');
+      await client.query('ROLLBACK');
       throw error;
+    } finally {
+      client.release();
     }
   }
 
@@ -230,7 +237,7 @@ class CardKey {
 
     values.push(limit, offset);
 
-    const query = `
+    const queryStr = `
       SELECT 
         ck.*,
         u.username as used_by_username,
@@ -243,7 +250,7 @@ class CardKey {
       LIMIT $${paramCount} OFFSET $${paramCount + 1}
     `;
 
-    const result = await db.query(query, values);
+    const result = await query(queryStr, values);
     return result.rows;
   }
 
@@ -259,7 +266,7 @@ class CardKey {
       values.push(batchId);
     }
 
-    const query = `
+    const queryStr = `
       SELECT 
         type,
         status,
@@ -270,7 +277,7 @@ class CardKey {
       ORDER BY type, status
     `;
 
-    const result = await db.query(query, values);
+    const result = await query(queryStr, values);
     return result.rows;
   }
 
@@ -290,7 +297,7 @@ class CardKey {
 
     values.push(limit, offset);
 
-    const query = `
+    const queryStr = `
       SELECT 
         ck.batch_id,
         ck.type,
@@ -310,7 +317,7 @@ class CardKey {
       LIMIT $${paramCount} OFFSET $${paramCount + 1}
     `;
 
-    const result = await db.query(query, values);
+    const result = await query(queryStr, values);
     return result.rows;
   }
 
@@ -318,13 +325,13 @@ class CardKey {
    * 更新卡密状态
    */
   static async updateStatus(id, status) {
-    const query = `
+    const queryStr = `
       UPDATE card_keys 
       SET status = $2
       WHERE id = $1
       RETURNING *
     `;
-    const result = await db.query(query, [id, status]);
+    const result = await query(queryStr, [id, status]);
     return result.rows[0];
   }
 
@@ -332,12 +339,12 @@ class CardKey {
    * 删除卡密
    */
   static async deleteCardKey(id) {
-    const query = `
+    const queryStr = `
       DELETE FROM card_keys 
       WHERE id = $1 AND status = 'unused'
       RETURNING *
     `;
-    const result = await db.query(query, [id]);
+    const result = await query(queryStr, [id]);
     return result.rows[0];
   }
 
@@ -345,12 +352,12 @@ class CardKey {
    * 删除整个批次
    */
   static async deleteBatch(batchId) {
-    const query = `
+    const queryStr = `
       DELETE FROM card_keys 
       WHERE batch_id = $1 AND status = 'unused'
       RETURNING *
     `;
-    const result = await db.query(query, [batchId]);
+    const result = await query(queryStr, [batchId]);
     return result.rows;
   }
 }

@@ -10,7 +10,7 @@ const Checkin = require('../models/Checkin');
  */
 const performCheckin = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const result = await Checkin.performCheckin(userId);
     
     let message = `签到成功！获得${result.total_points}积分`;
@@ -52,7 +52,7 @@ const performCheckin = async (req, res) => {
  */
 const getMyCheckinStatus = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     
     // 获取今日签到状态
     const todayStatus = await Checkin.getTodayCheckinStatus(userId);
@@ -90,7 +90,7 @@ const getMyCheckinStatus = async (req, res) => {
  */
 const getMyCheckinHistory = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const { limit = 30, offset = 0 } = req.query;
     
     const history = await Checkin.getUserCheckinHistory(userId, parseInt(limit), parseInt(offset));
@@ -220,7 +220,7 @@ const createConfig = async (req, res) => {
       });
     }
 
-    const createdBy = req.user.userId;
+    const createdBy = req.user.id;
     const config = await Checkin.createConfig({
       name,
       description,
@@ -377,7 +377,7 @@ const makeupCheckin = async (req, res) => {
       });
     }
 
-    const adminId = req.user.userId;
+    const adminId = req.user.id;
     const result = await Checkin.makeupCheckin(parseInt(userId), date, adminId);
     
     res.json({

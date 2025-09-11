@@ -184,7 +184,7 @@ const deleteLevel = async (req, res) => {
  */
 const getMyVIPInfo = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const vipInfo = await VIP.getUserVIPInfo(userId);
     
     if (!vipInfo) {
@@ -365,7 +365,7 @@ const cancelUserVIP = async (req, res) => {
  */
 const getMyOrders = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const { limit = 10, offset = 0 } = req.query;
     
     const orders = await VIP.getUserOrders(userId, parseInt(limit), parseInt(offset));
@@ -400,7 +400,7 @@ const getOrderById = async (req, res) => {
     }
 
     // 检查权限：只有订单所有者或管理员才能查看
-    const isOwner = order.user_id === req.user.userId;
+    const isOwner = order.user_id === req.user.id;
     const isAdmin = req.user.roles?.some(role => ['admin', 'super_admin'].includes(role.name));
     
     if (!isOwner && !isAdmin) {
