@@ -362,9 +362,6 @@ async function generateSecureResourceInfo(resource, userId = null) {
   delete secureResource.download_url;
   delete secureResource.external_url;
   
-  // 添加下载端点信息
-  secureResource.download_endpoint = `/api/resources/${resource.id}/download`;
-  
   return secureResource;
 }
 

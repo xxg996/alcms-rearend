@@ -478,6 +478,44 @@ components:
                       type: string
                       example: "1h"
 
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: 刷新令牌
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    RefreshTokenResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                tokens:
+                  type: object
+                  properties:
+                    accessToken:
+                      type: string
+                      description: 新的访问令牌
+                      example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    refreshToken:
+                      type: string
+                      description: 新的刷新令牌
+                      example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    tokenType:
+                      type: string
+                      description: 令牌类型
+                      example: "Bearer"
+                    expiresIn:
+                      type: string
+                      description: 访问令牌过期时间
+                      example: "1h"
+
     # 社区相关模型
     CommunityBoard:
       type: object
@@ -2812,6 +2850,44 @@ paths:
                 $ref: '#/components/schemas/BaseResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: 刷新访问令牌
+      description: 使用刷新令牌获取新的访问令牌和刷新令牌
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: 令牌刷新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '400':
+          description: 缺少刷新令牌
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 无效的刷新令牌
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   # 用户管理系统
   /users:
