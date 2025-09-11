@@ -208,6 +208,233 @@ components:
       properties:
         username:
           type: string
+          minLength: 3
+          maxLength: 50
+          pattern: '^[a-zA-Z0-9_]+$'
+          description: 用户名（3-50个字符，只能包含字母、数字和下划线）
+          example: "newuser"
+        email:
+          type: string
+          format: email
+          description: 邮箱
+          example: "user@example.com"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: 密码（8-128个字符）
+          example: "password123"
+        nickname:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 昵称（可选，1-100个字符）
+          example: "新用户"
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        nickname:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 昵称（1-100个字符）
+          example: "我的新昵称"
+        avatar_url:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 头像URL（最多500个字符）
+          example: "https://example.com/avatar.jpg"
+        bio:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 个人简介（最多500个字符）
+          example: "这是我的个人简介"
+
+    CreateUserRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          pattern: '^[a-zA-Z0-9_]+$'
+          description: 用户名（3-50个字符，只能包含字母、数字和下划线）
+          example: "newuser"
+        email:
+          type: string
+          format: email
+          description: 邮箱
+          example: "user@example.com"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: 密码（8-128个字符）
+          example: "password123"
+        nickname:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 昵称（可选，1-100个字符）
+          example: "新用户"
+        roleName:
+          type: string
+          enum: [user, vip, moderator, admin]
+          description: 初始角色（可选，默认为user）
+          example: "user"
+        status:
+          type: string
+          enum: [normal, banned, frozen]
+          description: 用户状态（可选，默认为normal）
+          example: "normal"
+
+    UpdateUserStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [normal, banned, frozen]
+          description: 新的用户状态
+          example: "banned"
+        reason:
+          type: string
+          maxLength: 500
+          description: 状态变更原因（可选，最多500个字符）
+          example: "违反社区规定"
+
+    FreezeUserRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          description: 冻结/解冻原因（可选，最多500个字符）
+          example: "账户异常活动"
+
+    AssignRoleRequest:
+      type: object
+      required:
+        - roleName
+      properties:
+        roleName:
+          type: string
+          enum: [user, vip, moderator, admin]
+          description: 要分配的角色名称
+          example: "moderator"
+
+    UserListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                users:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/User'
+                pagination:
+                  $ref: '#/components/schemas/PaginationInfo'
+
+    UserProfileResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                user:
+                  $ref: '#/components/schemas/User'
+                roles:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Role'
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                  description: 用户权限列表
+
+    UserStatsResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                totalUsers:
+                  type: integer
+                  description: 用户总数
+                  example: 1250
+                activeUsers:
+                  type: integer
+                  description: 正常状态用户数
+                  example: 1200
+                bannedUsers:
+                  type: integer
+                  description: 被封禁用户数
+                  example: 30
+                frozenUsers:
+                  type: integer
+                  description: 被冻结用户数
+                  example: 20
+                recentRegistrations:
+                  type: integer
+                  description: 近7天新注册用户数
+                  example: 25
+                roleStats:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      display_name:
+                        type: string
+                        description: 角色显示名称
+                      user_count:
+                        type: integer
+                        description: 该角色用户数量
+
+    PaginationInfo:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: 当前页码
+          example: 1
+        limit:
+          type: integer
+          description: 每页数量
+          example: 20
+        total:
+          type: integer
+          description: 总记录数
+          example: 1250
+        totalPages:
+          type: integer
+          description: 总页数
+          example: 63
+
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
           description: 用户名
           example: "newuser"
         email:
@@ -1670,7 +1897,7 @@ paths:
       tags:
         - Authentication
       summary: 获取当前用户信息
-      description: 获取当前登录用户的详细信息
+      description: 获取当前登录用户的详细信息、角色和权限
       security:
         - BearerAuth: []
       responses:
@@ -1679,14 +1906,11 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/BaseResponse'
-                  - type: object
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/UserProfileResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /auth/logout:
     post:
@@ -1706,140 +1930,1082 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
 
-  # 用户管理（最小可用定义）
+  # 用户管理系统
   /users:
     get:
       tags: [Users]
       summary: 获取用户列表
-      security: [{ BearerAuth: [] }]
+      description: 获取用户列表，支持分页、搜索和状态过滤（需要user:list权限）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: 页码（从1开始）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          description: 每页数量（1-100）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+        - name: search
+          in: query
+          description: 搜索关键词（可搜索用户名、邮箱、昵称）
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+            example: "admin"
+        - name: status
+          in: query
+          description: 按用户状态过滤
+          required: false
+          schema:
+            type: string
+            enum: [normal, banned, frozen]
+            example: "normal"
       responses:
-        '200': { description: OK }
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
       tags: [Users]
-      summary: 创建用户（管理员）
-      security: [{ BearerAuth: [] }]
+      summary: 创建用户（管理员功能）
+      description: 管理员创建新用户，可指定初始角色和状态
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
       responses:
-        '201': { description: Created }
+        '201':
+          description: 用户创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+                          roles:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Role'
+        '400':
+          description: 输入验证失败或密码强度不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: 用户名或邮箱已存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
-  /users/{userId}:
+  /users/stats:
     get:
       tags: [Users]
-      summary: 获取指定用户信息
-      parameters:
-        - { name: userId, in: path, required: true, schema: { type: integer } }
-      security: [{ BearerAuth: [] }]
+      summary: 获取用户统计信息
+      description: 获取用户总数、状态分布、角色统计等信息（需要管理员权限）
+      security:
+        - BearerAuth: []
       responses:
-        '200': { description: OK }
-        '404': { $ref: '#/components/responses/NotFoundError' }
-    delete:
-      tags: [Users]
-      summary: 删除用户（管理员）
-      parameters:
-        - { name: userId, in: path, required: true, schema: { type: integer } }
-      security: [{ BearerAuth: [] }]
-      responses:
-        '200': { description: OK }
-        '404': { $ref: '#/components/responses/NotFoundError' }
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStatsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /users/profile:
     put:
       tags: [Users]
       summary: 更新用户资料
-      security: [{ BearerAuth: [] }]
+      description: 更新当前用户的个人资料（昵称、头像、个人简介）
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
       responses:
-        '200': { description: OK }
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+        '400':
+          description: 输入验证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/{userId}:
+    get:
+      tags: [Users]
+      summary: 获取指定用户信息
+      description: 获取指定用户的详细信息（用户本人或管理员可访问）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          description: 用户ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 123
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: 无权访问该用户信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags: [Users]
+      summary: 删除用户（管理员功能）
+      description: 管理员删除指定用户（不能删除自己）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          description: 要删除的用户ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 123
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          deletedUser:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                              username:
+                                type: string
+                              email:
+                                type: string
+                              nickname:
+                                type: string
+        '400':
+          description: 不能删除自己的账户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /users/{userId}/status:
     put:
       tags: [Users]
-      summary: 更新用户状态（管理员）
+      summary: 更新用户状态（管理员功能）
+      description: 管理员更新用户状态（封禁/冻结/解除），需要user:ban权限
+      security:
+        - BearerAuth: []
       parameters:
-        - { name: userId, in: path, required: true, schema: { type: integer } }
-      security: [{ BearerAuth: [] }]
+        - name: userId
+          in: path
+          description: 用户ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserStatusRequest'
       responses:
-        '200': { description: OK }
+        '200':
+          description: 状态更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+        '400':
+          description: 输入验证失败或不能修改自己的状态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
-  # 资源管理（最小可用定义）
+  /users/{userId}/freeze:
+    patch:
+      tags: [Users]
+      summary: 冻结/解冻用户（管理员功能）
+      description: 管理员冻结或解冻用户账户（不能操作自己）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          description: 用户ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 123
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FreezeUserRequest'
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+                          action:
+                            type: string
+                            description: 操作类型
+                            enum: [冻结, 解冻]
+                          reason:
+                            type: string
+                            nullable: true
+                            description: 操作原因
+        '400':
+          description: 不能冻结自己的账户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/{userId}/roles:
+    post:
+      tags: [Users]
+      summary: 分配用户角色（管理员功能）
+      description: 管理员为指定用户分配角色，需要role:assign权限
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          description: 用户ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRoleRequest'
+      responses:
+        '200':
+          description: 角色分配成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                              username:
+                                type: string
+                              email:
+                                type: string
+                          roles:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Role'
+        '400':
+          description: 输入验证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: 用户或角色不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags: [Users]
+      summary: 移除用户角色（管理员功能）
+      description: 管理员移除指定用户的角色，需要role:assign权限
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          description: 用户ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRoleRequest'
+      responses:
+        '200':
+          description: 角色移除成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                              username:
+                                type: string
+                              email:
+                                type: string
+                          roles:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Role'
+        '400':
+          description: 输入验证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+
+
+  # 资源管理系统
   /resources:
     get:
       tags: [Resources]
       summary: 获取资源列表
+      description: 获取公开资源列表，支持分页、搜索、分类过滤等
+      parameters:
+        - name: page
+          in: query
+          description: 页码（从1开始）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          description: 每页数量（1-50）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+            example: 20
+        - name: search
+          in: query
+          description: 搜索关键词（搜索标题、描述、标签）
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+            example: "前端开发"
+        - name: category_id
+          in: query
+          description: 分类ID过滤
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+        - name: status
+          in: query
+          description: 资源状态过滤（仅管理员可用）
+          required: false
+          schema:
+            type: string
+            enum: [draft, reviewing, published, archived]
+            example: "published"
+        - name: author_id
+          in: query
+          description: 作者ID过滤
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+        - name: sort
+          in: query
+          description: 排序方式
+          required: false
+          schema:
+            type: string
+            enum: [created_desc, created_asc, updated_desc, view_count_desc, download_count_desc]
+            default: created_desc
+            example: "view_count_desc"
       responses:
-        '200': { description: OK }
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
       tags: [Resources]
       summary: 创建资源
-      security: [{ BearerAuth: [] }]
+      description: 创建新的资源，需要resource:create权限
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateResourceRequest'
       responses:
-        '201': { description: Created }
+        '201':
+          description: 资源创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceDetailResponse'
+        '400':
+          description: 输入验证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /resources/search/query:
+    get:
+      tags: [Resources]
+      summary: 搜索资源
+      description: 全文搜索资源，支持标题、描述、内容、标签搜索
+      parameters:
+        - name: q
+          in: query
+          description: 搜索关键词
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+            example: "JavaScript 教程"
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: category_id
+          in: query
+          description: 限定分类范围
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: 搜索成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /resources/stats/overview:
+    get:
+      tags: [Resources]
+      summary: 获取资源统计信息
+      description: 获取公开的资源统计数据
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceStatsResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /resources/{id}:
     get:
       tags: [Resources]
       summary: 获取资源详情
+      description: 获取指定资源的详细信息，同时增加查看次数
       parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
+        - name: id
+          in: path
+          description: 资源ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
       responses:
-        '200': { description: OK }
-        '404': { $ref: '#/components/responses/NotFoundError' }
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceDetailResponse'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 无权访问私有资源
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     put:
       tags: [Resources]
       summary: 更新资源
+      description: 更新资源信息（作者或管理员可操作）
+      security:
+        - BearerAuth: []
       parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      security: [{ BearerAuth: [] }]
+        - name: id
+          in: path
+          description: 资源ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateResourceRequest'
       responses:
-        '200': { description: OK }
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceDetailResponse'
+        '400':
+          description: 输入验证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: 无权修改此资源
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     delete:
       tags: [Resources]
       summary: 删除资源
+      description: 删除资源（作者或管理员可操作）
+      security:
+        - BearerAuth: []
       parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      security: [{ BearerAuth: [] }]
+        - name: id
+          in: path
+          description: 资源ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
       responses:
-        '200': { description: OK }
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: 无权删除此资源
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /resources/{id}/download:
     post:
       tags: [Resources]
       summary: 下载资源
+      description: 下载资源文件，同时增加下载次数（需要认证）
+      security:
+        - BearerAuth: []
       parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      security: [{ BearerAuth: [] }]
+        - name: id
+          in: path
+          description: 资源ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
       responses:
-        '200': { description: OK }
+        '200':
+          description: 下载成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          download_url:
+                            type: string
+                            description: 下载链接
+                          file_name:
+                            type: string
+                            description: 文件名
+                          file_size:
+                            type: integer
+                            description: 文件大小
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: 无权下载此资源
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在或无下载文件
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
-  # 分类管理（最小可用定义）
-  /categories:
+  /resources/admin/all:
     get:
-      tags: [Categories]
-      summary: 获取分类列表
+      tags: [Resources]
+      summary: 获取所有资源（管理员功能）
+      description: 管理员获取所有状态的资源，包括草稿、审核中、私有资源
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          description: 状态过滤
+          required: false
+          schema:
+            type: string
+            enum: [draft, reviewing, published, archived]
+        - name: author_id
+          in: query
+          description: 作者ID过滤
+          required: false
+          schema:
+            type: integer
+            minimum: 1
       responses:
-        '200': { description: OK }
-    post:
-      tags: [Categories]
-      summary: 创建分类
-      security: [{ BearerAuth: [] }]
-      responses:
-        '201': { description: Created }
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
-  /categories/{id}:
+  /resources/admin/batch-update:
+    patch:
+      tags: [Resources]
+      summary: 批量更新资源（管理员功能）
+      description: 管理员批量更新多个资源的状态或其他属性
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - resourceIds
+                - updateData
+              properties:
+                resourceIds:
+                  type: array
+                  items:
+                    type: integer
+                  minItems: 1
+                  maxItems: 50
+                  description: 要更新的资源ID列表
+                  example: [1, 2, 3, 4, 5]
+                updateData:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      enum: [draft, reviewing, published, archived]
+                      description: 新状态
+                    is_public:
+                      type: boolean
+                      description: 是否公开
+                    category_id:
+                      type: integer
+                      nullable: true
+                      description: 分类ID
+                  description: 要更新的数据
+      responses:
+        '200':
+          description: 批量更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          updated:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Resource'
+                          errors:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                resourceId:
+                                  type: integer
+                                error:
+                                  type: string
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /resources/admin/stats/detailed:
     get:
-      tags: [Categories]
-      summary: 获取分类详情
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
+      tags: [Resources]
+      summary: 获取详细统计信息（管理员功能）
+      description: 管理员获取详细的资源统计数据，包括日统计、作者统计等
+      security:
+        - BearerAuth: []
       responses:
-        '200': { description: OK }
-        '404': { $ref: '#/components/responses/NotFoundError' }
-    put:
-      tags: [Categories]
-      summary: 更新分类
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      security: [{ BearerAuth: [] }]
-      responses:
-        '200': { description: OK }
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          dailyStats:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                date:
+                                  type: string
+                                  format: date
+                                resources_created:
+                                  type: integer
+                                total_views:
+                                  type: integer
+                                total_downloads:
+                                  type: integer
+                            description: 日统计数据
+                          authorStats:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                username:
+                                  type: string
+                                nickname:
+                                  type: string
+                                resource_count:
+                                  type: integer
+                                total_views:
+                                  type: integer
+                                total_downloads:
+                                  type: integer
+                            description: 作者统计数据
+                          popularResources:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                title:
+                                  type: string
+                                view_count:
+                                  type: integer
+                                download_count:
+                                  type: integer
+                                author_username:
+                                  type: string
+                                category_name:
+                                  type: string
+                            description: 热门资源
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   # VIP系统相关接口
   /vip/levels:
@@ -2200,45 +3366,408 @@ paths:
       responses:
         '200': { description: OK }
 
-  # 标签管理（最小可用定义）
+  # 标签管理系统
   /tags:
     get:
       tags: [Tags]
       summary: 获取标签列表
+      description: 获取所有标签列表，支持分页和搜索
+      parameters:
+        - name: page
+          in: query
+          description: 页码（从1开始）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          description: 每页数量（1-100）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+        - name: search
+          in: query
+          description: 搜索关键词（搜索标签名称）
+          required: false
+          schema:
+            type: string
+            maxLength: 50
+            example: "Java"
+        - name: sort
+          in: query
+          description: 排序方式
+          required: false
+          schema:
+            type: string
+            enum: [name_asc, name_desc, usage_desc, created_desc]
+            default: usage_desc
+            example: "usage_desc"
       responses:
-        '200': { description: OK }
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
       tags: [Tags]
       summary: 创建标签
-      security: [{ BearerAuth: [] }]
+      description: 创建新的标签，需要tag:create权限
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTagRequest'
       responses:
-        '201': { description: Created }
+        '201':
+          description: 标签创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagDetailResponse'
+        '400':
+          description: 输入验证失败或标签名称已存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tags/search/query:
+    get:
+      tags: [Tags]
+      summary: 搜索标签
+      description: 根据关键词搜索标签
+      parameters:
+        - name: q
+          in: query
+          description: 搜索关键词
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 50
+            example: "React"
+        - name: limit
+          in: query
+          description: 返回数量限制
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+            example: 10
+      responses:
+        '200':
+          description: 搜索成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tags/popular/list:
+    get:
+      tags: [Tags]
+      summary: 获取热门标签
+      description: 根据使用次数获取热门标签
+      parameters:
+        - name: limit
+          in: query
+          description: 返回数量限制
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+            example: 15
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagListResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tags/batch-create:
+    post:
+      tags: [Tags]
+      summary: 批量创建标签
+      description: 一次性创建多个标签，需要tag:create权限
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchCreateTagsRequest'
+      responses:
+        '201':
+          description: 批量创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          created:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Tag'
+                            description: 成功创建的标签
+                          skipped:
+                            type: array
+                            items:
+                              type: string
+                            description: 已存在而被跳过的标签名称
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /tags/{id}:
     get:
       tags: [Tags]
       summary: 获取标签详情
+      description: 获取指定标签的详细信息和使用统计
       parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
+        - name: id
+          in: path
+          description: 标签ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
       responses:
-        '200': { description: OK }
-        '404': { $ref: '#/components/responses/NotFoundError' }
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagDetailResponse'
+        '404':
+          description: 标签不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     put:
       tags: [Tags]
       summary: 更新标签
+      description: 更新标签信息，需要tag:update权限
+      security:
+        - BearerAuth: []
       parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      security: [{ BearerAuth: [] }]
+        - name: id
+          in: path
+          description: 标签ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTagRequest'
       responses:
-        '200': { description: OK }
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagDetailResponse'
+        '400':
+          description: 输入验证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: 标签不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     delete:
       tags: [Tags]
       summary: 删除标签
+      description: 删除标签，需要tag:delete权限（不能删除正在使用的标签）
+      security:
+        - BearerAuth: []
       parameters:
-        - { name: id, in: path, required: true, schema: { type: integer } }
-      security: [{ BearerAuth: [] }]
+        - name: id
+          in: path
+          description: 标签ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
       responses:
-        '200': { description: OK }
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '400':
+          description: 标签正在使用，无法删除
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: 标签不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tags/admin/stats:
+    get:
+      tags: [Tags]
+      summary: 获取标签统计信息（管理员功能）
+      description: 管理员获取详细的标签统计数据，包括使用情况和分布统计
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagStatsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tags/admin/cleanup:
+    delete:
+      tags: [Tags]
+      summary: 清理未使用的标签（管理员功能）
+      description: 管理员删除所有未被使用的标签，需要tag:delete权限
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 清理成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          deletedCount:
+                            type: integer
+                            description: 已删除的标签数量
+                          deletedTags:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Tag'
+                            description: 被删除的标签列表
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tags/admin/recalculate-usage:
+    post:
+      tags: [Tags]
+      summary: 重新计算标签使用次数（管理员功能）
+      description: 管理员重新计算所有标签的使用次数，需要tag:update权限
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 重新计算成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total_tags:
+                            type: integer
+                            description: 总标签数
+                          total_usage:
+                            type: integer
+                            description: 总使用次数
+                          avg_usage:
+                            type: number
+                            format: float
+                            description: 平均使用次数
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   # 社区板块管理
   /community/boards:
