@@ -281,6 +281,199 @@ function extractFileName(url, fallbackTitle) {
   return cleanTitle || 'download';
 }
 
+/**
+ * 加密混淆URL
+ * @param {string} url - 原始URL
+ * @param {number} resourceId - 资源ID
+ * @returns {string} 混淆后的字符串
+ */
+function obfuscateUrl(url, resourceId) {
+  if (!url) return null;
+  
+  const secret = process.env.JWT_SECRET || 'default-secret';
+  const data = JSON.stringify({ url, resourceId, timestamp: Date.now() });
+  
+  // 使用现代加密方法
+  const algorithm = 'aes-256-cbc';
+  const key = crypto.createHash('sha256').update(secret).digest();
+  const iv = crypto.randomBytes(16);
+  
+  const cipher = crypto.createCipheriv(algorithm, key, iv);
+  let encrypted = cipher.update(data, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  
+  // 组合IV和加密数据
+  const combined = iv.toString('hex') + ':' + encrypted;
+  
+  // 添加随机前缀和后缀混淆
+  const prefix = crypto.randomBytes(8).toString('hex');
+  const suffix = crypto.randomBytes(8).toString('hex');
+  
+  return `${prefix}_${Buffer.from(combined).toString('base64')}_${suffix}`;
+}
+
+/**
+ * 解密混淆URL
+ * @param {string} obfuscatedUrl - 混淆的字符串
+ * @returns {Object|null} 解密后的数据
+ */
+function deobfuscateUrl(obfuscatedUrl) {
+  try {
+    const secret = process.env.JWT_SECRET || 'default-secret';
+    
+    // 移除前缀和后缀
+    const parts = obfuscatedUrl.split('_');
+    if (parts.length !== 3) return null;
+    
+    const combined = Buffer.from(parts[1], 'base64').toString('utf8');
+    const [ivHex, encrypted] = combined.split(':');
+    
+    if (!ivHex || !encrypted) return null;
+    
+    const algorithm = 'aes-256-cbc';
+    const key = crypto.createHash('sha256').update(secret).digest();
+    const iv = Buffer.from(ivHex, 'hex');
+    
+    const decipher = crypto.createDecipheriv(algorithm, key, iv);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    
+    return JSON.parse(decrypted);
+  } catch (error) {
+    console.error('URL解密失败:', error);
+    return null;
+  }
+}
+
+/**
+ * 生成安全的资源展示信息
+ * @param {Object} resource - 资源对象
+ * @param {number} userId - 用户ID (可选)
+ * @returns {Promise<Object>} 安全的资源信息
+ */
+async function generateSecureResourceInfo(resource, userId = null) {
+  const secureResource = { ...resource };
+  
+  // 生成下载信息数组
+  secureResource.downloadInfo = await generateDownloadInfoArray(resource, userId);
+  
+  // 移除原始的下载URL字段，确保安全
+  delete secureResource.file_url;
+  delete secureResource.download_url;
+  delete secureResource.external_url;
+  
+  // 添加下载端点信息
+  secureResource.download_endpoint = `/api/resources/${resource.id}/download`;
+  
+  return secureResource;
+}
+
+/**
+ * 生成下载信息数组
+ * @param {Object} resource - 资源对象
+ * @param {number} userId - 用户ID (可选)
+ * @returns {Promise<Array>} 下载信息数组
+ */
+async function generateDownloadInfoArray(resource, userId = null) {
+  const downloadInfo = [];
+  
+  // 检查用户下载权限
+  let permissionCheck = { allowed: false, reason: '未登录用户无法下载' };
+  
+  // 获取资源类型名称
+  const resourceTypeName = resource.resource_type_name;
+  
+  // 根据资源类型检查是否有可下载的文件
+  let hasDownloadableFiles = false;
+  if (resourceTypeName === 'article') {
+    hasDownloadableFiles = !!resource.download_url;
+  } else if (resourceTypeName === 'video' || resourceTypeName === 'audio') {
+    hasDownloadableFiles = !!resource.file_url;
+  }
+  
+  if (userId) {
+    if (hasDownloadableFiles) {
+      try {
+        permissionCheck = await validateDownloadPermission(userId, resource);
+      } catch (error) {
+        console.error('权限检查失败:', error);
+        permissionCheck = { allowed: false, reason: '权限检查失败' };
+      }
+    } else {
+      // 登录用户查看无下载文件的资源
+      permissionCheck = { allowed: false, reason: '该资源暂无可下载文件' };
+    }
+  } else {
+    // 未登录用户
+    if (hasDownloadableFiles && resource.is_public && resource.is_free) {
+      permissionCheck = { allowed: false, reason: '需要登录后下载' };
+    } else {
+      permissionCheck = { allowed: false, reason: '未登录用户无法下载' };
+    }
+  }
+  
+  // 根据资源类型显示不同的URL
+  if (resourceTypeName === 'article') {
+    // 文章类型：只显示 downloadUrl
+    if (resource.download_url) {
+      downloadInfo.push({
+        type: 'downloadUrl',
+        name: '下载文件',
+        encrypted_url: permissionCheck.allowed ? obfuscateUrl(resource.download_url, resource.id) : null,
+        has_permission: permissionCheck.allowed,
+        permission_reason: permissionCheck.allowed ? '允许下载' : permissionCheck.reason,
+        file_size: resource.file_size,
+        mime_type: resource.file_mime_type,
+        is_external: false
+      });
+    }
+  } else if (resourceTypeName === 'video') {
+    // 视频类型：只显示 mp4Url
+    if (resource.file_url) {
+      downloadInfo.push({
+        type: 'mp4Url',
+        name: 'MP4视频',
+        encrypted_url: permissionCheck.allowed ? obfuscateUrl(resource.file_url, resource.id) : null,
+        has_permission: permissionCheck.allowed,
+        permission_reason: permissionCheck.allowed ? '允许播放' : permissionCheck.reason,
+        file_size: resource.file_size,
+        mime_type: resource.file_mime_type || 'video/mp4',
+        is_external: false
+      });
+    }
+  } else if (resourceTypeName === 'audio') {
+    // 音频类型：只显示 mp3Url
+    if (resource.file_url) {
+      downloadInfo.push({
+        type: 'mp3Url',
+        name: 'MP3音频',
+        encrypted_url: permissionCheck.allowed ? obfuscateUrl(resource.file_url, resource.id) : null,
+        has_permission: permissionCheck.allowed,
+        permission_reason: permissionCheck.allowed ? '允许播放' : permissionCheck.reason,
+        file_size: resource.file_size,
+        mime_type: resource.file_mime_type || 'audio/mp3',
+        is_external: false
+      });
+    }
+  }
+  
+  // 如果没有任何下载链接，返回空数组
+  if (downloadInfo.length === 0) {
+    return [{
+      type: 'none',
+      name: '暂无可用文件',
+      encrypted_url: null,
+      has_permission: false,
+      permission_reason: '该资源暂无可下载文件',
+      file_size: null,
+      mime_type: null,
+      is_external: false
+    }];
+  }
+  
+  return downloadInfo;
+}
+
 // 辅助函数
 
 /**
@@ -376,5 +569,9 @@ module.exports = {
   generateSignedUrl,
   validateDownloadSignature,
   generateDownloadSignature,
-  buildSignedUrl
+  buildSignedUrl,
+  obfuscateUrl,
+  deobfuscateUrl,
+  generateSecureResourceInfo,
+  generateDownloadInfoArray
 };

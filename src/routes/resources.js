@@ -6,15 +6,15 @@
 const express = require('express');
 const router = express.Router();
 const ResourceController = require('../controllers/resourceController');
-const { authenticateToken, requirePermission } = require('../middleware/auth');
+const { authenticateToken, requirePermission, optionalAuth } = require('../middleware/auth');
 
 // 公开路由（无需认证）
 
 // 获取公开资源列表
-router.get('/', ResourceController.getResources);
+router.get('/', optionalAuth, ResourceController.getResources);
 
 // 获取单个资源详情
-router.get('/:id', ResourceController.getResource);
+router.get('/:id', optionalAuth, ResourceController.getResource);
 
 // 搜索资源
 router.get('/search/query', ResourceController.searchResources);
@@ -45,6 +45,12 @@ router.delete('/:id',
 
 // 下载资源（需要登录，权限在控制器中检查）
 router.post('/:id/download', 
+  authenticateToken,
+  ResourceController.downloadResource
+);
+
+// 下载资源（GET方法，支持URL参数）
+router.get('/:id/download', 
   authenticateToken,
   ResourceController.downloadResource
 );

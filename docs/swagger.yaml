@@ -1,4 +1,5 @@
 openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: Alcms Backend API
   description: |
@@ -153,7 +154,7 @@ components:
           format: date-time
           nullable: true
           description: 最后登录时间
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
@@ -174,7 +175,7 @@ components:
           type: string
           description: 角色名称
           example: "admin"
-        display_name:
+        displayName:
           type: string
           description: 显示名称
           example: "管理员"
@@ -399,10 +400,10 @@ components:
                   items:
                     type: object
                     properties:
-                      display_name:
+                      displayName:
                         type: string
                         description: 角色显示名称
-                      user_count:
+                      userCount:
                         type: integer
                         description: 该角色用户数量
 
@@ -489,7 +490,7 @@ components:
           type: string
           description: 板块名称（唯一标识）
           example: "tech"
-        display_name:
+        displayName:
           type: string
           description: 显示名称
           example: "技术交流"
@@ -497,19 +498,19 @@ components:
           type: string
           description: 板块描述
           example: "编程技术、开发经验分享"
-        icon_url:
+        iconUrl:
           type: string
           nullable: true
           description: 图标URL
-        cover_image_url:
+        coverImageUrl:
           type: string
           nullable: true
           description: 封面图片URL
-        sort_order:
+        sortOrder:
           type: integer
           description: 排序顺序
           example: 1
-        is_active:
+        isActive:
           type: boolean
           description: 是否激活
           example: true
@@ -531,11 +532,11 @@ components:
           items:
             type: integer
           description: 版主用户ID列表
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
-        updated_at:
+        updatedAt:
           type: string
           format: date-time
           description: 更新时间
@@ -544,13 +545,13 @@ components:
       type: object
       required:
         - name
-        - display_name
+        - displayName
       properties:
         name:
           type: string
           description: 板块名称（唯一标识）
           example: "ai-discussion"
-        display_name:
+        displayName:
           type: string
           description: 显示名称
           example: "AI技术讨论"
@@ -558,10 +559,10 @@ components:
           type: string
           description: 板块描述
           example: "人工智能、机器学习、深度学习技术交流"
-        icon_url:
+        iconUrl:
           type: string
           description: 图标URL
-        sort_order:
+        sortOrder:
           type: integer
           description: 排序顺序
           example: 12
@@ -585,7 +586,7 @@ components:
         content:
           type: string
           description: 帖子内容
-        content_type:
+        contentType:
           type: string
           enum: [markdown, html]
           description: 内容格式
@@ -594,11 +595,11 @@ components:
           type: string
           description: 摘要
           example: "分享Vue 3结合TypeScript的开发经验"
-        author_id:
+        authorId:
           type: integer
           description: 作者ID
           example: 1
-        board_id:
+        boardId:
           type: integer
           description: 板块ID
           example: 3
@@ -607,64 +608,64 @@ components:
           enum: [draft, reviewing, published, rejected, deleted]
           description: 帖子状态
           example: "published"
-        is_pinned:
+        isPinned:
           type: boolean
           description: 是否置顶
           example: false
-        is_featured:
+        isFeatured:
           type: boolean
           description: 是否精华
           example: false
-        is_locked:
+        isLocked:
           type: boolean
           description: 是否锁定
           example: false
-        view_count:
+        viewCount:
           type: integer
           description: 浏览数
           example: 156
-        reply_count:
+        replyCount:
           type: integer
           description: 回复数
           example: 8
-        like_count:
+        likeCount:
           type: integer
           description: 点赞数
           example: 23
-        favorite_count:
+        favoriteCount:
           type: integer
           description: 收藏数
           example: 12
-        share_count:
+        shareCount:
           type: integer
           description: 分享数
           example: 5
-        published_at:
+        publishedAt:
           type: string
           format: date-time
           description: 发布时间
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
-        updated_at:
+        updatedAt:
           type: string
           format: date-time
           description: 更新时间
         # 关联数据
-        author_username:
+        authorUsername:
           type: string
           description: 作者用户名
           example: "developer"
-        author_nickname:
+        authorNickname:
           type: string
           description: 作者昵称
           example: "前端开发者"
-        board_name:
+        boardName:
           type: string
           description: 板块名称
           example: "frontend"
-        board_display_name:
+        boardDisplayName:
           type: string
           description: 板块显示名称
           example: "前端开发"
@@ -690,7 +691,7 @@ components:
           type: string
           description: 帖子内容
           example: "# Vue 3 + TypeScript 开发指南\n\n本文将分享..."
-        content_type:
+        contentType:
           type: string
           enum: [markdown, html]
           description: 内容格式
@@ -699,7 +700,7 @@ components:
           type: string
           description: 摘要
           example: "完整的Vue 3 + TypeScript开发指南"
-        board_id:
+        boardId:
           type: integer
           description: 板块ID
           example: 3
@@ -726,48 +727,48 @@ components:
           type: string
           description: 评论内容
           example: "感谢分享！这个教程很实用。"
-        author_id:
+        authorId:
           type: integer
           description: 作者ID
           example: 2
-        post_id:
+        postId:
           type: integer
           description: 帖子ID
           example: 1
-        parent_id:
+        parentId:
           type: integer
           nullable: true
           description: 父评论ID（楼中楼）
-        reply_to_user_id:
+        replyToUserId:
           type: integer
           nullable: true
           description: 回复目标用户ID
-        floor_number:
+        floorNumber:
           type: integer
           description: 楼层号
           example: 1
-        like_count:
+        likeCount:
           type: integer
           description: 点赞数
           example: 5
-        is_deleted:
+        isDeleted:
           type: boolean
           description: 是否删除
           example: false
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
-        updated_at:
+        updatedAt:
           type: string
           format: date-time
           description: 更新时间
         # 关联数据
-        author_username:
+        authorUsername:
           type: string
           description: 作者用户名
           example: "user123"
-        author_nickname:
+        authorNickname:
           type: string
           description: 作者昵称
           example: "技术爱好者"
@@ -787,14 +788,14 @@ components:
           type: string
           description: 评论内容
           example: "感谢分享！想问一下关于TypeScript类型定义的问题。"
-        post_id:
+        postId:
           type: integer
           description: 帖子ID
           example: 1
-        parent_id:
+        parentId:
           type: integer
           description: 父评论ID（楼中楼回复）
-        reply_to_user_id:
+        replyToUserId:
           type: integer
           description: 回复目标用户ID
 
@@ -820,7 +821,7 @@ components:
       required:
         - post_id
       properties:
-        post_id:
+        postId:
           type: integer
           description: 帖子ID
           example: 1
@@ -830,7 +831,7 @@ components:
       required:
         - post_id
       properties:
-        post_id:
+        postId:
           type: integer
           description: 帖子ID
           example: 1
@@ -947,7 +948,7 @@ components:
           type: string
           description: 分类名称（唯一标识）
           example: "frontend"
-        display_name:
+        displayName:
           type: string
           description: 分类显示名称
           example: "前端开发"
@@ -956,43 +957,43 @@ components:
           nullable: true
           description: 分类描述
           example: "前端开发相关资源分类"
-        parent_id:
+        parentId:
           type: integer
           nullable: true
           description: 父分类ID（顶级分类为null）
           example: null
-        sort_order:
+        sortOrder:
           type: integer
           description: 排序顺序
           example: 0
-        icon_url:
+        iconUrl:
           type: string
           nullable: true
           description: 分类图标URL
           example: "https://example.com/icons/frontend.png"
-        is_active:
+        isActive:
           type: boolean
           description: 是否激活
           example: true
-        resource_count:
+        resourceCount:
           type: integer
           description: 该分类下的资源数量
           example: 25
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
-        updated_at:
+        updatedAt:
           type: string
           format: date-time
           description: 更新时间
         # 关联数据
-        parent_name:
+        parentName:
           type: string
           nullable: true
           description: 父分类名称
           example: null
-        parent_display_name:
+        parentDisplayName:
           type: string
           nullable: true
           description: 父分类显示名称
@@ -1007,7 +1008,7 @@ components:
       type: object
       required:
         - name
-        - display_name
+        - displayName
       properties:
         name:
           type: string
@@ -1016,7 +1017,7 @@ components:
           pattern: '^[a-zA-Z0-9_-]+$'
           description: 分类名称（英文标识，1-100个字符，只能包含字母、数字、下划线和横线）
           example: "frontend"
-        display_name:
+        displayName:
           type: string
           minLength: 1
           maxLength: 100
@@ -1027,18 +1028,18 @@ components:
           maxLength: 500
           description: 分类描述（最多500个字符）
           example: "前端开发相关技术资源分类"
-        parent_id:
+        parentId:
           type: integer
           nullable: true
           description: 父分类ID（创建顶级分类时为null）
           example: null
-        sort_order:
+        sortOrder:
           type: integer
           minimum: 0
           default: 0
           description: 排序顺序（数字越小越靠前）
           example: 0
-        icon_url:
+        iconUrl:
           type: string
           maxLength: 500
           description: 分类图标URL（最多500个字符）
@@ -1054,7 +1055,7 @@ components:
           pattern: '^[a-zA-Z0-9_-]+$'
           description: 分类名称（英文标识）
           example: "frontend-dev"
-        display_name:
+        displayName:
           type: string
           minLength: 1
           maxLength: 100
@@ -1066,23 +1067,23 @@ components:
           nullable: true
           description: 分类描述
           example: "前端开发相关技术资源分类，包括框架、工具等"
-        parent_id:
+        parentId:
           type: integer
           nullable: true
           description: 父分类ID
           example: 2
-        sort_order:
+        sortOrder:
           type: integer
           minimum: 0
           description: 排序顺序
           example: 1
-        icon_url:
+        iconUrl:
           type: string
           maxLength: 500
           nullable: true
           description: 分类图标URL
           example: "https://example.com/icons/frontend-new.png"
-        is_active:
+        isActive:
           type: boolean
           description: 是否激活
           example: true
@@ -1098,6 +1099,725 @@ components:
                 $ref: '#/components/schemas/Category'
               description: 分类列表（可能是扁平列表或树形结构）
 
+    # 资源管理系统相关模型
+    Resource:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 资源ID
+          example: 1
+        title:
+          type: string
+          description: 资源标题
+          example: "Vue 3 完整教程"
+        slug:
+          type: string
+          description: 资源别名（URL友好）
+          example: "vue3-complete-tutorial"
+        description:
+          type: string
+          nullable: true
+          description: 资源描述
+          example: "最全面的Vue 3教程，从基础到高级"
+        content:
+          type: string
+          nullable: true
+          description: 资源内容（详细介绍）
+          example: "# Vue 3 完整教程\n\n本教程将带您全面学习..."
+        summary:
+          type: string
+          nullable: true
+          description: 资源摘要
+          example: "从基础到高级的Vue 3学习指南"
+        categoryId:
+          type: integer
+          nullable: true
+          description: 分类ID
+          example: 1
+        resourceTypeId:
+          type: integer
+          description: 资源类型ID
+          example: 1
+        coverImageUrl:
+          type: string
+          nullable: true
+          description: 封面图片URL
+          example: "https://example.com/covers/vue3.jpg"
+        fileUrl:
+          type: string
+          nullable: true
+          description: 文件URL
+          example: "https://example.com/files/vue3-tutorial.zip"
+        fileSize:
+          type: integer
+          nullable: true
+          description: 文件大小（字节）
+          example: 10485760
+        fileMimeType:
+          type: string
+          nullable: true
+          description: 文件MIME类型
+          example: "application/zip"
+        duration:
+          type: integer
+          nullable: true
+          description: 时长（秒，仅适用于音视频）
+          example: 3600
+        externalUrl:
+          type: string
+          nullable: true
+          description: 外部链接
+          example: "https://example.com/external-resource"
+        downloadUrl:
+          type: string
+          nullable: true
+          description: 下载链接
+          example: "https://example.com/download/vue3-tutorial"
+        isPublic:
+          type: boolean
+          description: 是否公开
+          example: true
+        isFree:
+          type: boolean
+          description: 是否免费
+          example: false
+        requiredVipLevel:
+          type: string
+          nullable: true
+          description: 需要的VIP等级
+          example: "vip1"
+        requiredPoints:
+          type: integer
+          description: 需要的积分
+          example: 100
+        downloadLimit:
+          type: integer
+          nullable: true
+          description: 下载次数限制
+          example: 1000
+        status:
+          type: string
+          enum: [draft, reviewing, published, archived]
+          description: 资源状态
+          example: "published"
+        viewCount:
+          type: integer
+          description: 查看数
+          example: 1250
+        downloadCount:
+          type: integer
+          description: 下载数
+          example: 485
+        likeCount:
+          type: integer
+          description: 点赞数
+          example: 89
+        authorId:
+          type: integer
+          description: 作者ID
+          example: 1
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 发布时间
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新时间
+        # 关联数据
+        resourceTypeName:
+          type: string
+          nullable: true
+          description: 资源类型名称
+          example: "video"
+        resource_type_display_name:
+          type: string
+          nullable: true
+          description: 资源类型显示名称
+          example: "视频教程"
+        is_streamable:
+          type: boolean
+          nullable: true
+          description: 是否支持在线播放
+          example: true
+        categoryName:
+          type: string
+          nullable: true
+          description: 分类名称
+          example: "frontend"
+        category_display_name:
+          type: string
+          nullable: true
+          description: 分类显示名称
+          example: "前端开发"
+        authorUsername:
+          type: string
+          nullable: true
+          description: 作者用户名
+          example: "developer"
+        authorNickname:
+          type: string
+          nullable: true
+          description: 作者昵称
+          example: "前端开发者"
+        isFavorited:
+          type: boolean
+          nullable: true
+          description: 当前用户是否收藏（需要登录）
+          example: true
+        tags:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                description: 标签ID
+              name:
+                type: string
+                description: 标签名称
+              displayName:
+                type: string
+                description: 标签显示名称
+              color:
+                type: string
+                description: 标签颜色
+          description: 关联的标签列表
+
+    CreateResourceRequest:
+      type: object
+      required:
+        - title
+        - resource_type_id
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: 资源标题（1-200个字符）
+          example: "Vue 3 完整教程"
+        slug:
+          type: string
+          maxLength: 200
+          pattern: '^[a-z0-9-]+$'
+          description: 资源别名（可选，不填则自动生成）
+          example: "vue3-complete-tutorial"
+        description:
+          type: string
+          maxLength: 1000
+          description: 资源描述（最夆1000个字符）
+          example: "最全面的Vue 3教程，从基础到高级"
+        content:
+          type: string
+          description: 资源内容（详细介绍，支持Markdown）
+          example: "# Vue 3 完整教程\n\n本教程将带您全面学习Vue 3的所有特性..."
+        summary:
+          type: string
+          maxLength: 500
+          description: 资源摘要（最多500个字符）
+          example: "从基础到高级的Vue 3学习指南"
+        categoryId:
+          type: integer
+          minimum: 1
+          description: 分类ID
+          example: 1
+        resourceTypeId:
+          type: integer
+          minimum: 1
+          description: 资源类型ID（必填）
+          example: 1
+        coverImageUrl:
+          type: string
+          maxLength: 500
+          format: uri
+          description: 封面图片URL
+          example: "https://example.com/covers/vue3.jpg"
+        fileUrl:
+          type: string
+          maxLength: 500
+          format: uri
+          description: 文件URL
+          example: "https://example.com/files/vue3-tutorial.zip"
+        fileSize:
+          type: integer
+          minimum: 0
+          description: 文件大小（字节）
+          example: 10485760
+        fileMimeType:
+          type: string
+          maxLength: 100
+          description: 文件MIME类型
+          example: "application/zip"
+        duration:
+          type: integer
+          minimum: 0
+          description: 时长（秒，仅适用于音视频）
+          example: 3600
+        externalUrl:
+          type: string
+          maxLength: 500
+          format: uri
+          description: 外部链接
+          example: "https://example.com/external-resource"
+        downloadUrl:
+          type: string
+          maxLength: 500
+          format: uri
+          description: 下载链接
+          example: "https://example.com/download/vue3-tutorial"
+        isPublic:
+          type: boolean
+          default: true
+          description: 是否公开
+          example: true
+        isFree:
+          type: boolean
+          default: true
+          description: 是否免费
+          example: false
+        requiredVipLevel:
+          type: string
+          enum: [vip1, vip2, vip3]
+          description: 需要的VIP等级
+          example: "vip1"
+        requiredPoints:
+          type: integer
+          minimum: 0
+          default: 0
+          description: 需要的积分
+          example: 100
+        downloadLimit:
+          type: integer
+          minimum: 0
+          description: 下载次数限制（0表示无限制）
+          example: 1000
+        tags:
+          type: array
+          items:
+            type: string
+          maxItems: 10
+          description: 标签列表（最多10个）
+          example: ["vue3", "frontend", "tutorial"]
+
+    UpdateResourceRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: 资源标题
+          example: "Vue 3 高级教程（更新版）"
+        slug:
+          type: string
+          maxLength: 200
+          pattern: '^[a-z0-9-]+$'
+          description: 资源别名
+          example: "vue3-advanced-tutorial"
+        description:
+          type: string
+          maxLength: 1000
+          description: 资源描述
+          example: "最全面的Vue 3高级教程，包含最新特性"
+        content:
+          type: string
+          description: 资源内容
+          example: "# Vue 3 高级教程\n\n本教程更新了..."
+        summary:
+          type: string
+          maxLength: 500
+          description: 资源摘要
+          example: "包含最新Vue 3特性的高级教程"
+        categoryId:
+          type: integer
+          minimum: 1
+          description: 分类ID
+          example: 2
+        resourceTypeId:
+          type: integer
+          minimum: 1
+          description: 资源类型ID
+          example: 1
+        coverImageUrl:
+          type: string
+          maxLength: 500
+          format: uri
+          description: 封面图片URL
+          example: "https://example.com/covers/vue3-advanced.jpg"
+        fileUrl:
+          type: string
+          maxLength: 500
+          format: uri
+          description: 文件URL
+          example: "https://example.com/files/vue3-advanced.zip"
+        fileSize:
+          type: integer
+          minimum: 0
+          description: 文件大小（字节）
+          example: 15728640
+        fileMimeType:
+          type: string
+          maxLength: 100
+          description: 文件MIME类型
+          example: "application/zip"
+        duration:
+          type: integer
+          minimum: 0
+          description: 时长（秒）
+          example: 4500
+        externalUrl:
+          type: string
+          maxLength: 500
+          format: uri
+          description: 外部链接
+        downloadUrl:
+          type: string
+          maxLength: 500
+          format: uri
+          description: 下载链接
+        isPublic:
+          type: boolean
+          description: 是否公开
+          example: true
+        isFree:
+          type: boolean
+          description: 是否免费
+          example: false
+        requiredVipLevel:
+          type: string
+          enum: [vip1, vip2, vip3]
+          description: 需要的VIP等级
+          example: "vip2"
+        requiredPoints:
+          type: integer
+          minimum: 0
+          description: 需要的积分
+          example: 150
+        downloadLimit:
+          type: integer
+          minimum: 0
+          description: 下载次数限制
+          example: 500
+        status:
+          type: string
+          enum: [draft, reviewing, published, archived]
+          description: 资源状态
+          example: "published"
+        tags:
+          type: array
+          items:
+            type: string
+          maxItems: 10
+          description: 标签列表
+          example: ["vue3", "advanced", "frontend"]
+
+    ResourceDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Resource'
+              description: 资源详情
+
+    ResourceListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                resources:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Resource'
+                  description: 资源列表
+                pagination:
+                  type: object
+                  properties:
+                    page:
+                      type: integer
+                      description: 当前页码
+                      example: 1
+                    limit:
+                      type: integer
+                      description: 每页数量
+                      example: 20
+                    total:
+                      type: integer
+                      description: 总数量
+                      example: 156
+                    totalPages:
+                      type: integer
+                      description: 总页数
+                      example: 8
+                    hasNextPage:
+                      type: boolean
+                      description: 是否有下一页
+                      example: true
+                    hasPreviousPage:
+                      type: boolean
+                      description: 是否有上一页
+                      example: false
+                  description: 分页信息
+
+    ResourceStatsResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                total_resources:
+                  type: integer
+                  description: 资源总数
+                  example: 1250
+                published_resources:
+                  type: integer
+                  description: 已发布资源数
+                  example: 980
+                totalViews:
+                  type: integer
+                  description: 总查看数
+                  example: 45620
+                total_downloads:
+                  type: integer
+                  description: 总下载数
+                  example: 12890
+                free_resources:
+                  type: integer
+                  description: 免费资源数
+                  example: 756
+                paid_resources:
+                  type: integer
+                  description: 付费资源数
+                  example: 224
+                categories_count:
+                  type: integer
+                  description: 分类数量
+                  example: 15
+                authors_count:
+                  type: integer
+                  description: 作者数量
+                  example: 45
+
+    # 下载资源相关模型
+    DownloadResourceRequest:
+      type: object
+      required:
+        - encrypted_url
+      properties:
+        encrypted_url:
+          type: string
+          minLength: 1
+          description: 加密的下载URL，由系统生成的签名链接
+          example: "eyJhbGciOiJIUzI1NiJ9.eyJyZXNvdXJjZUlkIjoxLCJ1cmwiOiJodHRwczovL2V4YW1wbGUuY29tL2ZpbGUuemlwIiwiZXhwIjoxNjQwOTk1MjAwfQ.signature"
+      example:
+        encrypted_url: "eyJhbGciOiJIUzI1NiJ9.eyJyZXNvdXJjZUlkIjoxLCJ1cmwiOiJodHRwczovL2V4YW1wbGUuY29tL2ZpbGUuemlwIiwiZXhwIjoxNjQwOTk1MjAwfQ.signature"
+
+    DownloadResourceResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                download_url:
+                  type: string
+                  description: 真实下载链接
+                  example: "https://cdn.example.com/files/vue3-tutorial.zip"
+                file_name:
+                  type: string
+                  description: 文件名称
+                  example: "Vue 3 完整教程"
+                file_size:
+                  type: integer
+                  nullable: true
+                  description: 文件大小（字节）
+                  example: 10485760
+                mime_type:
+                  type: string
+                  nullable: true
+                  description: 文件MIME类型
+                  example: "application/zip"
+                is_external:
+                  type: boolean
+                  description: 是否为外部链接
+                  example: false
+              required:
+                - download_url
+                - file_name
+                - is_external
+          example:
+            success: true
+            message: "获取下载链接成功"
+            data:
+              download_url: "https://cdn.example.com/files/vue3-tutorial.zip"
+              file_name: "Vue 3 完整教程"
+              file_size: 10485760
+              mime_type: "application/zip"
+              is_external: false
+            timestamp: "2024-01-15T10:30:00.000Z"
+
+    # 资源收藏系统相关模型
+    FavoriteResource:
+      type: object
+      properties:
+        favoriteId:
+          type: integer
+          description: 收藏记录ID
+          example: 1
+        favoritedAt:
+          type: string
+          format: date-time
+          description: 收藏时间
+        # 资源信息
+        id:
+          type: integer
+          description: 资源ID
+          example: 1
+        title:
+          type: string
+          description: 资源标题
+          example: "Vue 3 完整教程"
+        slug:
+          type: string
+          description: 资源别名
+          example: "vue3-complete-tutorial"
+        description:
+          type: string
+          description: 资源描述
+          example: "最全面的Vue 3教程"
+        summary:
+          type: string
+          description: 资源摘要
+          example: "从基础到进阶的Vue 3学习指南"
+        coverImageUrl:
+          type: string
+          nullable: true
+          description: 封面图片URL
+          example: "https://example.com/covers/vue3.jpg"
+        fileSize:
+          type: integer
+          nullable: true
+          description: 文件大小（字节）
+          example: 10485760
+        duration:
+          type: integer
+          nullable: true
+          description: 时长（秒，仅适用于音视频）
+          example: 3600
+        isFree:
+          type: boolean
+          description: 是否免费
+          example: false
+        requiredVipLevel:
+          type: string
+          nullable: true
+          description: 需要的VIP等级
+          example: "vip1"
+        requiredPoints:
+          type: integer
+          nullable: true
+          description: 需要的积分
+          example: 100
+        status:
+          type: string
+          description: 资源状态
+          example: "published"
+        viewCount:
+          type: integer
+          description: 查看数
+          example: 1250
+        downloadCount:
+          type: integer
+          description: 下载数
+          example: 485
+        likeCount:
+          type: integer
+          description: 点赞数
+          example: 89
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新时间
+        # 关联数据
+        categoryName:
+          type: string
+          nullable: true
+          description: 分类名称
+          example: "前端开发"
+        resourceTypeName:
+          type: string
+          nullable: true
+          description: 资源类型名称
+          example: "视频教程"
+        authorUsername:
+          type: string
+          nullable: true
+          description: 作者用户名
+          example: "developer"
+        authorNickname:
+          type: string
+          nullable: true
+          description: 作者昵称
+          example: "前端开发者"
+
+    FavoriteListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                resources:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/FavoriteResource'
+                  description: 收藏的资源列表
+                pagination:
+                  type: object
+                  properties:
+                    page:
+                      type: integer
+                      description: 当前页码
+                      example: 1
+                    limit:
+                      type: integer
+                      description: 每页数量
+                      example: 20
+                    total:
+                      type: integer
+                      description: 总数量
+                      example: 45
+                    totalPages:
+                      type: integer
+                      description: 总页数
+                      example: 3
+                    hasNextPage:
+                      type: boolean
+                      description: 是否有下一页
+                      example: true
+                    hasPreviousPage:
+                      type: boolean
+                      description: 是否有上一页
+                      example: false
+                  description: 分页信息
+
     # VIP系统相关模型
     VIPLevel:
       type: object
@@ -1110,7 +1830,7 @@ components:
           type: string
           description: VIP等级名称
           example: "vip1"
-        display_name:
+        displayName:
           type: string
           description: VIP等级显示名称
           example: "黄金VIP"
@@ -1129,15 +1849,15 @@ components:
           format: float
           description: VIP价格
           example: 29.99
-        duration_days:
+        durationDays:
           type: integer
           description: VIP有效天数
           example: 30
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
-        updated_at:
+        updatedAt:
           type: string
           format: date-time
           description: 更新时间
@@ -1147,7 +1867,7 @@ components:
       required:
         - level
         - name
-        - display_name
+        - displayName
       properties:
         level:
           type: integer
@@ -1157,7 +1877,7 @@ components:
           type: string
           description: VIP等级名称
           example: "vip2"
-        display_name:
+        displayName:
           type: string
           description: VIP等级显示名称
           example: "铂金VIP"
@@ -1176,7 +1896,7 @@ components:
           format: float
           description: VIP价格
           example: 59.99
-        duration_days:
+        durationDays:
           type: integer
           description: VIP有效天数
           example: 30
@@ -1184,7 +1904,7 @@ components:
     UserVIPInfo:
       type: object
       properties:
-        user_id:
+        userId:
           type: integer
           description: 用户ID
           example: 1
@@ -1192,27 +1912,27 @@ components:
           type: string
           description: 用户名
           example: "testuser"
-        is_vip:
+        isVip:
           type: boolean
           description: 是否是VIP用户
           example: true
-        vip_level:
+        vipLevel:
           type: integer
           nullable: true
           description: VIP等级
           example: 1
-        vip_expire_at:
+        vipExpireAt:
           type: string
           format: date-time
           nullable: true
           description: VIP过期时间（null表示永久VIP）
-        vip_level_info:
+        vipLevelInfo:
           $ref: '#/components/schemas/VIPLevel'
-        is_expired:
+        isExpired:
           type: boolean
           description: VIP是否已过期
           example: false
-        is_permanent:
+        isPermanent:
           type: boolean
           description: 是否为永久VIP
           example: false
@@ -1224,7 +1944,7 @@ components:
           type: integer
           description: 订单ID
           example: 1
-        user_id:
+        userId:
           type: integer
           description: 用户ID
           example: 1
@@ -1233,7 +1953,7 @@ components:
           enum: [purchase, upgrade, extend, admin_set, card_redeem]
           description: 订单类型
           example: "purchase"
-        vip_level:
+        vipLevel:
           type: integer
           description: VIP等级
           example: 1
@@ -1251,7 +1971,7 @@ components:
           enum: [pending, completed, failed, cancelled]
           description: 订单状态
           example: "completed"
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
@@ -1261,7 +1981,7 @@ components:
       required:
         - vip_level
       properties:
-        vip_level:
+        vipLevel:
           type: integer
           description: VIP等级
           example: 1
@@ -1298,12 +2018,12 @@ components:
           enum: [vip, points]
           description: 卡密类型
           example: "vip"
-        vip_level:
+        vipLevel:
           type: integer
           nullable: true
           description: VIP等级（VIP类型卡密）
           example: 1
-        vip_days:
+        vipDays:
           type: integer
           nullable: true
           description: VIP天数（VIP类型卡密）
@@ -1318,37 +2038,37 @@ components:
           enum: [unused, used, expired, disabled]
           description: 卡密状态
           example: "unused"
-        batch_id:
+        batchId:
           type: string
           description: 批次ID
           example: "batch_20240101_001"
-        created_by:
+        createdBy:
           type: integer
           description: 创建者用户ID
           example: 1
-        created_by_username:
+        createdByUsername:
           type: string
           description: 创建者用户名
           example: "admin"
-        used_by:
+        usedBy:
           type: integer
           nullable: true
           description: 使用者用户ID
-        used_by_username:
+        usedByUsername:
           type: string
           nullable: true
           description: 使用者用户名
-        used_at:
+        usedAt:
           type: string
           format: date-time
           nullable: true
           description: 使用时间
-        expire_at:
+        expireAt:
           type: string
           format: date-time
           nullable: true
           description: 过期时间
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
@@ -1362,12 +2082,12 @@ components:
           description: 卡密类型
           example: "vip"
           default: "vip"
-        vip_level:
+        vipLevel:
           type: integer
           description: VIP等级（VIP类型时必填）
           example: 1
           default: 1
-        vip_days:
+        vipDays:
           type: integer
           description: VIP天数（VIP类型时使用）
           example: 30
@@ -1377,7 +2097,7 @@ components:
           description: 积分数量（积分类型时必填）
           example: 1000
           default: 0
-        expire_at:
+        expireAt:
           type: string
           format: date-time
           description: 卡密过期时间（可选）
@@ -1442,7 +2162,7 @@ components:
     CardKeyBatch:
       type: object
       properties:
-        batch_id:
+        batchId:
           type: string
           description: 批次ID
           example: "batch_20240101_001"
@@ -1454,11 +2174,11 @@ components:
           type: integer
           description: 生成数量
           example: 50
-        created_by_username:
+        createdByUsername:
           type: string
           description: 创建者用户名
           example: "admin"
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
@@ -1467,7 +2187,7 @@ components:
     UserPoints:
       type: object
       properties:
-        user_id:
+        userId:
           type: integer
           description: 用户ID
           example: 1
@@ -1475,15 +2195,15 @@ components:
           type: string
           description: 用户名
           example: "testuser"
-        current_points:
+        currentPoints:
           type: integer
           description: 当前积分
           example: 1500
-        total_earned:
+        totalEarned:
           type: integer
           description: 累计获得积分
           example: 5000
-        total_spent:
+        totalSpent:
           type: integer
           description: 累计消费积分
           example: 3500
@@ -1492,11 +2212,11 @@ components:
           format: date-time
           nullable: true
           description: 最后活动时间
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
-        updated_at:
+        updatedAt:
           type: string
           format: date-time
           description: 更新时间
@@ -1508,7 +2228,7 @@ components:
           type: integer
           description: 记录ID
           example: 1
-        user_id:
+        userId:
           type: integer
           description: 用户ID
           example: 1
@@ -1545,7 +2265,7 @@ components:
           type: integer
           nullable: true
           description: 管理员ID（管理员调整时使用）
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
@@ -1615,7 +2335,7 @@ components:
           type: integer
           description: 排名
           example: 1
-        user_id:
+        userId:
           type: integer
           description: 用户ID
           example: 1
@@ -1674,11 +2394,11 @@ components:
           type: integer
           description: 签到记录ID
           example: 1
-        user_id:
+        userId:
           type: integer
           description: 用户ID
           example: 1
-        checkin_date:
+        checkinDate:
           type: string
           format: date
           description: 签到日期
@@ -1707,7 +2427,7 @@ components:
           type: integer
           nullable: true
           description: 补签操作者ID
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
@@ -1740,11 +2460,11 @@ components:
     CheckinStats:
       type: object
       properties:
-        user_id:
+        userId:
           type: integer
           description: 用户ID
           example: 1
-        total_checkins:
+        totalCheckins:
           type: integer
           description: 总签到次数
           example: 150
@@ -1770,11 +2490,11 @@ components:
           nullable: true
           description: 最后签到日期
           example: "2024-01-01"
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
-        updated_at:
+        updatedAt:
           type: string
           format: date-time
           description: 更新时间
@@ -1809,19 +2529,19 @@ components:
           type: boolean
           description: 是否月度重置连续天数
           example: true
-        is_active:
+        isActive:
           type: boolean
           description: 是否激活
           example: true
-        created_by:
+        createdBy:
           type: integer
           description: 创建者ID
           example: 1
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
-        updated_at:
+        updatedAt:
           type: string
           format: date-time
           description: 更新时间
@@ -1875,7 +2595,7 @@ components:
           type: integer
           description: 排名
           example: 1
-        user_id:
+        userId:
           type: integer
           description: 用户ID
           example: 1
@@ -2616,7 +3336,9 @@ paths:
     get:
       tags: [Resources]
       summary: 获取资源列表
-      description: 获取公开资源列表，支持分页、搜索、分类过滤等
+      description: 获取资源列表，支持分页、搜索、分类过滤等（需要登录）
+      security:
+        - BearerAuth: []
       parameters:
         - name: page
           in: query
@@ -2687,6 +3409,8 @@ paths:
                 $ref: '#/components/schemas/ResourceListResponse'
         '400':
           $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
         '500':
           $ref: '#/components/responses/InternalServerError'
     post:
@@ -2791,7 +3515,9 @@ paths:
     get:
       tags: [Resources]
       summary: 获取资源详情
-      description: 获取指定资源的详细信息，同时增加查看次数
+      description: 获取指定资源的详细信息，同时增加查看次数（需要认证）
+      security:
+        - BearerAuth: []
       parameters:
         - name: id
           in: path
@@ -2814,6 +3540,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
         '403':
           description: 无权访问私有资源
           content:
@@ -2915,7 +3643,7 @@ paths:
     post:
       tags: [Resources]
       summary: 下载资源
-      description: 下载资源文件，同时增加下载次数（需要认证）
+      description: 通过加密URL下载资源文件，同时增加下载次数（需要认证）
       security:
         - BearerAuth: []
       parameters:
@@ -2927,28 +3655,78 @@ paths:
             type: integer
             minimum: 1
             example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DownloadResourceRequest'
       responses:
         '200':
           description: 下载成功
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/BaseResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          download_url:
-                            type: string
-                            description: 下载链接
-                          file_name:
-                            type: string
-                            description: 文件名
-                          file_size:
-                            type: integer
-                            description: 文件大小
+                $ref: '#/components/schemas/DownloadResourceResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: 无权下载此资源
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在或无下载文件
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    get:
+      tags: [Resources]
+      summary: 下载资源（GET方式）
+      description: 通过URL参数下载资源文件（需要认证）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: 资源ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+        - name: encrypted_url
+          in: query
+          description: 加密的下载URL
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            description: 由系统生成的加密下载链接
+            example: "eyJhbGciOiJIUzI1NiJ9.eyJyZXNvdXJjZUlkIjoxLCJ1cmwiOiJodHRwczovL2V4YW1wbGUuY29tL2ZpbGUuemlwIiwiZXhwIjoxNjQwOTk1MjAwfQ.signature"
+      responses:
+        '200':
+          description: 下载成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadResourceResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -3051,10 +3829,10 @@ paths:
                       type: string
                       enum: [draft, reviewing, published, archived]
                       description: 新状态
-                    is_public:
+                    isPublic:
                       type: boolean
                       description: 是否公开
-                    category_id:
+                    categoryId:
                       type: integer
                       nullable: true
                       description: 分类ID
@@ -3124,7 +3902,7 @@ paths:
                                   format: date
                                 resources_created:
                                   type: integer
-                                total_views:
+                                totalViews:
                                   type: integer
                                 total_downloads:
                                   type: integer
@@ -3138,9 +3916,9 @@ paths:
                                   type: string
                                 nickname:
                                   type: string
-                                resource_count:
+                                resourceCount:
                                   type: integer
-                                total_views:
+                                totalViews:
                                   type: integer
                                 total_downloads:
                                   type: integer
@@ -3154,15 +3932,516 @@ paths:
                                   type: integer
                                 title:
                                   type: string
-                                view_count:
+                                viewCount:
                                   type: integer
-                                download_count:
+                                downloadCount:
                                   type: integer
-                                author_username:
+                                authorUsername:
                                   type: string
-                                category_name:
+                                categoryName:
                                   type: string
                             description: 热门资源
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # 资源收藏系统相关接口
+  /favorites/resources/{resourceId}/toggle:
+    post:
+      tags: [Resources]
+      summary: 切换资源收藏状态
+      description: 收藏或取消收藏指定资源（需要用户认证）
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: resourceId
+          in: path
+          description: 资源ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          isFavorited:
+                            type: boolean
+                            description: 是否已收藏
+                            example: true
+                          resourceId:
+                            type: integer
+                            description: 资源ID
+                            example: 1
+                          action:
+                            type: string
+                            enum: [favorited, unfavorited]
+                            description: 操作类型
+                            example: "favorited"
+                          favoritedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                            description: 收藏时间（取消收藏时为null）
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: 资源不可收藏
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /favorites/resources/{resourceId}/status:
+    get:
+      tags: [Resources]
+      summary: 检查资源收藏状态
+      description: 检查当前用户是否收藏了指定资源
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: resourceId
+          in: path
+          description: 资源ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      responses:
+        '200':
+          description: 检查成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          isFavorited:
+                            type: boolean
+                            description: 是否已收藏
+                            example: true
+                          resourceId:
+                            type: integer
+                            description: 资源ID
+                            example: 1
+                          favoritedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
+                            description: 收藏时间（未收藏时为null）
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /favorites/resources/batch-check:
+    post:
+      tags: [Resources]
+      summary: 批量检查资源收藏状态
+      description: 批量检查多个资源的收藏状态（最多100个）
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - resourceIds
+              properties:
+                resourceIds:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 1
+                  minItems: 1
+                  maxItems: 100
+                  description: 资源ID列表
+                  example: [1, 2, 3, 4, 5]
+      responses:
+        '200':
+          description: 检查成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties:
+                          type: boolean
+                        description: 资源ID与收藏状态的映射对象
+                        example:
+                          "1": true
+                          "2": false
+                          "3": true
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /favorites/my-favorites:
+    get:
+      tags: [Resources]
+      summary: 获取我的收藏列表
+      description: 获取当前用户收藏的资源列表，支持分页、搜索和过滤
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: 页码（从1开始）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          description: 每页数量（1-50）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+            example: 20
+        - name: category
+          in: query
+          description: 分类ID过滤
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+        - name: type
+          in: query
+          description: 资源类型ID过滤
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+        - name: search
+          in: query
+          description: 搜索关键词（搜索标题和描述）
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+            example: "Vue.js"
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /favorites/my-stats:
+    get:
+      tags: [Resources]
+      summary: 获取我的收藏统计
+      description: 获取当前用户的收藏统计信息
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total_favorites:
+                            type: integer
+                            description: 收藏总数
+                            example: 25
+                          paid_favorites:
+                            type: integer
+                            description: 付费资源收藏数
+                            example: 8
+                          vip_favorites:
+                            type: integer
+                            description: VIP资源收藏数
+                            example: 12
+                          categorized_favorites:
+                            type: integer
+                            description: 已分类资源收藏数
+                            example: 20
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /favorites/resources/{resourceId}/stats:
+    get:
+      tags: [Resources]
+      summary: 获取资源收藏统计
+      description: 获取指定资源的收藏统计信息（公开接口）
+      parameters:
+        - name: resourceId
+          in: path
+          description: 资源ID
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          resourceId:
+                            type: integer
+                            description: 资源ID
+                            example: 1
+                          resource_title:
+                            type: string
+                            description: 资源标题
+                            example: "Vue 3 完整教程"
+                          favoriteCount:
+                            type: integer
+                            description: 收藏总数
+                            example: 128
+                          recentFavorites:
+                            type: integer
+                            description: 近七天收藏数
+                            example: 15
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /favorites/batch-remove:
+    delete:
+      tags: [Resources]
+      summary: 批量取消收藏
+      description: 批量取消收藏多个资源（最多50个）
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - resourceIds
+              properties:
+                resourceIds:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 1
+                  minItems: 1
+                  maxItems: 50
+                  description: 要取消收藏的资源ID列表
+                  example: [1, 2, 3]
+      responses:
+        '200':
+          description: 批量操作完成
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          results:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                resourceId:
+                                  type: integer
+                                  description: 资源ID
+                                success:
+                                  type: boolean
+                                  description: 是否成功
+                                action:
+                                  type: string
+                                  description: 操作类型
+                                  example: "unfavorited"
+                                message:
+                                  type: string
+                                  description: 错误信息（失败时）
+                            description: 操作结果列表
+                          errors:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                resourceId:
+                                  type: integer
+                                error:
+                                  type: string
+                            description: 错误列表（如果有）
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /favorites/admin/popular:
+    get:
+      tags: [Resources]
+      summary: 获取热门收藏资源（管理员功能）
+      description: 管理员获取指定时间段内的热门收藏资源统计
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: 返回数量限制
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 20
+        - name: days
+          in: query
+          description: 统计时间段（天数）
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
+            example: 30
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          period_days:
+                            type: integer
+                            description: 统计时间段（天）
+                            example: 30
+                          resources:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                  description: 资源ID
+                                title:
+                                  type: string
+                                  description: 资源标题
+                                coverImageUrl:
+                                  type: string
+                                  description: 封面图片URL
+                                favoriteCount:
+                                  type: integer
+                                  description: 收藏数量
+                                viewCount:
+                                  type: integer
+                                  description: 查看数量
+                                downloadCount:
+                                  type: integer
+                                  description: 下载数量
+                                authorUsername:
+                                  type: string
+                                  description: 作者用户名
+                                categoryName:
+                                  type: string
+                                  description: 分类名称
+                            description: 热门收藏资源列表
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -3872,7 +5151,7 @@ paths:
                       id:
                         type: integer
                         description: 分类ID
-                      sort_order:
+                      sortOrder:
                         type: integer
                         description: 新的排序顺序
                   minItems: 1
@@ -3945,11 +5224,11 @@ paths:
                                   type: integer
                                 name:
                                   type: string
-                                display_name:
+                                displayName:
                                   type: string
-                                resource_count:
+                                resourceCount:
                                   type: integer
-                                total_views:
+                                totalViews:
                                   type: integer
                             description: 分类使用情况
         '401':
@@ -4575,11 +5854,11 @@ paths:
                         properties:
                           name:
                             type: string
-                          display_name:
+                          displayName:
                             type: string
-                          total_posts:
+                          totalPosts:
                             type: string
-                          total_comments:
+                          totalComments:
                             type: string
                           unique_authors:
                             type: string
@@ -4897,7 +6176,7 @@ paths:
             schema:
               type: object
               properties:
-                is_pinned:
+                isPinned:
                   type: boolean
                   default: true
                   description: 是否置顶
@@ -4942,7 +6221,7 @@ paths:
             schema:
               type: object
               properties:
-                is_featured:
+                isFeatured:
                   type: boolean
                   default: true
                   description: 是否精华
@@ -4987,7 +6266,7 @@ paths:
             schema:
               type: object
               properties:
-                is_locked:
+                isLocked:
                   type: boolean
                   default: true
                   description: 是否锁定
@@ -5233,7 +6512,7 @@ paths:
                           is_liked:
                             type: boolean
                             description: 是否已点赞
-                          like_count:
+                          likeCount:
                             type: integer
                             description: 点赞总数
                           action:
@@ -5274,10 +6553,10 @@ paths:
                       data:
                         type: object
                         properties:
-                          is_favorited:
+                          isFavorited:
                             type: boolean
                             description: 是否已收藏
-                          favorite_count:
+                          favoriteCount:
                             type: integer
                             description: 收藏总数
                           action:
@@ -5318,7 +6597,7 @@ paths:
                       data:
                         type: object
                         properties:
-                          share_count:
+                          shareCount:
                             type: integer
                             description: 分享总数
                           share_url:
@@ -5440,7 +6719,7 @@ paths:
                       data:
                         type: object
                         properties:
-                          is_favorited:
+                          isFavorited:
                             type: boolean
                             description: 是否已收藏
         '400':
@@ -5895,7 +7174,7 @@ components:
         name:
           type: string
           description: 等级名称
-        display_name:
+        displayName:
           type: string
           description: 显示名称
         description:
@@ -5908,17 +7187,17 @@ components:
           type: number
           format: decimal
           description: 价格
-        duration_days:
+        durationDays:
           type: integer
           description: 持续天数（0表示无限期）
-        is_active:
+        isActive:
           type: boolean
           description: 是否启用
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
-        updated_at:
+        updatedAt:
           type: string
           format: date-time
           description: 更新时间
@@ -5928,7 +7207,7 @@ components:
       required:
         - level
         - name
-        - display_name
+        - displayName
       properties:
         level:
           type: integer
@@ -5938,7 +7217,7 @@ components:
           type: string
           maxLength: 50
           description: 等级名称
-        display_name:
+        displayName:
           type: string
           maxLength: 100
           description: 显示名称
@@ -5953,7 +7232,7 @@ components:
           format: decimal
           minimum: 0
           description: 价格
-        duration_days:
+        durationDays:
           type: integer
           minimum: 0
           default: 30
@@ -5966,7 +7245,7 @@ components:
           type: string
           maxLength: 50
           description: 等级名称
-        display_name:
+        displayName:
           type: string
           maxLength: 100
           description: 显示名称
@@ -5981,11 +7260,11 @@ components:
           format: decimal
           minimum: 0
           description: 价格
-        duration_days:
+        durationDays:
           type: integer
           minimum: 0
           description: 持续天数（0表示无限期）
-        is_active:
+        isActive:
           type: boolean
           description: 是否启用
 
@@ -5998,13 +7277,13 @@ components:
         username:
           type: string
           description: 用户名
-        is_vip:
+        isVip:
           type: boolean
           description: 是否为VIP
-        vip_level:
+        vipLevel:
           type: integer
           description: VIP等级
-        vip_expire_at:
+        vipExpireAt:
           type: string
           format: date-time
           nullable: true
@@ -6023,10 +7302,10 @@ components:
         vip_benefits:
           type: object
           description: VIP权益
-        is_expired:
+        isExpired:
           type: boolean
           description: 是否已过期
-        is_permanent:
+        isPermanent:
           type: boolean
           description: 是否为永久VIP
 
@@ -6035,7 +7314,7 @@ components:
       required:
         - vip_level
       properties:
-        vip_level:
+        vipLevel:
           type: integer
           minimum: 1
           description: VIP等级
@@ -6059,10 +7338,10 @@ components:
           type: string
           enum: [vip, points, days]
           description: 卡密类型
-        vip_level:
+        vipLevel:
           type: integer
           description: VIP等级
-        vip_days:
+        vipDays:
           type: integer
           description: VIP天数（0表示无限期）
         points:
@@ -6072,29 +7351,29 @@ components:
           type: string
           enum: [unused, used, expired, disabled]
           description: 卡密状态
-        used_by:
+        usedBy:
           type: integer
           nullable: true
           description: 使用者用户ID
-        used_at:
+        usedAt:
           type: string
           format: date-time
           nullable: true
           description: 使用时间
-        expire_at:
+        expireAt:
           type: string
           format: date-time
           nullable: true
           description: 过期时间
-        batch_id:
+        batchId:
           type: string
           nullable: true
           description: 批次ID
-        created_by:
+        createdBy:
           type: integer
           nullable: true
           description: 创建者用户ID
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
@@ -6113,12 +7392,12 @@ components:
           type: string
           enum: [unused, used, expired, disabled]
           description: 卡密状态
-        expire_at:
+        expireAt:
           type: string
           format: date-time
           nullable: true
           description: 过期时间
-        is_expired:
+        isExpired:
           type: boolean
           description: 是否已过期
 
@@ -6138,10 +7417,10 @@ components:
           type: string
           enum: [vip, points, days]
           description: 卡密类型
-        vip_level:
+        vipLevel:
           type: integer
           description: VIP等级
-        vip_days:
+        vipDays:
           type: integer
           description: VIP天数
         points:
@@ -6156,12 +7435,12 @@ components:
           enum: [vip, points, days]
           default: vip
           description: 卡密类型
-        vip_level:
+        vipLevel:
           type: integer
           minimum: 1
           default: 1
           description: VIP等级
-        vip_days:
+        vipDays:
           type: integer
           minimum: 0
           default: 30
@@ -6171,7 +7450,7 @@ components:
           minimum: 0
           default: 0
           description: 积分数量
-        expire_at:
+        expireAt:
           type: string
           format: date-time
           nullable: true
@@ -6187,12 +7466,12 @@ components:
           enum: [vip, points, days]
           default: vip
           description: 卡密类型
-        vip_level:
+        vipLevel:
           type: integer
           minimum: 1
           default: 1
           description: VIP等级
-        vip_days:
+        vipDays:
           type: integer
           minimum: 0
           default: 30
@@ -6207,7 +7486,7 @@ components:
           minimum: 1
           maximum: 1000
           description: 生成数量
-        expire_at:
+        expireAt:
           type: string
           format: date-time
           nullable: true
@@ -6216,7 +7495,7 @@ components:
     BatchCardKeyResult:
       type: object
       properties:
-        batch_id:
+        batchId:
           type: string
           description: 批次ID
         count:
@@ -6244,7 +7523,7 @@ components:
         total_points:
           type: integer
           description: 历史总积分
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 用户注册时间
@@ -6400,7 +7679,7 @@ components:
               consecutive_days:
                 type: integer
                 description: 连续签到天数
-              total_checkins:
+              totalCheckins:
                 type: integer
                 description: 总签到次数
               monthly_checkins:
@@ -6428,17 +7707,17 @@ components:
         monthly_reset:
           type: boolean
           description: 是否每月重置连续天数
-        is_active:
+        isActive:
           type: boolean
           description: 是否启用
-        created_by:
+        createdBy:
           type: integer
           description: 创建者ID
-        created_at:
+        createdAt:
           type: string
           format: date-time
           description: 创建时间
-        updated_at:
+        updatedAt:
           type: string
           format: date-time
           description: 更新时间
@@ -6525,3 +7804,6 @@ components:
                     example: false
                   message:
                     example: 资源不存在
+
+paths:
+  # 资源管理相关路径

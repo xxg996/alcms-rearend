@@ -6,7 +6,7 @@
 const Resource = require('../models/Resource');
 const Category = require('../models/Category');
 const Tag = require('../models/Tag');
-const { generateSignedUrl, validateDownloadPermission } = require('../utils/downloadUtils');
+const { generateSignedUrl, validateDownloadPermission, generateSecureResourceInfo, deobfuscateUrl } = require('../utils/downloadUtils');
 
 class ResourceController {
   /**
@@ -49,6 +49,15 @@ class ResourceController {
 
       const result = await Resource.findAll(options);
 
+      // 为列表中的每个资源生成安全信息
+      if (result.resources) {
+        result.resources = await Promise.all(
+          result.resources.map(resource => 
+            generateSecureResourceInfo(resource, req.user?.id)
+          )
+        );
+      }
+
       res.json({
         success: true,
         data: result
@@ -83,7 +92,7 @@ class ResourceController {
       // 检查访问权限
       if (!resource.is_public && (!userId || resource.author_id !== userId)) {
         // 检查用户是否有权限访问私有资源
-        const hasPermission = await this.checkResourceAccessPermission(userId, resource);
+        const hasPermission = await ResourceController.checkResourceAccessPermission(userId, resource);
         if (!hasPermission) {
           return res.status(403).json({
             success: false,
@@ -95,9 +104,12 @@ class ResourceController {
       // 增加浏览次数（异步执行，不等待结果）
       Resource.incrementViewCount(parseInt(id)).catch(console.error);
 
+      // 生成安全的资源信息（隐藏真实下载链接）
+      const secureResource = await generateSecureResourceInfo(resource, userId);
+
       res.json({
         success: true,
-        data: resource
+        data: secureResource
       });
     } catch (error) {
       console.error('获取资源详情失败:', error);
@@ -218,7 +230,7 @@ class ResourceController {
       }
 
       // 权限检查：只有作者或管理员可以编辑
-      const canEdit = await this.checkResourceEditPermission(userId, resource);
+      const canEdit = await ResourceController.checkResourceEditPermission(userId, resource);
       if (!canEdit) {
         return res.status(403).json({
           success: false,
@@ -275,7 +287,7 @@ class ResourceController {
       }
 
       // 权限检查：只有作者或管理员可以删除
-      const canDelete = await this.checkResourceDeletePermission(userId, resource);
+      const canDelete = await ResourceController.checkResourceDeletePermission(userId, resource);
       if (!canDelete) {
         return res.status(403).json({
           success: false,
@@ -300,14 +312,40 @@ class ResourceController {
   }
 
   /**
-   * 下载资源
+   * 下载资源 - 解析加密URL并返回真实下载链接
    */
   static async downloadResource(req, res) {
     try {
       const { id } = req.params;
+      const { encrypted_url } = req.body || req.query;
       const userId = req.user?.id;
       const userAgent = req.headers['user-agent'];
       const ipAddress = req.ip || req.connection.remoteAddress;
+
+      // 验证必需参数
+      if (!encrypted_url) {
+        return res.status(400).json({
+          success: false,
+          message: '缺少encrypted_url参数'
+        });
+      }
+
+      // 解密URL
+      const decryptedData = deobfuscateUrl(encrypted_url);
+      if (!decryptedData) {
+        return res.status(400).json({
+          success: false,
+          message: '无效的加密URL'
+        });
+      }
+
+      // 验证资源ID是否匹配
+      if (decryptedData.resourceId !== parseInt(id)) {
+        return res.status(400).json({
+          success: false,
+          message: '资源ID不匹配'
+        });
+      }
 
       const resource = await Resource.findById(parseInt(id));
 
@@ -327,12 +365,18 @@ class ResourceController {
         });
       }
 
-      // 生成签名下载链接
-      const downloadData = await generateSignedUrl(resource, userId, {
-        ipAddress,
-        userAgent,
-        expiresIn: 3600 // 1小时过期
-      });
+      // 验证URL是否属于该资源
+      const realUrl = decryptedData.url;
+      const isValidUrl = realUrl === resource.file_url || 
+                        realUrl === resource.download_url || 
+                        realUrl === resource.external_url;
+
+      if (!isValidUrl) {
+        return res.status(400).json({
+          success: false,
+          message: 'URL不属于该资源'
+        });
+      }
 
       // 记录下载
       await Resource.recordDownload({
@@ -340,20 +384,36 @@ class ResourceController {
         resourceId: parseInt(id),
         ipAddress,
         userAgent,
-        downloadUrl: downloadData.signedUrl,
-        expiresAt: downloadData.expiresAt
+        downloadUrl: realUrl,
+        expiresAt: null // 真实链接不需要过期时间
       });
 
+      // 扣除积分（如果需要）
+      if (permissionCheck.pointsToDeduct > 0) {
+        const { query } = require('../config/database');
+        await query(`
+          INSERT INTO user_points (user_id, points, reason, resource_id)
+          VALUES ($1, $2, $3, $4)
+        `, [userId, -permissionCheck.pointsToDeduct, '下载资源消耗', parseInt(id)]);
+      }
+
+      // 返回真实下载链接
       res.json({
         success: true,
-        message: '下载链接生成成功',
-        data: downloadData
+        message: '获取下载链接成功',
+        data: {
+          download_url: realUrl,
+          file_name: resource.title,
+          file_size: resource.file_size,
+          mime_type: resource.file_mime_type,
+          is_external: realUrl === resource.external_url
+        }
       });
     } catch (error) {
-      console.error('生成下载链接失败:', error);
+      console.error('获取下载链接失败:', error);
       res.status(500).json({
         success: false,
-        message: '生成下载链接失败',
+        message: '获取下载链接失败',
         error: error.message
       });
     }

@@ -85,6 +85,7 @@ app.use('/api/checkin', checkinRoutes);
 app.use('/api/resources', require('./routes/resources'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/tags', require('./routes/tags'));
+app.use('/api/favorites', require('./routes/favorites'));
 
 // 社区路由注册
 app.use('/api/community', require('./routes/community'));
@@ -264,6 +265,22 @@ app.get('/api', (req, res) => {
           'POST /api/checkin/users/:userId/makeup': '补签功能（管理员）',
           'DELETE /api/checkin/users/:userId/reset': '重置用户签到数据（超级管理员）',
           'GET /api/checkin/statistics': '获取签到统计（管理员）'
+        }
+      },
+      favorites: {
+        user: {
+          'POST /api/favorites/resources/:resourceId/toggle': '切换资源收藏状态',
+          'GET /api/favorites/resources/:resourceId/status': '检查资源收藏状态',
+          'POST /api/favorites/resources/batch-check': '批量检查收藏状态',
+          'GET /api/favorites/my-favorites': '获取我的收藏列表',
+          'GET /api/favorites/my-stats': '获取我的收藏统计',
+          'DELETE /api/favorites/batch-remove': '批量取消收藏'
+        },
+        public: {
+          'GET /api/favorites/resources/:resourceId/stats': '获取资源收藏统计'
+        },
+        admin: {
+          'GET /api/favorites/admin/popular': '获取热门收藏资源（管理员）'
         }
       }
     },
