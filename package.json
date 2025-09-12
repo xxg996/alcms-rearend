@@ -1,17 +1,11 @@
 {
   "name": "alcms-rearend",
   "version": "1.0.0",
-  "description": "Alcms CMS 资源管理系统 - 基于Node.js、Express.js、PostgreSQL构建的完整内容管理系统，包含用户权限管理和多媒体资源管理功能",
+  "description": "Alcms CMS 资源管理系统 - 基于Node.js、Express.js、PostgreSQL构建的完整内容管理系统",
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "install": "node database/setup.js full",
-    "install:basic": "node database/setup.js basic",
-    "install:cms": "node database/setup.js cms",
-    "install:community": "node database/setup.js community",
-    "install:vip": "node database/setup.js vip",
-    "install:help": "node database/setup.js --help",
     "install:full": "node database/install-full.js",
     "db:check": "node database/check-tables.js",
     "db:check:dynamic": "node database/check-tables-dynamic.js",
