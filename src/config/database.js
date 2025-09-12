@@ -131,7 +131,7 @@ const query = async (text, params, options = {}) => {
     
     return res;
   } catch (error) {
-    logger.error('查询执行失败:', error.message);
+    logger.error('查询执行失败:', error);
     throw error;
   } finally {
     if (client) {
@@ -241,7 +241,7 @@ const createIndexIfNotExists = async (tableName, indexName, columns, unique = fa
     
     logger.info(`索引创建成功: ${indexName} on ${tableName}`);
   } catch (error) {
-    logger.error(`索引创建失败: ${indexName}`, error.message);
+    logger.error(`索引创建失败: ${indexName}`, error);
   }
 };
 
@@ -283,7 +283,7 @@ const optimizeTable = async (tableName) => {
     await query(`VACUUM ANALYZE ${tableName}`);
     logger.info(`表优化完成: ${tableName}`);
   } catch (error) {
-    logger.error(`表优化失败: ${tableName}`, error.message);
+    logger.error(`表优化失败: ${tableName}`, error);
   }
 };
 

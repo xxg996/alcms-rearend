@@ -68,7 +68,7 @@ async function checkDatabaseConnection() {
     await query('SELECT 1');
     return true;
   } catch (error) {
-    logger.error('数据库连接失败:', error.message);
+    logger.error('数据库连接失败:', error);
     return false;
   }
 }
@@ -115,7 +115,7 @@ async function executeMigration(filename) {
     logger.info(`✅ 迁移完成: ${filename}`);
     return true;
   } catch (error) {
-    logger.error(`❌ 迁移失败: ${filename}`, error.message);
+    logger.error(`❌ 迁移失败: ${filename}`, error);
     throw error;
   }
 }
@@ -163,7 +163,7 @@ async function runInstall(mode = 'full') {
     logger.info(`📊 共执行了 ${config.migrations.length} 个迁移文件`);
     
   } catch (error) {
-    logger.error('❌ 数据库安装失败:', error.message);
+    logger.error('❌ 数据库安装失败:', error);
     process.exit(1);
   } finally {
     await closePool();

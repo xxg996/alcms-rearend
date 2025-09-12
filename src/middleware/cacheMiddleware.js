@@ -304,7 +304,7 @@ async function warmupCache() {
         await cache.set(task.key, data, task.ttl);
         logger.debug('缓存预热成功', { key: task.key });
       } catch (error) {
-        logger.error('缓存预热失败', { key: task.key, error: error.message });
+        logger.error('缓存预热失败', error, { key: task.key });
       }
     }));
 

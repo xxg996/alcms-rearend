@@ -144,7 +144,7 @@ class CacheManager {
       
       return true;
     } catch (error) {
-      logger.error('缓存设置失败:', error.message);
+      logger.error('缓存设置失败:', error);
       return false;
     }
   }
@@ -174,7 +174,7 @@ class CacheManager {
       
       return value ? JSON.parse(value) : null;
     } catch (error) {
-      logger.error('缓存获取失败:', error.message);
+      logger.error('缓存获取失败:', error);
       return null;
     }
   }
@@ -193,7 +193,7 @@ class CacheManager {
       }
       return true;
     } catch (error) {
-      logger.error('缓存删除失败:', error.message);
+      logger.error('缓存删除失败:', error);
       return false;
     }
   }
@@ -221,7 +221,7 @@ class CacheManager {
       }
       return true;
     } catch (error) {
-      logger.error('批量删除缓存失败:', error.message);
+      logger.error('批量删除缓存失败:', error);
       return false;
     }
   }
@@ -240,7 +240,7 @@ class CacheManager {
       }
       return false;
     } catch (error) {
-      logger.error('检查缓存存在性失败:', error.message);
+      logger.error('检查缓存存在性失败:', error);
       return false;
     }
   }
@@ -317,7 +317,7 @@ class CacheManager {
       logger.info('✅ 缓存已清空');
       return true;
     } catch (error) {
-      logger.error('清空缓存失败:', error.message);
+      logger.error('清空缓存失败:', error);
       return false;
     }
   }
@@ -343,7 +343,7 @@ class CacheManager {
 
       return stats;
     } catch (error) {
-      logger.error('获取缓存统计失败:', error.message);
+      logger.error('获取缓存统计失败:', error);
       return { error: error.message };
     }
   }

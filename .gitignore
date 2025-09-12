@@ -1,3 +1,4 @@
+user.name "niko"
 # Dependencies
 node_modules/
 npm-debug.log*
@@ -63,3 +64,7 @@ ehthumbs.db
 
 # AI Memory (本地记忆文件，不应同步)
 .cunzhi-memory/
+.claude
+.qoder
+CLAUDE.md
+.env

@@ -128,7 +128,7 @@ let jwtSecurityManager;
 try {
   jwtSecurityManager = new JWTSecurityManager();
 } catch (error) {
-  logger.error('❌ JWT安全初始化失败:', error.message);
+  logger.error('❌ JWT安全初始化失败:', error);
   process.exit(1);
 }
 
