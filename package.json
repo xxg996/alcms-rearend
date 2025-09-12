@@ -14,6 +14,7 @@
     "install:help": "node database/setup.js --help",
     "install:full": "node database/install-full.js",
     "db:check": "node database/check-tables.js",
+    "db:check:dynamic": "node database/check-tables-dynamic.js",
     "create-admin": "node scripts/create-admin.js",
     "test-api": "node test-api.js",
     "pm2:dev": "pm2 start ecosystem.config.js --only alcms-backend-dev",
