@@ -5,6 +5,7 @@
 
 const CommunityBoard = require('../models/CommunityBoard');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
+const { logger } = require('../utils/logger');
 
 class CommunityBoardController {
   /**
@@ -21,7 +22,7 @@ class CommunityBoardController {
 
       return successResponse(res, '获取板块列表成功', boards);
     } catch (error) {
-      console.error('获取板块列表失败:', error);
+      logger.error('获取板块列表失败:', error);
       return errorResponse(res, '获取板块列表失败', 500);
     }
   }
@@ -41,7 +42,7 @@ class CommunityBoardController {
 
       return successResponse(res, '获取板块详情成功', board);
     } catch (error) {
-      console.error('获取板块详情失败:', error);
+      logger.error('获取板块详情失败:', error);
       return errorResponse(res, '获取板块详情失败', 500);
     }
   }
@@ -86,7 +87,7 @@ class CommunityBoardController {
       
       return successResponse(res, '创建板块成功', newBoard, 201);
     } catch (error) {
-      console.error('创建板块失败:', error);
+      logger.error('创建板块失败:', error);
       return errorResponse(res, '创建板块失败', 500);
     }
   }
@@ -115,7 +116,7 @@ class CommunityBoardController {
 
       return successResponse(res, '更新板块成功', updatedBoard);
     } catch (error) {
-      console.error('更新板块失败:', error);
+      logger.error('更新板块失败:', error);
       return errorResponse(res, '更新板块失败', 500);
     }
   }
@@ -135,7 +136,7 @@ class CommunityBoardController {
 
       return successResponse(res, '删除板块成功');
     } catch (error) {
-      console.error('删除板块失败:', error);
+      logger.error('删除板块失败:', error);
       if (error.message === '该板块下还有帖子，无法删除') {
         return errorResponse(res, error.message, 400);
       }
@@ -158,7 +159,7 @@ class CommunityBoardController {
       
       return successResponse(res, '搜索板块成功', boards);
     } catch (error) {
-      console.error('搜索板块失败:', error);
+      logger.error('搜索板块失败:', error);
       return errorResponse(res, '搜索板块失败', 500);
     }
   }
@@ -178,7 +179,7 @@ class CommunityBoardController {
 
       return successResponse(res, '获取板块统计成功', stats);
     } catch (error) {
-      console.error('获取板块统计失败:', error);
+      logger.error('获取板块统计失败:', error);
       return errorResponse(res, '获取板块统计失败', 500);
     }
   }
@@ -205,7 +206,7 @@ class CommunityBoardController {
       
       return successResponse(res, '批量更新排序成功');
     } catch (error) {
-      console.error('批量更新排序失败:', error);
+      logger.error('批量更新排序失败:', error);
       return errorResponse(res, '批量更新排序失败', 500);
     }
   }
@@ -226,7 +227,7 @@ class CommunityBoardController {
       
       return successResponse(res, '添加版主成功');
     } catch (error) {
-      console.error('添加版主失败:', error);
+      logger.error('添加版主失败:', error);
       return errorResponse(res, '添加版主失败', 500);
     }
   }
@@ -247,7 +248,7 @@ class CommunityBoardController {
       
       return successResponse(res, '移除版主成功');
     } catch (error) {
-      console.error('移除版主失败:', error);
+      logger.error('移除版主失败:', error);
       return errorResponse(res, '移除版主失败', 500);
     }
   }
@@ -301,7 +302,7 @@ class CommunityBoardController {
         return errorResponse(res, '所有板块创建失败', 400, result);
       }
     } catch (error) {
-      console.error('批量创建板块失败:', error);
+      logger.error('批量创建板块失败:', error);
       return errorResponse(res, '批量创建板块失败', 500);
     }
   }

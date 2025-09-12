@@ -1,25 +1,141 @@
 /**
  * 资源管理控制器
  * 处理资源相关的HTTP请求
+ * 
+ * @swagger
+ * tags:
+ *   - name: Resources
+ *     description: 资源管理相关接口
  */
 
 const Resource = require('../models/Resource');
 const Category = require('../models/Category');
 const Tag = require('../models/Tag');
 const { generateSignedUrl, validateDownloadPermission, generateSecureResourceInfo, deobfuscateUrl } = require('../utils/downloadUtils');
+const { generateSecureResourceInfoBatch } = require('../utils/downloadUtilsBatch');
+const { logger } = require('../utils/logger');
 
 class ResourceController {
   /**
-   * 获取资源列表
+   * @swagger
+   * /api/resources:
+   *   get:
+   *     tags: [Resources]
+   *     summary: 获取资源列表
+   *     description: 获取分页的资源列表，支持多种过滤和排序选项
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           default: 1
+   *         description: 页码
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 20
+   *           maximum: 100
+   *         description: 每页数量（最大100）
+   *       - in: query
+   *         name: categoryId
+   *         schema:
+   *           type: integer
+   *         description: 分类ID过滤
+   *       - in: query
+   *         name: resourceTypeId
+   *         schema:
+   *           type: integer
+   *         description: 资源类型ID过滤
+   *       - in: query
+   *         name: authorId
+   *         schema:
+   *           type: integer
+   *         description: 作者ID过滤
+   *       - in: query
+   *         name: status
+   *         schema:
+   *           type: string
+   *           enum: [draft, published, archived, deleted]
+   *         description: 状态过滤
+   *       - in: query
+   *         name: isPublic
+   *         schema:
+   *           type: boolean
+   *         description: 是否公开过滤
+   *       - in: query
+   *         name: isFree
+   *         schema:
+   *           type: boolean
+   *         description: 是否免费过滤
+   *       - in: query
+   *         name: search
+   *         schema:
+   *           type: string
+   *         description: 搜索关键词
+   *       - in: query
+   *         name: tags
+   *         schema:
+   *           type: array
+   *           items:
+   *             type: string
+   *         style: form
+   *         explode: true
+   *         description: 标签过滤
+   *       - in: query
+   *         name: sortBy
+   *         schema:
+   *           type: string
+   *           enum: [created_at, updated_at, published_at, view_count, download_count, like_count]
+   *           default: created_at
+   *         description: 排序字段
+   *       - in: query
+   *         name: sortOrder
+   *         schema:
+   *           type: string
+   *           enum: [asc, desc]
+   *           default: desc
+   *         description: 排序方向
+   *     responses:
+   *       200:
+   *         description: 获取资源列表成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/SuccessResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/ResourceListResponse'
+   *             example:
+   *               success: true
+   *               data:
+   *                 resources: []
+   *                 pagination:
+   *                   page: 1
+   *                   limit: 20
+   *                   total: 0
+   *                   totalPages: 0
+   *       400:
+   *         $ref: '#/components/responses/BadRequest'
+   *       401:
+   *         $ref: '#/components/responses/Unauthorized'
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async getResources(req, res) {
     try {
+      logger.debug('获取资源列表请求参数', { query: req.query });
+      
       const {
         page = 1,
         limit = 20,
-        category,
-        type,
-        author,
+        categoryId,
+        resourceTypeId,
+        authorId,
         status,
         isPublic,
         isFree,
@@ -35,9 +151,9 @@ class ResourceController {
       const options = {
         page: parseInt(page),
         limit: Math.min(parseInt(limit), 100), // 限制最大每页数量
-        categoryId: category ? parseInt(category) : undefined,
-        resourceTypeId: type ? parseInt(type) : undefined,
-        authorId: author ? parseInt(author) : undefined,
+        categoryId: categoryId ? parseInt(categoryId) : undefined,
+        resourceTypeId: resourceTypeId ? parseInt(resourceTypeId) : undefined,
+        authorId: authorId ? parseInt(authorId) : undefined,
         status,
         isPublic: isPublic !== undefined ? isPublic === 'true' : undefined,
         isFree: isFree !== undefined ? isFree === 'true' : undefined,
@@ -47,14 +163,15 @@ class ResourceController {
         sortOrder
       };
 
+      logger.debug('解析后的查询选项', options);
+      
       const result = await Resource.findAll(options);
 
-      // 为列表中的每个资源生成安全信息
-      if (result.resources) {
-        result.resources = await Promise.all(
-          result.resources.map(resource => 
-            generateSecureResourceInfo(resource, req.user?.id)
-          )
+      // 批量生成安全信息，解决N+1查询问题
+      if (result.resources && result.resources.length > 0) {
+        result.resources = await generateSecureResourceInfoBatch(
+          result.resources, 
+          req.user?.id
         );
       }
 
@@ -63,7 +180,7 @@ class ResourceController {
         data: result
       });
     } catch (error) {
-      console.error('获取资源列表失败:', error);
+      logger.error('获取资源列表失败:', error);
       res.status(500).json({
         success: false,
         message: '获取资源列表失败',
@@ -73,7 +190,76 @@ class ResourceController {
   }
 
   /**
-   * 获取单个资源详情
+   * @swagger
+   * /api/resources/{id}:
+   *   get:
+   *     tags: [Resources]
+   *     summary: 获取单个资源详情
+   *     description: 根据资源ID获取资源的详细信息，包括安全的下载链接
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 资源ID
+   *     responses:
+   *       200:
+   *         description: 获取资源详情成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/SuccessResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/Resource'
+   *             example:
+   *               success: true
+   *               data:
+   *                 id: 1
+   *                 title: "Vue.js 完整教程"
+   *                 slug: "vue-complete-tutorial"
+   *                 description: "从基础到高级的 Vue.js 学习教程"
+   *                 author_id: 1
+   *                 author_username: "admin"
+   *                 status: "published"
+   *                 is_public: true
+   *                 is_free: false
+   *                 required_vip_level: "vip1"
+   *                 required_points: 100
+   *                 view_count: 1251
+   *                 download_count: 89
+   *                 like_count: 45
+   *                 created_at: "2025-09-11T10:00:00.000Z"
+   *                 updated_at: "2025-09-12T08:00:00.000Z"
+   *       400:
+   *         $ref: '#/components/responses/BadRequest'
+   *       401:
+   *         $ref: '#/components/responses/Unauthorized'
+   *       403:
+   *         description: 无权访问此资源
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "无权访问此资源"
+   *       404:
+   *         description: 资源不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "资源不存在"
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async getResource(req, res) {
     try {
@@ -112,7 +298,7 @@ class ResourceController {
         data: secureResource
       });
     } catch (error) {
-      console.error('获取资源详情失败:', error);
+      logger.error('获取资源详情失败:', error);
       res.status(500).json({
         success: false,
         message: '获取资源详情失败',
@@ -122,7 +308,72 @@ class ResourceController {
   }
 
   /**
-   * 创建新资源
+   * @swagger
+   * /api/resources:
+   *   post:
+   *     tags: [Resources]
+   *     summary: 创建新资源
+   *     description: 创建一个新的资源，需要认证
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CreateResourceRequest'
+   *           example:
+   *             title: "新的Vue.js教程"
+   *             description: "这是一个全面的Vue.js学习教程"
+   *             summary: "适合初学者的教程"
+   *             categoryId: 1
+   *             resourceTypeId: 1
+   *             coverImageUrl: "https://example.com/cover.jpg"
+   *             isPublic: true
+   *             isFree: false
+   *             requiredVipLevel: "vip1"
+   *             requiredPoints: 50
+   *             tags: [1, 2, 3]
+   *     responses:
+   *       201:
+   *         description: 资源创建成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/SuccessResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/Resource'
+   *                     message:
+   *                       type: string
+   *                       example: "资源创建成功"
+   *             example:
+   *               success: true
+   *               message: "资源创建成功"
+   *               data:
+   *                 id: 1
+   *                 title: "新的Vue.js教程"
+   *                 slug: "new-vue-tutorial"
+   *                 description: "这是一个全面的Vue.js学习教程"
+   *                 author_id: 1
+   *                 status: "draft"
+   *                 created_at: "2025-09-12T10:00:00.000Z"
+   *                 updated_at: "2025-09-12T10:00:00.000Z"
+   *       400:
+   *         description: 请求参数错误
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "标题和资源类型为必填字段"
+   *       401:
+   *         $ref: '#/components/responses/Unauthorized'
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async createResource(req, res) {
     try {
@@ -202,7 +453,7 @@ class ResourceController {
         data: resource
       });
     } catch (error) {
-      console.error('创建资源失败:', error);
+      logger.error('创建资源失败:', error);
       res.status(500).json({
         success: false,
         message: '创建资源失败',
@@ -212,7 +463,85 @@ class ResourceController {
   }
 
   /**
-   * 更新资源
+   * @swagger
+   * /api/resources/{id}:
+   *   put:
+   *     tags: [Resources]
+   *     summary: 更新资源
+   *     description: 更新指定ID的资源，只有作者或管理员可以操作
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 资源ID
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/UpdateResourceRequest'
+   *           example:
+   *             title: "更新的教程标题"
+   *             description: "更新后的描述内容"
+   *             summary: "更新的摘要"
+   *             coverImageUrl: "https://example.com/new-cover.jpg"
+   *             categoryId: 2
+   *             isPublic: false
+   *             isFree: true
+   *             requiredVipLevel: "vip2"
+   *             requiredPoints: 100
+   *             tags: [1, 4, 5]
+   *     responses:
+   *       200:
+   *         description: 资源更新成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/SuccessResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/Resource'
+   *                     message:
+   *                       type: string
+   *                       example: "资源更新成功"
+   *             example:
+   *               success: true
+   *               message: "资源更新成功"
+   *               data:
+   *                 id: 1
+   *                 title: "更新的教程标题"
+   *                 description: "更新后的描述内容"
+   *                 updated_at: "2025-09-12T12:00:00.000Z"
+   *       400:
+   *         $ref: '#/components/responses/BadRequest'
+   *       401:
+   *         $ref: '#/components/responses/Unauthorized'
+   *       403:
+   *         description: 无权编辑此资源
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "无权编辑此资源"
+   *       404:
+   *         description: 资源不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "资源不存在"
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async updateResource(req, res) {
     try {
@@ -260,7 +589,7 @@ class ResourceController {
         data: updatedResource
       });
     } catch (error) {
-      console.error('更新资源失败:', error);
+      logger.error('更新资源失败:', error);
       res.status(500).json({
         success: false,
         message: '更新资源失败',
@@ -270,7 +599,59 @@ class ResourceController {
   }
 
   /**
-   * 删除资源
+   * @swagger
+   * /api/resources/{id}:
+   *   delete:
+   *     tags: [Resources]
+   *     summary: 删除资源
+   *     description: 删除指定ID的资源，只有作者或管理员可以操作
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 资源ID
+   *     responses:
+   *       200:
+   *         description: 资源删除成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/SuccessResponse'
+   *                 - type: object
+   *                   properties:
+   *                     message:
+   *                       type: string
+   *                       example: "资源删除成功"
+   *             example:
+   *               success: true
+   *               message: "资源删除成功"
+   *       401:
+   *         $ref: '#/components/responses/Unauthorized'
+   *       403:
+   *         description: 无权删除此资源
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "无权删除此资源"
+   *       404:
+   *         description: 资源不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "资源不存在"
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async deleteResource(req, res) {
     try {
@@ -302,7 +683,7 @@ class ResourceController {
         message: '资源删除成功'
       });
     } catch (error) {
-      console.error('删除资源失败:', error);
+      logger.error('删除资源失败:', error);
       res.status(500).json({
         success: false,
         message: '删除资源失败',
@@ -312,7 +693,105 @@ class ResourceController {
   }
 
   /**
-   * 下载资源 - 解析加密URL并返回真实下载链接
+   * @swagger
+   * /api/resources/{id}/download:
+   *   post:
+   *     tags: [Resources]
+   *     summary: 获取资源下载链接
+   *     description: 解析加密URL并返回真实下载链接，需要认证和权限验证
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 资源ID
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - encrypted_url
+   *             properties:
+   *               encrypted_url:
+   *                 type: string
+   *                 description: 加密的下载URL
+   *                 example: "abc123def456..."
+   *           example:
+   *             encrypted_url: "abc123def456..."
+   *     responses:
+   *       200:
+   *         description: 获取下载链接成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/SuccessResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       type: object
+   *                       properties:
+   *                         download_url:
+   *                           type: string
+   *                           format: uri
+   *                           description: 真实下载链接
+   *                         file_name:
+   *                           type: string
+   *                           description: 文件名称
+   *                         file_size:
+   *                           type: integer
+   *                           description: 文件大小
+   *                         mime_type:
+   *                           type: string
+   *                           description: 文件MIME类型
+   *                         is_external:
+   *                           type: boolean
+   *                           description: 是否为外部链接
+   *             example:
+   *               success: true
+   *               message: "获取下载链接成功"
+   *               data:
+   *                 download_url: "https://cdn.example.com/files/resource.zip"
+   *                 file_name: "Vue.js 完整教程"
+   *                 file_size: 1024000
+   *                 mime_type: "application/zip"
+   *                 is_external: false
+   *       400:
+   *         description: 请求参数错误
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "缺少encrypted_url参数"
+   *       401:
+   *         $ref: '#/components/responses/Unauthorized'
+   *       403:
+   *         description: 无权下载此资源
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "需要VIP等级: vip1"
+   *       404:
+   *         description: 资源不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "资源不存在"
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async downloadResource(req, res) {
     try {
@@ -410,7 +889,7 @@ class ResourceController {
         }
       });
     } catch (error) {
-      console.error('获取下载链接失败:', error);
+      logger.error('获取下载链接失败:', error);
       res.status(500).json({
         success: false,
         message: '获取下载链接失败',
@@ -420,7 +899,82 @@ class ResourceController {
   }
 
   /**
-   * 搜索资源
+   * @swagger
+   * /api/resources/search:
+   *   get:
+   *     tags: [Resources]
+   *     summary: 搜索资源
+   *     description: 使用关键词进行全文搜索资源
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: q
+   *         required: true
+   *         schema:
+   *           type: string
+   *           minLength: 1
+   *         description: 搜索关键词
+   *         example: "Vue"
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           default: 1
+   *         description: 页码
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 20
+   *         description: 每页数量
+   *       - in: query
+   *         name: type
+   *         schema:
+   *           type: string
+   *         description: 搜索类型过滤
+   *     responses:
+   *       200:
+   *         description: 搜索成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/SuccessResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       type: object
+   *                       properties:
+   *                         resources:
+   *                           type: array
+   *                           items:
+   *                             $ref: '#/components/schemas/Resource'
+   *                         query:
+   *                           type: string
+   *                           description: 搜索关键词
+   *                         pagination:
+   *                           $ref: '#/components/schemas/Pagination'
+   *             example:
+   *               success: true
+   *               data:
+   *                 resources: []
+   *                 query: "Vue"
+   *                 pagination:
+   *                   page: 1
+   *                   limit: 20
+   *                   total: 0
+   *       400:
+   *         description: 搜索关键词为空
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "搜索关键词不能为空"
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async searchResources(req, res) {
     try {
@@ -452,7 +1006,7 @@ class ResourceController {
         }
       });
     } catch (error) {
-      console.error('搜索资源失败:', error);
+      logger.error('搜索资源失败:', error);
       res.status(500).json({
         success: false,
         message: '搜索失败',
@@ -462,7 +1016,102 @@ class ResourceController {
   }
 
   /**
-   * 获取资源统计信息
+   * @swagger
+   * /api/resources/stats:
+   *   get:
+   *     tags: [Resources]
+   *     summary: 获取资源统计信息
+   *     description: 获取系统中资源的统计数据，包括总数、状态分布、类型分布等
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: 获取统计信息成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/SuccessResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       type: object
+   *                       properties:
+   *                         overview:
+   *                           type: object
+   *                           properties:
+   *                             total_resources:
+   *                               type: integer
+   *                               description: 总资源数
+   *                             published_resources:
+   *                               type: integer
+   *                               description: 已发布资源数
+   *                             draft_resources:
+   *                               type: integer
+   *                               description: 草稿资源数
+   *                             public_resources:
+   *                               type: integer
+   *                               description: 公开资源数
+   *                             free_resources:
+   *                               type: integer
+   *                               description: 免费资源数
+   *                             total_views:
+   *                               type: integer
+   *                               description: 总浏览次数
+   *                             total_downloads:
+   *                               type: integer
+   *                               description: 总下载次数
+   *                             avg_file_size:
+   *                               type: number
+   *                               description: 平均文件大小
+   *                         byType:
+   *                           type: array
+   *                           items:
+   *                             type: object
+   *                             properties:
+   *                               type_name:
+   *                                 type: string
+   *                                 description: 资源类型名称
+   *                               count:
+   *                                 type: integer
+   *                                 description: 该类型资源数量
+   *                         byCategory:
+   *                           type: array
+   *                           items:
+   *                             type: object
+   *                             properties:
+   *                               category_name:
+   *                                 type: string
+   *                                 description: 分类名称
+   *                               count:
+   *                                 type: integer
+   *                                 description: 该分类资源数量
+   *             example:
+   *               success: true
+   *               data:
+   *                 overview:
+   *                   total_resources: 150
+   *                   published_resources: 120
+   *                   draft_resources: 30
+   *                   public_resources: 100
+   *                   free_resources: 80
+   *                   total_views: 15000
+   *                   total_downloads: 3500
+   *                   avg_file_size: 2048000
+   *                 byType:
+   *                   - type_name: "文章"
+   *                     count: 60
+   *                   - type_name: "视频"
+   *                     count: 40
+   *                 byCategory:
+   *                   - category_name: "科技"
+   *                     count: 50
+   *                   - category_name: "教育"
+   *                     count: 35
+   *       401:
+   *         $ref: '#/components/responses/Unauthorized'
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async getResourceStats(req, res) {
     try {
@@ -511,7 +1160,7 @@ class ResourceController {
         }
       });
     } catch (error) {
-      console.error('获取资源统计失败:', error);
+      logger.error('获取资源统计失败:', error);
       res.status(500).json({
         success: false,
         message: '获取统计信息失败',

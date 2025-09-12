@@ -1,12 +1,94 @@
 /**
  * 卡密系统控制器
  * 处理卡密生成、兑换、查询等操作
+ * 
+ * @swagger
+ * tags:
+ *   - name: CardKeys
+ *     description: 卡密管理相关接口
  */
 
 const CardKey = require('../models/CardKey');
+const { logger } = require('../utils/logger');
 
 /**
- * 生成单个卡密（管理员功能）
+ * @swagger
+ * /api/card-keys/generate/single:
+ *   post:
+ *     tags: [CardKeys]
+ *     summary: 生成单个卡密
+ *     description: 管理员功能，生成单个VIP或积分卡密
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreateCardKeyRequest'
+ *           examples:
+ *             vip_card:
+ *               summary: 生成VIP卡密
+ *               value:
+ *                 type: "vip"
+ *                 vip_level: 1
+ *                 vip_days: 30
+ *             points_card:
+ *               summary: 生成积分卡密
+ *               value:
+ *                 type: "points"
+ *                 points: 1000
+ *             permanent_vip:
+ *               summary: 生成永久VIP卡密
+ *               value:
+ *                 type: "vip"
+ *                 vip_level: 3
+ *                 vip_days: 0
+ *     responses:
+ *       201:
+ *         description: 卡密生成成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/CardKey'
+ *             example:
+ *               success: true
+ *               message: "卡密生成成功"
+ *               data:
+ *                 id: 1001
+ *                 code: "VIP2025091200001"
+ *                 type: "vip"
+ *                 vip_level: 1
+ *                 vip_days: 30
+ *                 status: "unused"
+ *                 batch_id: null
+ *                 created_at: "2025-09-12T10:00:00.000Z"
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               vip_level_missing:
+ *                 value:
+ *                   success: false
+ *                   message: "VIP类型卡密必须指定有效的VIP等级"
+ *               points_missing:
+ *                 value:
+ *                   success: false
+ *                   message: "积分类型卡密必须指定有效的积分数量"
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const generateSingleCard = async (req, res) => {
   try {
@@ -54,7 +136,7 @@ const generateSingleCard = async (req, res) => {
       data: cardKey
     });
   } catch (error) {
-    console.error('生成卡密失败:', error);
+    logger.error('生成卡密失败:', error);
     res.status(500).json({
       success: false,
       message: '生成卡密失败'
@@ -63,7 +145,55 @@ const generateSingleCard = async (req, res) => {
 };
 
 /**
- * 批量生成卡密（管理员功能）
+ * @swagger
+ * /api/card-keys/generate/batch:
+ *   post:
+ *     tags: [CardKeys]
+ *     summary: 批量生成卡密
+ *     description: 管理员功能，批量生成VIP或积分卡密
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreateBatchCardKeysRequest'
+ *           example:
+ *             type: "vip"
+ *             vip_level: 1
+ *             vip_days: 30
+ *             count: 100
+ *             expire_at: "2025-12-31T23:59:59.000Z"
+ *     responses:
+ *       201:
+ *         description: 批量生成成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/BatchCardKeysResponse'
+ *             example:
+ *               success: true
+ *               message: "批量生成100个卡密成功"
+ *               data:
+ *                 batch_id: "BATCH_20250912_001"
+ *                 count: 100
+ *                 sample_codes: ["VIP2025091200001", "VIP2025091200002", "VIP2025091200003"]
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "批量生成数量必须在1-1000之间"
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const generateBatchCards = async (req, res) => {
   try {
@@ -123,7 +253,7 @@ const generateBatchCards = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('批量生成卡密失败:', error);
+    logger.error('批量生成卡密失败:', error);
     res.status(500).json({
       success: false,
       message: '批量生成卡密失败'
@@ -132,7 +262,77 @@ const generateBatchCards = async (req, res) => {
 };
 
 /**
- * 兑换卡密
+ * @swagger
+ * /api/card-keys/redeem:
+ *   post:
+ *     tags: [CardKeys]
+ *     summary: 兑换卡密
+ *     description: 用户使用卡密代码兑换VIP或积分
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RedeemCardKeyRequest'
+ *           example:
+ *             code: "VIP2025091200001"
+ *     responses:
+ *       200:
+ *         description: 卡密兑换成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/RedeemCardKeyResponse'
+ *             examples:
+ *               vip_redeem:
+ *                 summary: VIP卡密兑换成功
+ *                 value:
+ *                   success: true
+ *                   message: "卡密兑换成功，获得1级VIP30天"
+ *                   data:
+ *                     card_type: "vip"
+ *                     vip_level: 1
+ *                     vip_days: 30
+ *                     points: null
+ *                     vip_result: {}
+ *                     order: {}
+ *               points_redeem:
+ *                 summary: 积分卡密兑换成功
+ *                 value:
+ *                   success: true
+ *                   message: "卡密兑换成功，获得1000积分"
+ *                   data:
+ *                     card_type: "points"
+ *                     vip_level: null
+ *                     vip_days: null
+ *                     points: 1000
+ *                     vip_result: null
+ *                     order: null
+ *       400:
+ *         description: 卡密错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               invalid_code:
+ *                 value:
+ *                   success: false
+ *                   message: "请提供有效的卡密代码"
+ *               card_used:
+ *                 value:
+ *                   success: false
+ *                   message: "卡密已被使用或已失效"
+ *               card_expired:
+ *                 value:
+ *                   success: false
+ *                   message: "卡密已过期"
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const redeemCard = async (req, res) => {
   try {
@@ -171,7 +371,7 @@ const redeemCard = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('兑换卡密失败:', error);
+    logger.error('兑换卡密失败:', error);
     
     // 返回具体的错误信息
     const errorMessages = {
@@ -190,7 +390,67 @@ const redeemCard = async (req, res) => {
 };
 
 /**
- * 查询卡密信息
+ * @swagger
+ * /api/card-keys/info/{code}:
+ *   get:
+ *     tags: [CardKeys]
+ *     summary: 查询卡密信息
+ *     description: 根据卡密代码查询卡密的详细信息
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 卡密代码
+ *         example: "VIP2025091200001"
+ *     responses:
+ *       200:
+ *         description: 获取卡密信息成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/CardKey'
+ *             example:
+ *               success: true
+ *               message: "卡密信息获取成功"
+ *               data:
+ *                 code: "VIP2025091200001"
+ *                 type: "vip"
+ *                 vip_level: 1
+ *                 vip_days: 30
+ *                 status: "unused"
+ *                 expire_at: "2025-12-31T23:59:59.000Z"
+ *                 is_expired: false
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "请提供卡密代码"
+ *       404:
+ *         description: 卡密不存在
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "卡密不存在"
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getCardInfo = async (req, res) => {
   try {
@@ -247,7 +507,7 @@ const getCardInfo = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('查询卡密失败:', error);
+    logger.error('查询卡密失败:', error);
     res.status(500).json({
       success: false,
       message: '查询卡密失败'
@@ -256,7 +516,65 @@ const getCardInfo = async (req, res) => {
 };
 
 /**
- * 获取卡密列表（管理员功能）
+ * @swagger
+ * /api/card-keys/list:
+ *   get:
+ *     tags: [CardKeys]
+ *     summary: 获取卡密列表
+ *     description: 管理员获取卡密列表，支持过滤和分页
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [unused, used, expired, disabled]
+ *         description: 按状态过滤
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [vip, points]
+ *         description: 按类型过滤
+ *       - in: query
+ *         name: batch_id
+ *         schema:
+ *           type: string
+ *         description: 按批次ID过滤
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
+ *         description: 返回数量限制
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: 偏移量
+ *     responses:
+ *       200:
+ *         description: 获取卡密列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/CardKey'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getCardsList = async (req, res) => {
   try {
@@ -291,7 +609,7 @@ const getCardsList = async (req, res) => {
       data: cardKeys
     });
   } catch (error) {
-    console.error('获取卡密列表失败:', error);
+    logger.error('获取卡密列表失败:', error);
     res.status(500).json({
       success: false,
       message: '获取卡密列表失败'
@@ -300,7 +618,54 @@ const getCardsList = async (req, res) => {
 };
 
 /**
- * 获取卡密统计信息（管理员功能）
+ * @swagger
+ * /api/card-keys/statistics:
+ *   get:
+ *     tags: [CardKeys]
+ *     summary: 获取卡密统计信息
+ *     description: 管理员获取卡密的统计数据
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: batch_id
+ *         schema:
+ *           type: string
+ *         description: 指定批次ID（可选）
+ *     responses:
+ *       200:
+ *         description: 获取统计信息成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/CardKeyStatistics'
+ *             example:
+ *               success: true
+ *               message: "卡密统计获取成功"
+ *               data:
+ *                 total_count: 500
+ *                 unused_count: 320
+ *                 used_count: 150
+ *                 expired_count: 20
+ *                 disabled_count: 10
+ *                 by_type:
+ *                   vip: 300
+ *                   points: 200
+ *                 recent_usage:
+ *                   today: 5
+ *                   this_week: 25
+ *                   this_month: 120
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getCardsStatistics = async (req, res) => {
   try {
@@ -313,7 +678,7 @@ const getCardsStatistics = async (req, res) => {
       data: statistics
     });
   } catch (error) {
-    console.error('获取卡密统计失败:', error);
+    logger.error('获取卡密统计失败:', error);
     res.status(500).json({
       success: false,
       message: '获取卡密统计失败'
@@ -322,7 +687,62 @@ const getCardsStatistics = async (req, res) => {
 };
 
 /**
- * 获取批次列表（管理员功能）
+ * @swagger
+ * /api/card-keys/batches:
+ *   get:
+ *     tags: [CardKeys]
+ *     summary: 获取批次列表
+ *     description: 管理员获取卡密批次列表
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
+ *         description: 返回数量限制
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: 偏移量
+ *     responses:
+ *       200:
+ *         description: 获取批次列表成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/CardKeyBatch'
+ *             example:
+ *               success: true
+ *               message: "批次列表获取成功"
+ *               data:
+ *                 - batch_id: "BATCH_20250912_001"
+ *                   type: "vip"
+ *                   vip_level: 1
+ *                   vip_days: 30
+ *                   total_count: 100
+ *                   unused_count: 85
+ *                   used_count: 15
+ *                   expired_count: 0
+ *                   created_by_username: "admin"
+ *                   created_at: "2025-09-12T08:00:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getBatchesList = async (req, res) => {
   try {
@@ -340,7 +760,7 @@ const getBatchesList = async (req, res) => {
       data: batches
     });
   } catch (error) {
-    console.error('获取批次列表失败:', error);
+    logger.error('获取批次列表失败:', error);
     res.status(500).json({
       success: false,
       message: '获取批次列表失败'
@@ -386,7 +806,7 @@ const getBatchDetails = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取批次详情失败:', error);
+    logger.error('获取批次详情失败:', error);
     res.status(500).json({
       success: false,
       message: '获取批次详情失败'
@@ -424,7 +844,7 @@ const updateCardStatus = async (req, res) => {
       data: updatedCard
     });
   } catch (error) {
-    console.error('更新卡密状态失败:', error);
+    logger.error('更新卡密状态失败:', error);
     res.status(500).json({
       success: false,
       message: '更新卡密状态失败'
@@ -453,7 +873,7 @@ const deleteCard = async (req, res) => {
       data: deletedCard
     });
   } catch (error) {
-    console.error('删除卡密失败:', error);
+    logger.error('删除卡密失败:', error);
     res.status(500).json({
       success: false,
       message: '删除卡密失败'
@@ -478,7 +898,7 @@ const deleteBatch = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('删除批次失败:', error);
+    logger.error('删除批次失败:', error);
     res.status(500).json({
       success: false,
       message: '删除批次失败'

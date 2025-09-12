@@ -7,6 +7,7 @@ const CommunityInteraction = require('../models/CommunityInteraction');
 const CommunityPost = require('../models/CommunityPost');
 const CommunityComment = require('../models/CommunityComment');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
+const { logger } = require('../utils/logger');
 
 class CommunityInteractionController {
   /**
@@ -43,7 +44,7 @@ class CommunityInteractionController {
       
       return successResponse(res, `${result.action === 'liked' ? '点赞' : '取消点赞'}成功`, result);
     } catch (error) {
-      console.error('点赞操作失败:', error);
+      logger.error('点赞操作失败:', error);
       return errorResponse(res, '点赞操作失败', 500);
     }
   }
@@ -70,7 +71,7 @@ class CommunityInteractionController {
       
       return successResponse(res, `${result.action === 'favorited' ? '收藏' : '取消收藏'}成功`, result);
     } catch (error) {
-      console.error('收藏操作失败:', error);
+      logger.error('收藏操作失败:', error);
       return errorResponse(res, '收藏操作失败', 500);
     }
   }
@@ -103,7 +104,7 @@ class CommunityInteractionController {
       
       return successResponse(res, '分享成功', result);
     } catch (error) {
-      console.error('分享失败:', error);
+      logger.error('分享失败:', error);
       return errorResponse(res, '分享失败', 500);
     }
   }
@@ -163,7 +164,7 @@ class CommunityInteractionController {
       
       return successResponse(res, '举报提交成功', report, 201);
     } catch (error) {
-      console.error('举报失败:', error);
+      logger.error('举报失败:', error);
       if (error.message === '您已经举报过该内容') {
         return errorResponse(res, error.message, 400);
       }
@@ -193,7 +194,7 @@ class CommunityInteractionController {
       
       return successResponse(res, '获取用户点赞列表成功', result);
     } catch (error) {
-      console.error('获取用户点赞列表失败:', error);
+      logger.error('获取用户点赞列表失败:', error);
       return errorResponse(res, '获取用户点赞列表失败', 500);
     }
   }
@@ -218,7 +219,7 @@ class CommunityInteractionController {
       
       return successResponse(res, '获取用户收藏列表成功', result);
     } catch (error) {
-      console.error('获取用户收藏列表失败:', error);
+      logger.error('获取用户收藏列表失败:', error);
       return errorResponse(res, '获取用户收藏列表失败', 500);
     }
   }
@@ -248,7 +249,7 @@ class CommunityInteractionController {
       
       return successResponse(res, '获取举报列表成功', result);
     } catch (error) {
-      console.error('获取举报列表失败:', error);
+      logger.error('获取举报列表失败:', error);
       return errorResponse(res, '获取举报列表失败', 500);
     }
   }
@@ -287,7 +288,7 @@ class CommunityInteractionController {
 
       return successResponse(res, '处理举报成功', report);
     } catch (error) {
-      console.error('处理举报失败:', error);
+      logger.error('处理举报失败:', error);
       return errorResponse(res, '处理举报失败', 500);
     }
   }
@@ -303,7 +304,7 @@ class CommunityInteractionController {
       
       return successResponse(res, '获取用户互动统计成功', stats);
     } catch (error) {
-      console.error('获取用户互动统计失败:', error);
+      logger.error('获取用户互动统计失败:', error);
       return errorResponse(res, '获取用户互动统计失败', 500);
     }
   }
@@ -324,7 +325,7 @@ class CommunityInteractionController {
       
       return successResponse(res, '检查点赞状态成功', { isLiked });
     } catch (error) {
-      console.error('检查点赞状态失败:', error);
+      logger.error('检查点赞状态失败:', error);
       return errorResponse(res, '检查点赞状态失败', 500);
     }
   }
@@ -345,7 +346,7 @@ class CommunityInteractionController {
       
       return successResponse(res, '检查收藏状态成功', { isFavorited });
     } catch (error) {
-      console.error('检查收藏状态失败:', error);
+      logger.error('检查收藏状态失败:', error);
       return errorResponse(res, '检查收藏状态失败', 500);
     }
   }

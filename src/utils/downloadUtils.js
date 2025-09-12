@@ -5,6 +5,7 @@
 
 const crypto = require('crypto');
 const { query } = require('../config/database');
+const { logger } = require('./logger');
 
 /**
  * 验证用户下载权限
@@ -107,7 +108,7 @@ async function validateDownloadPermission(userId, resource) {
     };
 
   } catch (error) {
-    console.error('权限检查失败:', error);
+    logger.error('权限检查失败:', error);
     return {
       allowed: false,
       reason: '权限检查失败，请稍后重试'
@@ -182,7 +183,7 @@ async function generateSignedUrl(resource, userId, options = {}) {
     };
 
   } catch (error) {
-    console.error('生成签名链接失败:', error);
+    logger.error('生成签名链接失败:', error);
     throw error;
   }
 }
@@ -216,7 +217,7 @@ function validateDownloadSignature(params) {
     );
 
   } catch (error) {
-    console.error('签名验证失败:', error);
+    logger.error('签名验证失败:', error);
     return false;
   }
 }
@@ -229,7 +230,10 @@ function validateDownloadSignature(params) {
 function generateDownloadSignature(data) {
   const { resourceId, userId, expiresAt, ipAddress } = data;
   
-  const secret = process.env.JWT_SECRET || 'default-secret';
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET must be defined in environment variables');
+  }
   const payload = `${resourceId}:${userId}:${expiresAt}:${ipAddress}`;
   
   return crypto
@@ -290,7 +294,10 @@ function extractFileName(url, fallbackTitle) {
 function obfuscateUrl(url, resourceId) {
   if (!url) return null;
   
-  const secret = process.env.JWT_SECRET || 'default-secret';
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET must be defined in environment variables');
+  }
   const data = JSON.stringify({ url, resourceId, timestamp: Date.now() });
   
   // 使用现代加密方法
@@ -319,7 +326,10 @@ function obfuscateUrl(url, resourceId) {
  */
 function deobfuscateUrl(obfuscatedUrl) {
   try {
-    const secret = process.env.JWT_SECRET || 'default-secret';
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('JWT_SECRET must be defined in environment variables');
+    }
     
     // 移除前缀和后缀
     const parts = obfuscatedUrl.split('_');
@@ -340,7 +350,7 @@ function deobfuscateUrl(obfuscatedUrl) {
     
     return JSON.parse(decrypted);
   } catch (error) {
-    console.error('URL解密失败:', error);
+    logger.error('URL解密失败:', error);
     return null;
   }
 }
@@ -393,7 +403,7 @@ async function generateDownloadInfoArray(resource, userId = null) {
       try {
         permissionCheck = await validateDownloadPermission(userId, resource);
       } catch (error) {
-        console.error('权限检查失败:', error);
+        logger.error('权限检查失败:', error);
         permissionCheck = { allowed: false, reason: '权限检查失败' };
       }
     } else {

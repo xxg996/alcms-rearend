@@ -5,6 +5,7 @@
 
 const { verifyAccessToken } = require('../utils/jwt');
 const User = require('../models/User');
+const { logger } = require('../utils/logger');
 
 /**
  * JWT认证中间件
@@ -52,7 +53,7 @@ const authenticateToken = async (req, res, next) => {
     };
     next();
   } catch (error) {
-    console.error('Token验证失败:', error);
+    logger.error('Token验证失败:', error);
     return res.status(401).json({
       success: false,
       message: '无效的访问令牌'
@@ -88,7 +89,7 @@ const requirePermission = (permission) => {
 
       next();
     } catch (error) {
-      console.error('权限检查失败:', error);
+      logger.error('权限检查失败:', error);
       return res.status(500).json({
         success: false,
         message: '权限检查失败'
@@ -127,7 +128,7 @@ const requireRole = (roles) => {
 
       next();
     } catch (error) {
-      console.error('角色检查失败:', error);
+      logger.error('角色检查失败:', error);
       return res.status(500).json({
         success: false,
         message: '角色检查失败'
@@ -200,7 +201,7 @@ const requireOwnershipOrAdmin = async (req, res, next) => {
       message: '只能访问自己的资源'
     });
   } catch (error) {
-    console.error('所有权检查失败:', error);
+    logger.error('所有权检查失败:', error);
     return res.status(500).json({
       success: false,
       message: '权限检查失败'

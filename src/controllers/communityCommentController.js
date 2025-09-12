@@ -6,6 +6,7 @@
 const CommunityComment = require('../models/CommunityComment');
 const CommunityPost = require('../models/CommunityPost');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
+const { logger } = require('../utils/logger');
 
 class CommunityCommentController {
   /**
@@ -41,7 +42,7 @@ class CommunityCommentController {
       
       return successResponse(res, '获取评论列表成功', result);
     } catch (error) {
-      console.error('获取评论列表失败:', error);
+      logger.error('获取评论列表失败:', error);
       return errorResponse(res, '获取评论列表失败', 500);
     }
   }
@@ -62,7 +63,7 @@ class CommunityCommentController {
 
       return successResponse(res, '获取评论详情成功', comment);
     } catch (error) {
-      console.error('获取评论详情失败:', error);
+      logger.error('获取评论详情失败:', error);
       return errorResponse(res, '获取评论详情失败', 500);
     }
   }
@@ -120,7 +121,7 @@ class CommunityCommentController {
       
       return successResponse(res, '创建评论成功', newComment, 201);
     } catch (error) {
-      console.error('创建评论失败:', error);
+      logger.error('创建评论失败:', error);
       return errorResponse(res, '创建评论失败', 500);
     }
   }
@@ -153,7 +154,7 @@ class CommunityCommentController {
       
       return successResponse(res, '更新评论成功', updatedComment);
     } catch (error) {
-      console.error('更新评论失败:', error);
+      logger.error('更新评论失败:', error);
       return errorResponse(res, '更新评论失败', 500);
     }
   }
@@ -189,7 +190,7 @@ class CommunityCommentController {
 
       return successResponse(res, '删除评论成功');
     } catch (error) {
-      console.error('删除评论失败:', error);
+      logger.error('删除评论失败:', error);
       return errorResponse(res, '删除评论失败', 500);
     }
   }
@@ -214,7 +215,7 @@ class CommunityCommentController {
       
       return successResponse(res, '获取用户评论成功', result);
     } catch (error) {
-      console.error('获取用户评论失败:', error);
+      logger.error('获取用户评论失败:', error);
       return errorResponse(res, '获取用户评论失败', 500);
     }
   }
@@ -230,7 +231,7 @@ class CommunityCommentController {
       
       return successResponse(res, '获取子评论数量成功', { count });
     } catch (error) {
-      console.error('获取子评论数量失败:', error);
+      logger.error('获取子评论数量失败:', error);
       return errorResponse(res, '获取子评论数量失败', 500);
     }
   }
@@ -253,7 +254,7 @@ class CommunityCommentController {
       
       return successResponse(res, '获取热门评论成功', comments);
     } catch (error) {
-      console.error('获取热门评论失败:', error);
+      logger.error('获取热门评论失败:', error);
       return errorResponse(res, '获取热门评论失败', 500);
     }
   }
@@ -269,7 +270,7 @@ class CommunityCommentController {
       
       return successResponse(res, '获取用户评论统计成功', stats);
     } catch (error) {
-      console.error('获取用户评论统计失败:', error);
+      logger.error('获取用户评论统计失败:', error);
       return errorResponse(res, '获取用户评论统计失败', 500);
     }
   }
@@ -315,7 +316,7 @@ class CommunityCommentController {
         return errorResponse(res, '所有评论删除失败', 400, result);
       }
     } catch (error) {
-      console.error('批量删除评论失败:', error);
+      logger.error('批量删除评论失败:', error);
       return errorResponse(res, '批量删除评论失败', 500);
     }
   }

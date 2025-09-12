@@ -6,11 +6,22 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "migrate": "node database/migrate.js",
-    "migrate-cms": "node database/migrate-cms.js",
-    "migrate-community": "node database/migrate-community.js",
+    "install": "node database/setup.js full",
+    "install:basic": "node database/setup.js basic",
+    "install:cms": "node database/setup.js cms",
+    "install:community": "node database/setup.js community",
+    "install:vip": "node database/setup.js vip",
+    "install:help": "node database/setup.js --help",
     "create-admin": "node scripts/create-admin.js",
-    "test-api": "node test-api.js"
+    "test-api": "node test-api.js",
+    "pm2:dev": "pm2 start ecosystem.config.js --only alcms-backend-dev",
+    "pm2:prod": "pm2 start ecosystem.config.js --only alcms-backend --env production",
+    "pm2:stop": "pm2 stop all",
+    "pm2:restart": "pm2 restart all",
+    "pm2:delete": "pm2 delete all",
+    "pm2:status": "pm2 status",
+    "pm2:logs": "pm2 logs",
+    "pm2:monit": "pm2 monit"
   },
   "keywords": [
     "alcms",
@@ -33,8 +44,10 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "pg": "^8.11.3",
+    "redis": "^4.6.10",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
+    "winston": "^3.11.0",
     "yamljs": "^0.3.0"
   },
   "devDependencies": {

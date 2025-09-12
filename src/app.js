@@ -8,6 +8,22 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 require('dotenv').config();
+const { logger } = require('./utils/logger');
+
+// JWT安全验证 - 应用启动时验证
+const { validateJWTSecurity } = require('./utils/secureJwt');
+validateJWTSecurity();
+
+// 初始化缓存系统
+const { cache } = require('./utils/cache');
+const { warmupCache } = require('./middleware/cacheMiddleware');
+
+cache.initialize().then(() => {
+  // 缓存系统初始化成功后，预热缓存
+  warmupCache();
+}).catch(err => {
+  logger.error('缓存系统初始化失败:', err);
+});
 
 // 导入 Swagger 配置
 const { swaggerDocument, swaggerUi, swaggerOptions } = require('./config/swagger');
@@ -331,11 +347,11 @@ const PORT = process.env.PORT || 3000;
 
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`
-🚀 Alcms 后端服务已启动！
-📍 服务地址: http://localhost:${PORT}
-📚 API端点: http://localhost:${PORT}/api
-🔍 健康检查: http://localhost:${PORT}/health
+    logger.info(`
+ Alcms 后端服务已启动！
+ 服务地址: http://localhost:${PORT}
+ API端点: http://localhost:${PORT}/api
+ 健康检查: http://localhost:${PORT}/health
     `);
   });
 }

@@ -1,13 +1,85 @@
 /**
  * 标签管理控制器
  * 处理标签相关的HTTP请求
+ * 
+ * @swagger
+ * tags:
+ *   - name: Tags
+ *     description: 标签管理相关接口
  */
 
 const Tag = require('../models/Tag');
+const { logger } = require('../utils/logger');
 
 class TagController {
   /**
-   * 获取标签列表
+   * @swagger
+   * /api/tags:
+   *   get:
+   *     tags: [Tags]
+   *     summary: 获取标签列表
+   *     description: 获取标签列表，支持搜索、排序和分页
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: search
+   *         schema:
+   *           type: string
+   *         description: 搜索关键词
+   *       - in: query
+   *         name: sortBy
+   *         schema:
+   *           type: string
+   *           enum: [name, display_name, usage_count, created_at]
+   *           default: usage_count
+   *         description: 排序字段
+   *       - in: query
+   *         name: sortOrder
+   *         schema:
+   *           type: string
+   *           enum: [ASC, DESC]
+   *           default: DESC
+   *         description: 排序方向
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 100
+   *         description: 返回数量限制
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           default: 1
+   *         description: 页码（需配合limit使用）
+   *     responses:
+   *       200:
+   *         description: 获取标签列表成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/TagListResponse'
+   *             example:
+   *               success: true
+   *               data:
+   *                 tags:
+   *                   - id: 1
+   *                     name: "javascript"
+   *                     display_name: "JavaScript"
+   *                     description: "JavaScript 编程语言"
+   *                     color: "#f39c12"
+   *                     usage_count: 250
+   *                     created_at: "2025-09-11T08:00:00.000Z"
+   *                     updated_at: "2025-09-12T10:00:00.000Z"
+   *                 pagination:
+   *                   page: 1
+   *                   limit: 20
+   *                   total: 50
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async getTags(req, res) {
     try {
@@ -41,7 +113,7 @@ class TagController {
         }
       });
     } catch (error) {
-      console.error('获取标签列表失败:', error);
+      logger.error('获取标签列表失败:', error);
       res.status(500).json({
         success: false,
         message: '获取标签列表失败',
@@ -51,7 +123,55 @@ class TagController {
   }
 
   /**
-   * 获取单个标签详情
+   * @swagger
+   * /api/tags/{id}:
+   *   get:
+   *     tags: [Tags]
+   *     summary: 获取单个标签详情
+   *     description: 根据标签ID获取标签的详细信息
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 标签ID
+   *     responses:
+   *       200:
+   *         description: 获取标签详情成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/SuccessResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/Tag'
+   *             example:
+   *               success: true
+   *               data:
+   *                 id: 1
+   *                 name: "javascript"
+   *                 display_name: "JavaScript"
+   *                 description: "JavaScript 编程语言相关内容"
+   *                 color: "#f39c12"
+   *                 usage_count: 250
+   *                 created_at: "2025-09-11T08:00:00.000Z"
+   *                 updated_at: "2025-09-12T10:00:00.000Z"
+   *       404:
+   *         description: 标签不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "标签不存在"
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async getTag(req, res) {
     try {
@@ -71,7 +191,7 @@ class TagController {
         data: tag
       });
     } catch (error) {
-      console.error('获取标签详情失败:', error);
+      logger.error('获取标签详情失败:', error);
       res.status(500).json({
         success: false,
         message: '获取标签详情失败',
@@ -81,7 +201,68 @@ class TagController {
   }
 
   /**
-   * 创建新标签
+   * @swagger
+   * /api/tags:
+   *   post:
+   *     tags: [Tags]
+   *     summary: 创建新标签
+   *     description: 创建一个新的标签，需要管理员权限
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CreateTagRequest'
+   *           example:
+   *             name: "python"
+   *             displayName: "Python"
+   *             description: "Python 编程语言相关内容"
+   *             color: "#3776ab"
+   *     responses:
+   *       201:
+   *         description: 标签创建成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/SuccessResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/Tag'
+   *                     message:
+   *                       type: string
+   *                       example: "标签创建成功"
+   *       400:
+   *         description: 请求参数错误
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             examples:
+   *               missing_fields:
+   *                 value:
+   *                   success: false
+   *                   message: "标签名称和显示名称为必填字段"
+   *               duplicate_name:
+   *                 value:
+   *                   success: false
+   *                   message: "标签名称已存在"
+   *       401:
+   *         $ref: '#/components/responses/Unauthorized'
+   *       403:
+   *         description: 无权创建标签
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "无权创建标签"
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async createTag(req, res) {
     try {
@@ -119,7 +300,7 @@ class TagController {
         data: tag
       });
     } catch (error) {
-      console.error('创建标签失败:', error);
+      logger.error('创建标签失败:', error);
       
       if (error.message === '标签名称已存在') {
         return res.status(400).json({
@@ -178,7 +359,7 @@ class TagController {
         data: updatedTag
       });
     } catch (error) {
-      console.error('更新标签失败:', error);
+      logger.error('更新标签失败:', error);
       res.status(500).json({
         success: false,
         message: '更新标签失败',
@@ -219,7 +400,7 @@ class TagController {
         message: '标签删除成功'
       });
     } catch (error) {
-      console.error('删除标签失败:', error);
+      logger.error('删除标签失败:', error);
       
       if (error.message.includes('关联资源')) {
         return res.status(400).json({
@@ -237,7 +418,63 @@ class TagController {
   }
 
   /**
-   * 搜索标签
+   * @swagger
+   * /api/tags/search:
+   *   get:
+   *     tags: [Tags]
+   *     summary: 搜索标签
+   *     description: 使用关键词搜索标签
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: q
+   *         required: true
+   *         schema:
+   *           type: string
+   *           minLength: 1
+   *         description: 搜索关键词
+   *         example: "js"
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 10
+   *           maximum: 50
+   *         description: 返回数量限制
+   *     responses:
+   *       200:
+   *         description: 搜索成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/TagSearchResponse'
+   *             example:
+   *               success: true
+   *               data:
+   *                 tags:
+   *                   - id: 1
+   *                     name: "javascript"
+   *                     display_name: "JavaScript"
+   *                     color: "#f39c12"
+   *                     usage_count: 250
+   *                   - id: 2
+   *                     name: "nodejs"
+   *                     display_name: "Node.js"
+   *                     color: "#68a063"
+   *                     usage_count: 150
+   *                 query: "js"
+   *       400:
+   *         description: 搜索关键词为空
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "搜索关键词不能为空"
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async searchTags(req, res) {
     try {
@@ -260,7 +497,7 @@ class TagController {
         }
       });
     } catch (error) {
-      console.error('搜索标签失败:', error);
+      logger.error('搜索标签失败:', error);
       res.status(500).json({
         success: false,
         message: '搜索标签失败',
@@ -270,7 +507,51 @@ class TagController {
   }
 
   /**
-   * 获取热门标签
+   * @swagger
+   * /api/tags/popular:
+   *   get:
+   *     tags: [Tags]
+   *     summary: 获取热门标签
+   *     description: 根据使用次数获取热门标签列表
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 20
+   *           maximum: 100
+   *         description: 返回数量限制
+   *     responses:
+   *       200:
+   *         description: 获取热门标签成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/SuccessResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       type: array
+   *                       items:
+   *                         $ref: '#/components/schemas/PopularTag'
+   *             example:
+   *               success: true
+   *               data:
+   *                 - id: 1
+   *                   name: "javascript"
+   *                   display_name: "JavaScript"
+   *                   color: "#f39c12"
+   *                   usage_count: 300
+   *                 - id: 2
+   *                   name: "python"
+   *                   display_name: "Python"
+   *                   color: "#3776ab"
+   *                   usage_count: 280
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async getPopularTags(req, res) {
     try {
@@ -283,7 +564,7 @@ class TagController {
         data: tags
       });
     } catch (error) {
-      console.error('获取热门标签失败:', error);
+      logger.error('获取热门标签失败:', error);
       res.status(500).json({
         success: false,
         message: '获取热门标签失败',
@@ -293,7 +574,73 @@ class TagController {
   }
 
   /**
-   * 批量创建标签
+   * @swagger
+   * /api/tags/batch:
+   *   post:
+   *     tags: [Tags]
+   *     summary: 批量创建标签
+   *     description: 一次性创建多个标签，需要管理员权限
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CreateTagsRequest'
+   *           example:
+   *             tags:
+   *               - name: "react"
+   *                 displayName: "React"
+   *                 description: "React 前端框架"
+   *                 color: "#61dafb"
+   *               - name: "vue"
+   *                 displayName: "Vue.js"
+   *                 description: "Vue.js 前端框架"
+   *                 color: "#4fc08d"
+   *     responses:
+   *       201:
+   *         description: 批量创建成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/CreateTagsResponse'
+   *             example:
+   *               success: true
+   *               message: "成功创建 2 个标签"
+   *               data:
+   *                 created:
+   *                   - id: 10
+   *                     name: "react"
+   *                     display_name: "React"
+   *                     color: "#61dafb"
+   *                   - id: 11
+   *                     name: "vue"
+   *                     display_name: "Vue.js"
+   *                     color: "#4fc08d"
+   *                 errors: []
+   *       400:
+   *         description: 请求数据错误
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "标签数据格式错误"
+   *       401:
+   *         $ref: '#/components/responses/Unauthorized'
+   *       403:
+   *         description: 无权创建标签
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "无权创建标签"
+   *       500:
+   *         $ref: '#/components/responses/InternalServerError'
    */
   static async createTags(req, res) {
     try {
@@ -356,7 +703,7 @@ class TagController {
         }
       });
     } catch (error) {
-      console.error('批量创建标签失败:', error);
+      logger.error('批量创建标签失败:', error);
       res.status(500).json({
         success: false,
         message: '批量创建标签失败',

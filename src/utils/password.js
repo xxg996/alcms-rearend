@@ -6,6 +6,7 @@
 
 const bcrypt = require('bcrypt');
 require('dotenv').config();
+const { logger } = require('./logger');
 
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS) || 12;
 
@@ -46,7 +47,7 @@ async function verifyPassword(password, hashedPassword) {
     const isValid = await bcrypt.compare(password, hashedPassword);
     return isValid;
   } catch (error) {
-    console.error('密码验证失败:', error);
+    logger.error('密码验证失败:', error);
     return false;
   }
 }

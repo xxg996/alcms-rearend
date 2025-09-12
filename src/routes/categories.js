@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const CategoryController = require('../controllers/categoryController');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
+const { logger } = require('../utils/logger');
 
 // 公开路由（无需认证）
 
@@ -103,7 +104,7 @@ router.post('/admin/batch-create',
         }
       });
     } catch (error) {
-      console.error('批量创建分类失败:', error);
+      logger.error('批量创建分类失败:', error);
       res.status(500).json({
         success: false,
         message: '批量创建分类失败',
@@ -138,7 +139,7 @@ router.patch('/admin/batch-sort',
           });
           results.push(updatedCategory);
         } catch (error) {
-          console.error(`更新分类 ${id} 排序失败:`, error);
+          logger.error(`更新分类 ${id} 排序失败:`, error);
         }
       }
 
@@ -148,7 +149,7 @@ router.patch('/admin/batch-sort',
         data: results
       });
     } catch (error) {
-      console.error('批量更新分类排序失败:', error);
+      logger.error('批量更新分类排序失败:', error);
       res.status(500).json({
         success: false,
         message: '批量更新排序失败',
@@ -196,7 +197,7 @@ router.get('/admin/stats',
         }
       });
     } catch (error) {
-      console.error('获取分类统计失败:', error);
+      logger.error('获取分类统计失败:', error);
       res.status(500).json({
         success: false,
         message: '获取统计信息失败',

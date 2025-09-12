@@ -1,14 +1,84 @@
 /**
  * 认证控制器
  * 处理用户注册、登录、令牌刷新等认证相关操作
+ * @swagger
+ * tags:
+ *   name: Authentication
+ *   description: 用户认证相关API
  */
 
 const User = require('../models/User');
 const { generateTokenPair, verifyRefreshToken } = require('../utils/jwt');
 const { checkPasswordStrength } = require('../utils/password');
+const { logger } = require('../utils/logger');
 
 /**
- * 用户注册
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: 用户注册
+ *     description: 注册新用户账号，包含用户名、邮箱、密码和昵称验证
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RegisterRequest'
+ *           examples:
+ *             normalUser:
+ *               summary: 普通用户注册
+ *               value:
+ *                 username: "newuser"
+ *                 email: "newuser@example.com"
+ *                 password: "NewUser123"
+ *                 nickname: "新用户"
+ *     responses:
+ *       201:
+ *         description: 注册成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *             example:
+ *               success: true
+ *               message: "注册成功"
+ *               data:
+ *                 user:
+ *                   id: 123
+ *                   username: "newuser"
+ *                   email: "newuser@example.com"
+ *                   nickname: "新用户"
+ *                   role: "user"
+ *                   status: "active"
+ *                 access_token: "eyJhbGciOiJIUzI1NiIs..."
+ *                 refresh_token: "eyJhbGciOiJIUzI1NiIs..."
+ *                 token_type: "Bearer"
+ *                 expires_in: 900
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               missingFields:
+ *                 summary: 缺少必填字段
+ *                 value:
+ *                   success: false
+ *                   message: "用户名、邮箱和密码为必填项"
+ *               weakPassword:
+ *                 summary: 密码强度不足
+ *                 value:
+ *                   success: false
+ *                   message: "密码必须至少8位，包含大小写字母、数字和特殊字符"
+ *               userExists:
+ *                 summary: 用户已存在
+ *                 value:
+ *                   success: false
+ *                   message: "用户名或邮箱已被注册"
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 const register = async (req, res) => {
   try {
@@ -91,7 +161,7 @@ const register = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('注册失败:', error);
+    logger.error('注册失败:', error);
     
     if (error.message.includes('已存在')) {
       return res.status(409).json({
@@ -108,7 +178,114 @@ const register = async (req, res) => {
 };
 
 /**
- * 用户登录
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: 用户登录
+ *     description: 用户登录，支持邮箱或用户名登录，生成JWT令牌对
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: 邮箱地址（作为登录标识符）
+ *                 example: "user@example.com"
+ *               password:
+ *                 type: string
+ *                 description: 用户密码
+ *                 example: "UserPassword123"
+ *           examples:
+ *             adminLogin:
+ *               summary: 管理员登录
+ *               value:
+ *                 email: "5553621@qq.com"
+ *                 password: "5553621"
+ *             normalUser:
+ *               summary: 普通用户登录
+ *               value:
+ *                 email: "user@example.com"
+ *                 password: "UserPassword123"
+ *     responses:
+ *       200:
+ *         description: 登录成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *             example:
+ *               success: true
+ *               message: "登录成功"
+ *               data:
+ *                 user:
+ *                   id: 1
+ *                   username: "testuser"
+ *                   email: "user@example.com"
+ *                   nickname: "测试用户"
+ *                   status: "active"
+ *                   roles: ["user"]
+ *                 tokens:
+ *                   access_token: "eyJhbGciOiJIUzI1NiIs..."
+ *                   refresh_token: "eyJhbGciOiJIUzI1NiIs..."
+ *                   token_type: "Bearer"
+ *                   expires_in: 900
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               missingFields:
+ *                 summary: 缺少必填字段
+ *                 value:
+ *                   success: false
+ *                   message: "邮箱和密码为必填项"
+ *       401:
+ *         description: 认证失败
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               wrongCredentials:
+ *                 summary: 邮箱或密码错误
+ *                 value:
+ *                   success: false
+ *                   message: "邮箱或密码错误"
+ *       403:
+ *         description: 账户状态异常
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               bannedAccount:
+ *                 summary: 账户被封禁
+ *                 value:
+ *                   success: false
+ *                   message: "账户已被封禁"
+ *               frozenAccount:
+ *                 summary: 账户被冻结
+ *                 value:
+ *                   success: false
+ *                   message: "账户已被冻结"
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "登录失败，请稍后重试"
  */
 const login = async (req, res) => {
   try {
@@ -158,7 +335,7 @@ const login = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('登录失败:', error);
+    logger.error('登录失败:', error);
     
     if (error.message.includes('封禁') || error.message.includes('冻结')) {
       return res.status(403).json({
@@ -175,7 +352,82 @@ const login = async (req, res) => {
 };
 
 /**
- * 刷新访问令牌
+ * @swagger
+ * /api/auth/refresh:
+ *   post:
+ *     summary: 刷新访问令牌
+ *     description: 使用刷新令牌获取新的访问令牌和刷新令牌，旧的刷新令牌会被撤销
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RefreshTokenRequest'
+ *           examples:
+ *             refreshToken:
+ *               summary: 刷新令牌请求
+ *               value:
+ *                 refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzI2MTM5MjAwLCJleHAiOjE3MjY3NDQwMDB9.example"
+ *     responses:
+ *       200:
+ *         description: 令牌刷新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/TokenResponse'
+ *             example:
+ *               success: true
+ *               message: "令牌刷新成功"
+ *               data:
+ *                 tokens:
+ *                   access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new_access_token"
+ *                   refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new_refresh_token"
+ *                   token_type: "Bearer"
+ *                   expires_in: 900
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               missingToken:
+ *                 summary: 缺少刷新令牌
+ *                 value:
+ *                   success: false
+ *                   message: "缺少刷新令牌"
+ *       401:
+ *         description: 令牌验证失败
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               invalidToken:
+ *                 summary: 无效的刷新令牌
+ *                 value:
+ *                   success: false
+ *                   message: "无效的刷新令牌"
+ *               expiredToken:
+ *                 summary: 令牌已过期
+ *                 value:
+ *                   success: false
+ *                   message: "令牌刷新失败"
+ *               revokedToken:
+ *                 summary: 令牌已被撤销
+ *                 value:
+ *                   success: false
+ *                   message: "令牌刷新失败"
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "令牌刷新失败"
  */
 const refreshToken = async (req, res) => {
   try {
@@ -229,7 +481,7 @@ const refreshToken = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('令牌刷新失败:', error);
+    logger.error('令牌刷新失败:', error);
     res.status(401).json({
       success: false,
       message: '令牌刷新失败'
@@ -238,7 +490,51 @@ const refreshToken = async (req, res) => {
 };
 
 /**
- * 用户登出
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: 用户登出
+ *     description: 登出当前用户并撤销刷新令牌，使其失效
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 description: 刷新令牌（可选，提供则会撤销该令牌）
+ *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzI2MTM5MjAwLCJleHAiOjE3MjY3NDQwMDB9.example"
+ *           examples:
+ *             withToken:
+ *               summary: 包含刷新令牌的登出
+ *               value:
+ *                 refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh_token_here"
+ *             withoutToken:
+ *               summary: 不包含刷新令牌的登出
+ *               value: {}
+ *     responses:
+ *       200:
+ *         description: 登出成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *             example:
+ *               success: true
+ *               message: "登出成功"
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "登出失败"
+ *     security: []
  */
 const logout = async (req, res) => {
   try {
@@ -254,7 +550,7 @@ const logout = async (req, res) => {
       message: '登出成功'
     });
   } catch (error) {
-    console.error('登出失败:', error);
+    logger.error('登出失败:', error);
     res.status(500).json({
       success: false,
       message: '登出失败'
@@ -263,7 +559,91 @@ const logout = async (req, res) => {
 };
 
 /**
- * 获取当前用户信息
+ * @swagger
+ * /api/auth/profile:
+ *   get:
+ *     summary: 获取当前用户信息
+ *     description: 获取当前登录用户的详细信息、角色和权限（需要认证）
+ *     tags: [Authentication]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       required:
+ *                         - user
+ *                         - roles
+ *                         - permissions
+ *                       properties:
+ *                         user:
+ *                           $ref: '#/components/schemas/User'
+ *                         roles:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                           description: 用户角色列表
+ *                           example: ["user", "vip"]
+ *                         permissions:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                           description: 用户权限列表
+ *                           example: ["resource:view", "resource:download", "vip:access"]
+ *             example:
+ *               success: true
+ *               data:
+ *                 user:
+ *                   id: 1
+ *                   username: "testuser"
+ *                   email: "user@example.com"
+ *                   nickname: "测试用户"
+ *                   avatar_url: "https://example.com/avatar.jpg"
+ *                   bio: "这是我的个人简介"
+ *                   status: "active"
+ *                   created_at: "2025-09-11T08:00:00.000Z"
+ *                   updated_at: "2025-09-12T12:00:00.000Z"
+ *                 roles: ["user", "vip"]
+ *                 permissions: ["resource:view", "resource:download", "vip:access"]
+ *       401:
+ *         description: 未授权访问
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               noToken:
+ *                 summary: 缺少访问令牌
+ *                 value:
+ *                   success: false
+ *                   message: "访问令牌无效或已过期"
+ *               invalidToken:
+ *                 summary: 无效的访问令牌
+ *                 value:
+ *                   success: false
+ *                   message: "访问令牌无效或已过期"
+ *               expiredToken:
+ *                 summary: 访问令牌已过期
+ *                 value:
+ *                   success: false
+ *                   message: "访问令牌无效或已过期"
+ *       500:
+ *         description: 服务器内部错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "获取用户信息失败"
  */
 const getProfile = async (req, res) => {
   try {
@@ -293,7 +673,7 @@ const getProfile = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取用户信息失败:', error);
+    logger.error('获取用户信息失败:', error);
     res.status(500).json({
       success: false,
       message: '获取用户信息失败'

@@ -1,3 +1,4 @@
+const { logger } = require('../utils/logger');
 /**
  * 统一错误处理中间件
  * 处理各种类型的错误并返回标准化的响应
@@ -42,7 +43,7 @@ const notFoundHandler = (req, res) => {
  */
 const globalErrorHandler = (err, req, res, next) => {
   // 记录错误日志
-  console.error('全局错误:', err);
+  logger.error('全局错误:', err);
 
   // JWT相关错误
   if (err.name === 'JsonWebTokenError') {

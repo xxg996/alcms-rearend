@@ -1,12 +1,65 @@
 /**
- * 签到系统控制器
- * 处理用户签到、签到配置管理等操作
+ * @fileoverview 签到系统控制器
+ * @description 处理用户签到、签到配置管理、签到统计、补签等操作
+ * @module checkinController
+ * @requires ../models/Checkin
+ * @requires ../utils/logger
+ * @author AI Assistant
+ * @version 1.0.0
  */
 
 const Checkin = require('../models/Checkin');
+const { logger } = require('../utils/logger');
 
 /**
- * 执行签到
+ * @swagger
+ * /api/checkin/check:
+ *   post:
+ *     tags: [签到系统]
+ *     summary: 执行签到
+ *     description: 用户执行每日签到，获得积分奖励，支持连续签到奖励机制
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 签到成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PerformCheckinResponse'
+ *             example:
+ *               success: true
+ *               message: "签到成功！获得15积分（连续签到7天奖励）"
+ *               data:
+ *                 id: 1001
+ *                 base_points: 10
+ *                 bonus_points: 5
+ *                 total_points: 15
+ *                 consecutive_days: 7
+ *                 is_bonus: true
+ *                 points_record_id: 2001
+ *       400:
+ *         description: 签到失败
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "今日已签到，请明天再来"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       503:
+ *         description: 签到功能不可用
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "签到功能暂时不可用"
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const performCheckin = async (req, res) => {
   try {
@@ -24,7 +77,7 @@ const performCheckin = async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error('签到失败:', error);
+    logger.error('签到失败:', error);
     
     if (error.message === '今日已签到') {
       return res.status(400).json({
@@ -48,7 +101,70 @@ const performCheckin = async (req, res) => {
 };
 
 /**
- * 获取当前用户签到状态
+ * @swagger
+ * /api/checkin/my-status:
+ *   get:
+ *     tags: [签到系统]
+ *     summary: 获取当前用户签到状态
+ *     description: 获取登录用户的签到状态，包括今日是否已签到、签到统计和当前配置
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 签到状态获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         checked_in_today:
+ *                           type: boolean
+ *                           description: 今日是否已签到
+ *                         today_checkin:
+ *                           allOf:
+ *                             - $ref: '#/components/schemas/CheckinRecord'
+ *                           nullable: true
+ *                           description: 今日签到记录
+ *                         stats:
+ *                           $ref: '#/components/schemas/CheckinStats'
+ *                         config:
+ *                           type: object
+ *                           nullable: true
+ *                           properties:
+ *                             daily_points:
+ *                               type: integer
+ *                               description: 每日积分
+ *                             consecutive_bonus:
+ *                               type: object
+ *                               description: 连续签到奖励配置
+ *             example:
+ *               success: true
+ *               message: "签到状态获取成功"
+ *               data:
+ *                 checked_in_today: true
+ *                 today_checkin:
+ *                   id: 1001
+ *                   total_points: 15
+ *                   consecutive_days: 7
+ *                   is_bonus: true
+ *                 stats:
+ *                   total_days: 150
+ *                   consecutive_days: 7
+ *                   max_consecutive_days: 30
+ *                   this_month_days: 12
+ *                   total_points_earned: 2500
+ *                 config:
+ *                   daily_points: 10
+ *                   consecutive_bonus: {"7": 10, "14": 20, "30": 50}
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getMyCheckinStatus = async (req, res) => {
   try {
@@ -77,7 +193,7 @@ const getMyCheckinStatus = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取签到状态失败:', error);
+    logger.error('获取签到状态失败:', error);
     res.status(500).json({
       success: false,
       message: '获取签到状态失败'
@@ -86,7 +202,76 @@ const getMyCheckinStatus = async (req, res) => {
 };
 
 /**
- * 获取当前用户签到历史
+ * @swagger
+ * /api/checkin/my-history:
+ *   get:
+ *     tags: [签到系统]
+ *     summary: 获取当前用户签到历史
+ *     description: 分页获取登录用户的签到历史记录
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 30
+ *         description: 每页记录数
+ *         example: 30
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           minimum: 0
+ *           default: 0
+ *         description: 偏移量
+ *         example: 0
+ *     responses:
+ *       200:
+ *         description: 签到历史获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         records:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/CheckinRecord'
+ *                         total:
+ *                           type: integer
+ *                           description: 总记录数
+ *                         has_more:
+ *                           type: boolean
+ *                           description: 是否还有更多记录
+ *             example:
+ *               success: true
+ *               message: "签到历史获取成功"
+ *               data:
+ *                 records:
+ *                   - id: 1001
+ *                     user_id: 1
+ *                     checkin_date: "2025-09-12"
+ *                     base_points: 10
+ *                     bonus_points: 5
+ *                     total_points: 15
+ *                     consecutive_days: 7
+ *                     is_bonus: true
+ *                     is_makeup: false
+ *                     created_at: "2025-09-12T08:30:00.000Z"
+ *                 total: 150
+ *                 has_more: true
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getMyCheckinHistory = async (req, res) => {
   try {
@@ -101,7 +286,7 @@ const getMyCheckinHistory = async (req, res) => {
       data: history
     });
   } catch (error) {
-    console.error('获取签到历史失败:', error);
+    logger.error('获取签到历史失败:', error);
     res.status(500).json({
       success: false,
       message: '获取签到历史失败'
@@ -110,7 +295,81 @@ const getMyCheckinHistory = async (req, res) => {
 };
 
 /**
- * 获取签到排行榜
+ * @swagger
+ * /api/checkin/leaderboard:
+ *   get:
+ *     tags: [签到系统]
+ *     summary: 获取签到排行榜
+ *     description: 获取签到排行榜，支持按连续天数、总天数或月度天数排名
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [consecutive, total, monthly]
+ *           default: consecutive
+ *         description: 排行榜类型
+ *         example: consecutive
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 50
+ *         description: 返回的排行榜数量
+ *         example: 50
+ *     responses:
+ *       200:
+ *         description: 签到排行榜获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         type:
+ *                           type: string
+ *                           enum: [consecutive, total, monthly]
+ *                           description: 排行榜类型
+ *                         list:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/CheckinLeaderboardItem'
+ *             example:
+ *               success: true
+ *               message: "签到排行榜获取成功"
+ *               data:
+ *                 type: "consecutive"
+ *                 list:
+ *                   - rank: 1
+ *                     user_id: 1
+ *                     username: "checkin_master"
+ *                     nickname: "签到达人"
+ *                     avatar_url: "https://example.com/avatar.jpg"
+ *                     consecutive_days: 365
+ *                     value: 365
+ *                   - rank: 2
+ *                     user_id: 2
+ *                     username: "daily_user"
+ *                     nickname: "坚持用户"
+ *                     consecutive_days: 300
+ *                     value: 300
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "type参数只能是consecutive、total或monthly"
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getCheckinLeaderboard = async (req, res) => {
   try {
@@ -134,7 +393,7 @@ const getCheckinLeaderboard = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取签到排行榜失败:', error);
+    logger.error('获取签到排行榜失败:', error);
     res.status(500).json({
       success: false,
       message: '获取签到排行榜失败'
@@ -143,7 +402,48 @@ const getCheckinLeaderboard = async (req, res) => {
 };
 
 /**
- * 获取所有签到配置（管理员功能）
+ * @swagger
+ * /api/checkin/configs:
+ *   get:
+ *     tags: [签到管理]
+ *     summary: 获取所有签到配置
+ *     description: 管理员功能，获取系统中所有的签到配置
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 签到配置获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/CheckinConfig'
+ *             example:
+ *               success: true
+ *               message: "签到配置获取成功"
+ *               data:
+ *                 - id: 1
+ *                   name: "默认签到配置"
+ *                   description: "系统默认的签到积分配置"
+ *                   daily_points: 10
+ *                   consecutive_bonus: {"7": 10, "14": 20, "30": 50}
+ *                   monthly_reset: true
+ *                   is_active: true
+ *                   created_by: 1
+ *                   created_by_username: "admin"
+ *                   created_at: "2025-09-01T00:00:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getAllConfigs = async (req, res) => {
   try {
@@ -155,7 +455,7 @@ const getAllConfigs = async (req, res) => {
       data: configs
     });
   } catch (error) {
-    console.error('获取签到配置失败:', error);
+    logger.error('获取签到配置失败:', error);
     res.status(500).json({
       success: false,
       message: '获取签到配置失败'
@@ -164,7 +464,82 @@ const getAllConfigs = async (req, res) => {
 };
 
 /**
- * 创建签到配置（管理员功能）
+ * @swagger
+ * /api/checkin/configs:
+ *   post:
+ *     tags: [签到管理]
+ *     summary: 创建签到配置
+ *     description: 管理员功能，创建新的签到积分配置方案
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreateCheckinConfigRequest'
+ *           example:
+ *             name: "VIP签到配置"
+ *             description: "VIP用户专属签到奖励配置"
+ *             daily_points: 20
+ *             consecutive_bonus:
+ *               "7": 20
+ *               "14": 50
+ *               "30": 100
+ *             monthly_reset: false
+ *     responses:
+ *       201:
+ *         description: 签到配置创建成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/CheckinConfig'
+ *             example:
+ *               success: true
+ *               message: "签到配置创建成功"
+ *               data:
+ *                 id: 2
+ *                 name: "VIP签到配置"
+ *                 description: "VIP用户专属签到奖励配置"
+ *                 daily_points: 20
+ *                 consecutive_bonus: {"7": 20, "14": 50, "30": 100}
+ *                 monthly_reset: false
+ *                 is_active: true
+ *                 created_by: 1
+ *                 created_at: "2025-09-12T10:00:00.000Z"
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               empty_name:
+ *                 summary: 配置名称为空
+ *                 value:
+ *                   success: false
+ *                   message: "配置名称不能为空且必须为字符串"
+ *               invalid_points:
+ *                 summary: 积分数值错误
+ *                 value:
+ *                   success: false
+ *                   message: "每日积分必须为非负数字"
+ *               invalid_bonus:
+ *                 summary: 奖励配置错误
+ *                 value:
+ *                   success: false
+ *                   message: "连续签到奖励配置必须为对象格式"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const createConfig = async (req, res) => {
   try {
@@ -235,7 +610,7 @@ const createConfig = async (req, res) => {
       data: config
     });
   } catch (error) {
-    console.error('创建签到配置失败:', error);
+    logger.error('创建签到配置失败:', error);
     res.status(500).json({
       success: false,
       message: '创建签到配置失败'
@@ -244,7 +619,78 @@ const createConfig = async (req, res) => {
 };
 
 /**
- * 更新签到配置（管理员功能）
+ * @swagger
+ * /api/checkin/configs/{configId}:
+ *   put:
+ *     tags: [签到管理]
+ *     summary: 更新签到配置
+ *     description: 管理员功能，更新指定的签到配置
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: configId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 配置ID
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateCheckinConfigRequest'
+ *           example:
+ *             name: "更新的签到配置"
+ *             daily_points: 15
+ *             is_active: false
+ *     responses:
+ *       200:
+ *         description: 签到配置更新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/CheckinConfig'
+ *             example:
+ *               success: true
+ *               message: "签到配置更新成功"
+ *               data:
+ *                 id: 1
+ *                 name: "更新的签到配置"
+ *                 daily_points: 15
+ *                 is_active: false
+ *                 updated_at: "2025-09-12T11:00:00.000Z"
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "每日积分不能为负数"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         description: 配置不存在
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "签到配置不存在"
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const updateConfig = async (req, res) => {
   try {
@@ -278,7 +724,7 @@ const updateConfig = async (req, res) => {
       data: config
     });
   } catch (error) {
-    console.error('更新签到配置失败:', error);
+    logger.error('更新签到配置失败:', error);
     res.status(500).json({
       success: false,
       message: '更新签到配置失败'
@@ -287,7 +733,70 @@ const updateConfig = async (req, res) => {
 };
 
 /**
- * 获取用户签到信息（管理员功能）
+ * @swagger
+ * /api/checkin/users/{userId}/info:
+ *   get:
+ *     tags: [签到管理]
+ *     summary: 获取用户签到信息
+ *     description: 管理员功能，获取指定用户的签到统计和今日签到状态
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 用户ID
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: 用户签到信息获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         stats:
+ *                           $ref: '#/components/schemas/CheckinStats'
+ *                         today_status:
+ *                           allOf:
+ *                             - $ref: '#/components/schemas/CheckinRecord'
+ *                           nullable: true
+ *                           description: 今日签到状态
+ *                         checked_in_today:
+ *                           type: boolean
+ *                           description: 今日是否已签到
+ *             example:
+ *               success: true
+ *               message: "用户签到信息获取成功"
+ *               data:
+ *                 stats:
+ *                   total_days: 150
+ *                   consecutive_days: 7
+ *                   max_consecutive_days: 30
+ *                   this_month_days: 12
+ *                   total_points_earned: 2500
+ *                   last_checkin_date: "2025-09-12"
+ *                   last_checkin_points: 15
+ *                 today_status:
+ *                   id: 1001
+ *                   total_points: 15
+ *                   consecutive_days: 7
+ *                   is_bonus: true
+ *                 checked_in_today: true
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getUserCheckinInfo = async (req, res) => {
   try {
@@ -309,7 +818,7 @@ const getUserCheckinInfo = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取用户签到信息失败:', error);
+    logger.error('获取用户签到信息失败:', error);
     res.status(500).json({
       success: false,
       message: '获取用户签到信息失败'
@@ -318,7 +827,86 @@ const getUserCheckinInfo = async (req, res) => {
 };
 
 /**
- * 获取用户签到历史（管理员功能）
+ * @swagger
+ * /api/checkin/users/{userId}/history:
+ *   get:
+ *     tags: [签到管理]
+ *     summary: 获取用户签到历史
+ *     description: 管理员功能，分页获取指定用户的签到历史记录
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 用户ID
+ *         example: 123
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 30
+ *         description: 每页记录数
+ *         example: 30
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           minimum: 0
+ *           default: 0
+ *         description: 偏移量
+ *         example: 0
+ *     responses:
+ *       200:
+ *         description: 用户签到历史获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         records:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/CheckinRecord'
+ *                         total:
+ *                           type: integer
+ *                           description: 总记录数
+ *                         has_more:
+ *                           type: boolean
+ *                           description: 是否还有更多记录
+ *             example:
+ *               success: true
+ *               message: "用户签到历史获取成功"
+ *               data:
+ *                 records:
+ *                   - id: 2001
+ *                     user_id: 123
+ *                     checkin_date: "2025-09-11"
+ *                     base_points: 10
+ *                     bonus_points: 0
+ *                     total_points: 10
+ *                     consecutive_days: 6
+ *                     is_bonus: false
+ *                     is_makeup: false
+ *                     created_at: "2025-09-11T08:15:00.000Z"
+ *                 total: 75
+ *                 has_more: true
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getUserCheckinHistory = async (req, res) => {
   try {
@@ -333,7 +921,7 @@ const getUserCheckinHistory = async (req, res) => {
       data: history
     });
   } catch (error) {
-    console.error('获取用户签到历史失败:', error);
+    logger.error('获取用户签到历史失败:', error);
     res.status(500).json({
       success: false,
       message: '获取用户签到历史失败'
@@ -342,7 +930,110 @@ const getUserCheckinHistory = async (req, res) => {
 };
 
 /**
- * 补签功能（管理员功能）
+ * @swagger
+ * /api/checkin/users/{userId}/makeup:
+ *   post:
+ *     tags: [签到管理]
+ *     summary: 补签功能
+ *     description: 管理员功能，为指定用户补签某个历史日期，不能补签今天或未来日期
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 用户ID
+ *         example: 123
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MakeupCheckinRequest'
+ *           example:
+ *             date: "2025-09-10"
+ *     responses:
+ *       200:
+ *         description: 补签成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           description: 补签记录ID
+ *                         base_points:
+ *                           type: integer
+ *                           description: 基础积分
+ *                         total_points:
+ *                           type: integer
+ *                           description: 总积分
+ *                         is_makeup:
+ *                           type: boolean
+ *                           description: 是否补签
+ *                         makeup_by:
+ *                           type: integer
+ *                           description: 补签操作者ID
+ *             example:
+ *               success: true
+ *               message: "补签2025-09-10成功"
+ *               data:
+ *                 id: 3001
+ *                 base_points: 10
+ *                 total_points: 10
+ *                 is_makeup: true
+ *                 makeup_by: 1
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               empty_date:
+ *                 summary: 日期为空
+ *                 value:
+ *                   success: false
+ *                   message: "补签日期不能为空"
+ *               invalid_format:
+ *                 summary: 日期格式错误
+ *                 value:
+ *                   success: false
+ *                   message: "日期格式错误，请使用YYYY-MM-DD格式"
+ *               future_date:
+ *                 summary: 未来日期
+ *                 value:
+ *                   success: false
+ *                   message: "不能补签今天或未来日期"
+ *               already_exists:
+ *                 summary: 已有记录
+ *                 value:
+ *                   success: false
+ *                   message: "该日期已有签到记录"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       503:
+ *         description: 签到功能不可用
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "签到功能未配置"
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const makeupCheckin = async (req, res) => {
   try {
@@ -386,7 +1077,7 @@ const makeupCheckin = async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error('补签失败:', error);
+    logger.error('补签失败:', error);
     
     if (error.message === '该日期已有签到记录') {
       return res.status(400).json({
@@ -410,7 +1101,54 @@ const makeupCheckin = async (req, res) => {
 };
 
 /**
- * 重置用户签到数据（管理员功能）
+ * @swagger
+ * /api/checkin/users/{userId}/reset:
+ *   post:
+ *     tags: [签到管理]
+ *     summary: 重置用户签到数据
+ *     description: 管理员功能，清除指定用户的所有签到记录和统计数据
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 用户ID
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: 用户签到数据重置成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         deleted_records:
+ *                           type: integer
+ *                           description: 删除的记录数
+ *                         reset_stats:
+ *                           type: boolean
+ *                           description: 是否重置统计
+ *             example:
+ *               success: true
+ *               message: "用户签到数据重置成功"
+ *               data:
+ *                 deleted_records: 150
+ *                 reset_stats: true
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const resetUserCheckins = async (req, res) => {
   try {
@@ -423,7 +1161,7 @@ const resetUserCheckins = async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error('重置用户签到数据失败:', error);
+    logger.error('重置用户签到数据失败:', error);
     res.status(500).json({
       success: false,
       message: '重置用户签到数据失败'
@@ -432,7 +1170,65 @@ const resetUserCheckins = async (req, res) => {
 };
 
 /**
- * 获取签到统计（管理员功能）
+ * @swagger
+ * /api/checkin/statistics:
+ *   get:
+ *     tags: [签到管理]
+ *     summary: 获取签到统计
+ *     description: 管理员功能，获取系统签到的统计信息，包括签到率、活跃度等数据
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: date_from
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: 统计起始日期
+ *         example: "2025-09-01"
+ *       - in: query
+ *         name: date_to
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: 统计结束日期
+ *         example: "2025-09-30"
+ *     responses:
+ *       200:
+ *         description: 签到统计获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/CheckinStatistics'
+ *             example:
+ *               success: true
+ *               message: "签到统计获取成功"
+ *               data:
+ *                 total_users: 1000
+ *                 checkin_users_today: 150
+ *                 checkin_rate_today: 15.0
+ *                 total_checkins: 50000
+ *                 avg_consecutive_days: 7.5
+ *                 max_consecutive_record: 365
+ *                 daily_stats:
+ *                   checkin_count: 150
+ *                   new_users: 10
+ *                   points_distributed: 2500
+ *                 active_config:
+ *                   id: 1
+ *                   name: "默认配置"
+ *                   daily_points: 10
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getCheckinStatistics = async (req, res) => {
   try {
@@ -446,7 +1242,7 @@ const getCheckinStatistics = async (req, res) => {
       data: statistics
     });
   } catch (error) {
-    console.error('获取签到统计失败:', error);
+    logger.error('获取签到统计失败:', error);
     res.status(500).json({
       success: false,
       message: '获取签到统计失败'

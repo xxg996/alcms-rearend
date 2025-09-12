@@ -1,12 +1,55 @@
 /**
  * VIP系统控制器
  * 处理VIP等级管理、用户VIP操作等
+ * 
+ * @swagger
+ * tags:
+ *   - name: VIP
+ *     description: VIP系统管理相关接口
  */
 
 const VIP = require('../models/VIP');
+const { logger } = require('../utils/logger');
 
 /**
- * 获取所有VIP等级配置
+ * @swagger
+ * /api/vip/levels:
+ *   get:
+ *     tags: [VIP]
+ *     summary: 获取所有VIP等级配置
+ *     description: 获取系统中所有可用的VIP等级配置信息
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取VIP等级成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/VIPLevel'
+ *             example:
+ *               success: true
+ *               message: "VIP等级获取成功"
+ *               data:
+ *                 - level: 1
+ *                   name: "vip1"
+ *                   display_name: "VIP会员"
+ *                   description: "享受基础VIP权益"
+ *                   benefits:
+ *                     download_limit: 100
+ *                     ad_free: true
+ *                   price: 19.99
+ *                   duration_days: 30
+ *                   is_active: true
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getAllLevels = async (req, res) => {
   try {
@@ -18,7 +61,7 @@ const getAllLevels = async (req, res) => {
       data: levels
     });
   } catch (error) {
-    console.error('获取VIP等级失败:', error);
+    logger.error('获取VIP等级失败:', error);
     res.status(500).json({
       success: false,
       message: '获取VIP等级失败'
@@ -47,7 +90,7 @@ const getLevelById = async (req, res) => {
       data: vipLevel
     });
   } catch (error) {
-    console.error('获取VIP等级失败:', error);
+    logger.error('获取VIP等级失败:', error);
     res.status(500).json({
       success: false,
       message: '获取VIP等级失败'
@@ -102,7 +145,7 @@ const createLevel = async (req, res) => {
       data: newLevel
     });
   } catch (error) {
-    console.error('创建VIP等级失败:', error);
+    logger.error('创建VIP等级失败:', error);
     if (error.code === '23505') { // 唯一约束违反
       return res.status(400).json({
         success: false,
@@ -142,7 +185,7 @@ const updateLevel = async (req, res) => {
       data: updatedLevel
     });
   } catch (error) {
-    console.error('更新VIP等级失败:', error);
+    logger.error('更新VIP等级失败:', error);
     res.status(500).json({
       success: false,
       message: '更新VIP等级失败'
@@ -171,7 +214,7 @@ const deleteLevel = async (req, res) => {
       data: deletedLevel
     });
   } catch (error) {
-    console.error('删除VIP等级失败:', error);
+    logger.error('删除VIP等级失败:', error);
     res.status(500).json({
       success: false,
       message: '删除VIP等级失败'
@@ -180,7 +223,54 @@ const deleteLevel = async (req, res) => {
 };
 
 /**
- * 获取当前用户VIP信息
+ * @swagger
+ * /api/vip/my-info:
+ *   get:
+ *     tags: [VIP]
+ *     summary: 获取当前用户VIP信息
+ *     description: 获取当前登录用户的VIP状态和详细信息
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: VIP信息获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/UserVIPInfo'
+ *             example:
+ *               success: true
+ *               message: "VIP信息获取成功"
+ *               data:
+ *                 user_id: 1
+ *                 username: "testuser"
+ *                 nickname: "测试用户"
+ *                 is_vip: true
+ *                 vip_level: 1
+ *                 vip_level_name: "vip1"
+ *                 vip_level_display_name: "VIP会员"
+ *                 vip_start_at: "2025-09-12T00:00:00.000Z"
+ *                 vip_expire_at: "2025-10-12T23:59:59.000Z"
+ *                 is_expired: false
+ *                 is_permanent: false
+ *       404:
+ *         description: 用户不存在
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "用户不存在"
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getMyVIPInfo = async (req, res) => {
   try {
@@ -210,7 +300,7 @@ const getMyVIPInfo = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取VIP信息失败:', error);
+    logger.error('获取VIP信息失败:', error);
     res.status(500).json({
       success: false,
       message: '获取VIP信息失败'
@@ -249,7 +339,7 @@ const getUserVIPInfo = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('获取用户VIP信息失败:', error);
+    logger.error('获取用户VIP信息失败:', error);
     res.status(500).json({
       success: false,
       message: '获取用户VIP信息失败'
@@ -258,7 +348,82 @@ const getUserVIPInfo = async (req, res) => {
 };
 
 /**
- * 设置用户VIP（管理员功能）
+ * @swagger
+ * /api/vip/users/{userId}/set:
+ *   post:
+ *     tags: [VIP]
+ *     summary: 设置用户VIP
+ *     description: 管理员设置指定用户的VIP等级和有效期
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *         example: 123
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SetUserVIPRequest'
+ *           example:
+ *             vip_level: 1
+ *             days: 30
+ *     responses:
+ *       200:
+ *         description: VIP设置成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         user:
+ *                           $ref: '#/components/schemas/UserVIPInfo'
+ *                         vip_level_info:
+ *                           $ref: '#/components/schemas/VIPLevel'
+ *             example:
+ *               success: true
+ *               message: "VIP设置成功"
+ *               data:
+ *                 user:
+ *                   user_id: 123
+ *                   is_vip: true
+ *                   vip_level: 1
+ *                   vip_expire_at: "2025-10-12T23:59:59.000Z"
+ *                 vip_level_info:
+ *                   level: 1
+ *                   name: "vip1"
+ *                   display_name: "VIP会员"
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               invalid_level:
+ *                 value:
+ *                   success: false
+ *                   message: "VIP等级必须大于等于0"
+ *               level_not_exist:
+ *                 value:
+ *                   success: false
+ *                   message: "VIP等级不存在"
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const setUserVIP = async (req, res) => {
   try {
@@ -299,7 +464,7 @@ const setUserVIP = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('设置用户VIP失败:', error);
+    logger.error('设置用户VIP失败:', error);
     res.status(500).json({
       success: false,
       message: '设置用户VIP失败'
@@ -330,7 +495,7 @@ const extendUserVIP = async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error('延长用户VIP失败:', error);
+    logger.error('延长用户VIP失败:', error);
     res.status(500).json({
       success: false,
       message: '延长用户VIP失败'
@@ -352,7 +517,7 @@ const cancelUserVIP = async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error('取消用户VIP失败:', error);
+    logger.error('取消用户VIP失败:', error);
     res.status(500).json({
       success: false,
       message: '取消用户VIP失败'
@@ -361,7 +526,53 @@ const cancelUserVIP = async (req, res) => {
 };
 
 /**
- * 获取用户订单历史
+ * @swagger
+ * /api/vip/my-orders:
+ *   get:
+ *     tags: [VIP]
+ *     summary: 获取用户订单历史
+ *     description: 获取当前用户的VIP订单历史记录
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 100
+ *         description: 返回数量限制
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: 偏移量
+ *     responses:
+ *       200:
+ *         description: 订单历史获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/VIPOrderListResponse'
+ *             example:
+ *               success: true
+ *               message: "订单历史获取成功"
+ *               data:
+ *                 - id: 1001
+ *                   order_number: "VIP202509120001"
+ *                   vip_level: 1
+ *                   vip_level_name: "vip1"
+ *                   duration_days: 30
+ *                   amount: 19.99
+ *                   status: "paid"
+ *                   payment_method: "alipay"
+ *                   created_at: "2025-09-12T10:00:00.000Z"
+ *                   paid_at: "2025-09-12T10:05:00.000Z"
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 const getMyOrders = async (req, res) => {
   try {
@@ -376,7 +587,7 @@ const getMyOrders = async (req, res) => {
       data: orders
     });
   } catch (error) {
-    console.error('获取订单历史失败:', error);
+    logger.error('获取订单历史失败:', error);
     res.status(500).json({
       success: false,
       message: '获取订单历史失败'
@@ -416,7 +627,7 @@ const getOrderById = async (req, res) => {
       data: order
     });
   } catch (error) {
-    console.error('获取订单详情失败:', error);
+    logger.error('获取订单详情失败:', error);
     res.status(500).json({
       success: false,
       message: '获取订单详情失败'
@@ -437,7 +648,7 @@ const updateExpiredVIP = async (req, res) => {
       data: expiredUsers
     });
   } catch (error) {
-    console.error('更新过期VIP失败:', error);
+    logger.error('更新过期VIP失败:', error);
     res.status(500).json({
       success: false,
       message: '更新过期VIP失败'

@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const TagController = require('../controllers/tagController');
 const { authenticateToken, requirePermission } = require('../middleware/auth');
+const { logger } = require('../utils/logger');
 
 // 公开路由（无需认证）
 
@@ -128,7 +129,7 @@ router.get('/admin/stats',
         }
       });
     } catch (error) {
-      console.error('获取标签统计失败:', error);
+      logger.error('获取标签统计失败:', error);
       res.status(500).json({
         success: false,
         message: '获取统计信息失败',
@@ -180,7 +181,7 @@ router.delete('/admin/cleanup',
         }
       });
     } catch (error) {
-      console.error('清理未使用标签失败:', error);
+      logger.error('清理未使用标签失败:', error);
       res.status(500).json({
         success: false,
         message: '清理失败',
@@ -223,7 +224,7 @@ router.post('/admin/recalculate-usage',
         data: updatedStats.rows[0]
       });
     } catch (error) {
-      console.error('重新计算标签使用次数失败:', error);
+      logger.error('重新计算标签使用次数失败:', error);
       res.status(500).json({
         success: false,
         message: '重新计算失败',
