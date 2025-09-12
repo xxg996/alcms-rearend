@@ -133,16 +133,19 @@ app.get('/api', (req, res) => {
         'GET /api/auth/profile': '获取当前用户信息'
       },
       users: {
+        'GET /api/users/profile': '获取当前用户资料',
         'PUT /api/users/profile': '更新用户资料',
-        'POST /api/users': '创建用户（管理员）',
+        'PUT /api/users/password': '修改密码',
         'GET /api/users': '获取用户列表（管理员）',
+        'POST /api/users': '创建用户（管理员）',
         'GET /api/users/stats': '获取用户统计（管理员）',
-        'GET /api/users/:userId': '获取指定用户信息',
-        'DELETE /api/users/:userId': '删除用户（管理员）',
-        'PUT /api/users/:userId/status': '更新用户状态（管理员）',
-        'PATCH /api/users/:userId/freeze': '冻结/解冻用户（管理员）',
-        'POST /api/users/:userId/roles': '分配用户角色（管理员）',
-        'DELETE /api/users/:userId/roles': '移除用户角色（管理员）'
+        'GET /api/users/:id': '获取指定用户信息（管理员）',
+        'DELETE /api/users/:id': '删除用户（管理员）',
+        'PUT /api/users/:id/status': '更新用户状态（管理员）',
+        'POST /api/users/:id/roles': '分配用户角色（管理员）',
+        'DELETE /api/users/:id/roles': '移除用户角色（管理员）',
+        'GET /api/users/:id/roles': '获取用户角色列表（管理员）',
+        'GET /api/users/:id/permissions': '获取用户权限列表（管理员）'
       },
       cms: {
         resources: {

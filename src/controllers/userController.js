@@ -404,6 +404,474 @@ const getUserStats = async (req, res) => {
 };
 
 /**
+ * @swagger
+ * /api/users/{id}:
+ *   get:
+ *     summary: 获取指定用户信息
+ *     description: 根据用户ID获取指定用户的详细信息（管理员功能）
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: 获取用户信息成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         description: 用户不存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const getUserById = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const result = await UserService.getUserById(userId);
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('获取用户信息失败:', error);
+    if (error.message === '用户不存在') {
+      res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message || '获取用户信息失败'
+      });
+    }
+  }
+};
+
+/**
+ * @swagger
+ * /api/users:
+ *   post:
+ *     summary: 创建用户
+ *     description: 管理员创建新用户账号
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreateUserRequest'
+ *           example:
+ *             username: "newuser"
+ *             email: "newuser@example.com"
+ *             password: "TempPassword123"
+ *             nickname: "新用户"
+ *             roleName: "user"
+ *             status: "normal"
+ *     responses:
+ *       201:
+ *         description: 用户创建成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       409:
+ *         description: 用户名或邮箱已存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const createUser = async (req, res) => {
+  try {
+    const adminUserId = req.user.id;
+    const userData = req.body;
+
+    const result = await UserService.createUser(adminUserId, userData);
+    
+    res.status(201).json(result);
+  } catch (error) {
+    logger.error('创建用户失败:', error);
+    if (error.message === '用户名或邮箱已存在') {
+      res.status(409).json({
+        success: false,
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message || '创建用户失败'
+      });
+    }
+  }
+};
+
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   delete:
+ *     summary: 删除用户
+ *     description: 管理员删除指定用户账号（危险操作）
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: 用户删除成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         deletedUser:
+ *                           $ref: '#/components/schemas/User'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         description: 用户不存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const deleteUser = async (req, res) => {
+  try {
+    const adminUserId = req.user.id;
+    const targetUserId = parseInt(req.params.id);
+
+    const result = await UserService.deleteUser(adminUserId, targetUserId);
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('删除用户失败:', error);
+    if (error.message === '用户不存在') {
+      res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message || '删除用户失败'
+      });
+    }
+  }
+};
+
+/**
+ * @swagger
+ * /api/users/{id}/roles:
+ *   post:
+ *     summary: 分配用户角色
+ *     description: 为指定用户分配角色（管理员功能）
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *         example: 123
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - roleName
+ *             properties:
+ *               roleName:
+ *                 type: string
+ *                 enum: [user, vip, moderator, admin]
+ *                 description: 角色名称
+ *           example:
+ *             roleName: "vip"
+ *     responses:
+ *       200:
+ *         description: 角色分配成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         description: 用户不存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const assignUserRole = async (req, res) => {
+  try {
+    const adminUserId = req.user.id;
+    const targetUserId = parseInt(req.params.id);
+    const { roleName } = req.body;
+
+    const result = await UserService.assignUserRole(adminUserId, targetUserId, roleName);
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('分配用户角色失败:', error);
+    if (error.message === '用户不存在' || error.message === '角色不存在') {
+      res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message || '分配用户角色失败'
+      });
+    }
+  }
+};
+
+/**
+ * @swagger
+ * /api/users/{id}/roles:
+ *   delete:
+ *     summary: 移除用户角色
+ *     description: 移除指定用户的角色（管理员功能）
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *         example: 123
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - roleName
+ *             properties:
+ *               roleName:
+ *                 type: string
+ *                 enum: [user, vip, moderator, admin]
+ *                 description: 要移除的角色名称
+ *           example:
+ *             roleName: "vip"
+ *     responses:
+ *       200:
+ *         description: 角色移除成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         description: 用户不存在或用户没有该角色
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const removeUserRole = async (req, res) => {
+  try {
+    const adminUserId = req.user.id;
+    const targetUserId = parseInt(req.params.id);
+    const { roleName } = req.body;
+
+    const result = await UserService.removeUserRole(adminUserId, targetUserId, roleName);
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('移除用户角色失败:', error);
+    if (error.message === '用户不存在' || error.message === '角色不存在') {
+      res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message || '移除用户角色失败'
+      });
+    }
+  }
+};
+
+/**
+ * @swagger
+ * /api/users/{id}/roles:
+ *   get:
+ *     summary: 获取用户角色列表
+ *     description: 获取指定用户的所有角色（管理员功能）
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: 获取用户角色成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Role'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         description: 用户不存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const getUserRoles = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const result = await UserService.getUserRoles(userId);
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('获取用户角色失败:', error);
+    if (error.message === '用户不存在') {
+      res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message || '获取用户角色失败'
+      });
+    }
+  }
+};
+
+/**
+ * @swagger
+ * /api/users/{id}/permissions:
+ *   get:
+ *     summary: 获取用户权限列表
+ *     description: 获取指定用户的所有权限（管理员功能）
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: 获取用户权限成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Permission'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         description: 用户不存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const getUserPermissions = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const result = await UserService.getUserPermissions(userId);
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('获取用户权限失败:', error);
+    if (error.message === '用户不存在') {
+      res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message || '获取用户权限失败'
+      });
+    }
+  }
+};
+
+/**
  * 输入验证中间件
  */
 const validateUpdateProfile = [
@@ -437,11 +905,33 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
+// 额外的验证规则
+const validateCreateUser = [
+  body('username').isLength({ min: 3, max: 50 }).withMessage('用户名长度必须在3-50个字符之间')
+    .matches(/^[a-zA-Z0-9_]+$/).withMessage('用户名只能包含字母、数字和下划线'),
+  body('email').isEmail().withMessage('请输入有效的邮箱地址').normalizeEmail(),
+  body('password').isLength({ min: 8, max: 128 }).withMessage('密码长度必须在8-128个字符之间'),
+  body('nickname').optional().isLength({ min: 1, max: 100 }).withMessage('昵称长度必须在1-100个字符之间'),
+  body('roleName').optional().isIn(['user', 'vip', 'moderator', 'admin']).withMessage('无效的角色名称'),
+  body('status').optional().isIn(['normal', 'banned', 'frozen']).withMessage('无效的用户状态')
+];
+
+const validateAssignRole = [
+  body('roleName').isIn(['user', 'vip', 'moderator', 'admin']).withMessage('无效的角色名称')
+];
+
 module.exports = {
   updateProfile: [validateUpdateProfile, handleValidationErrors, updateProfile],
   changePassword: [validateChangePassword, handleValidationErrors, changePassword],
   getProfile,
   getUserList,
+  getUserById,
+  createUser: [validateCreateUser, handleValidationErrors, createUser],
+  deleteUser,
   updateUserStatus: [validateUpdateUserStatus, handleValidationErrors, updateUserStatus],
+  assignUserRole: [validateAssignRole, handleValidationErrors, assignUserRole],
+  removeUserRole: [validateAssignRole, handleValidationErrors, removeUserRole],
+  getUserRoles,
+  getUserPermissions,
   getUserStats
 };

@@ -52,11 +52,60 @@ router.get('/stats',
   userController.getUserStats
 );
 
+// 获取指定用户信息（管理员功能）
+router.get('/:id', 
+  authenticateToken, 
+  requireRole('admin'), 
+  userController.getUserById
+);
+
+// 创建用户（管理员功能）
+router.post('/', 
+  authenticateToken, 
+  requireRole('admin'), 
+  userController.createUser
+);
+
+// 删除用户（管理员功能）
+router.delete('/:id', 
+  authenticateToken, 
+  requireRole('admin'), 
+  userController.deleteUser
+);
+
 // 更新用户状态（管理员功能）
 router.put('/:id/status', 
   authenticateToken, 
   requireRole('admin'),
   userController.updateUserStatus
+);
+
+// 分配用户角色（管理员功能）
+router.post('/:id/roles', 
+  authenticateToken, 
+  requireRole('admin'), 
+  userController.assignUserRole
+);
+
+// 移除用户角色（管理员功能）
+router.delete('/:id/roles', 
+  authenticateToken, 
+  requireRole('admin'), 
+  userController.removeUserRole
+);
+
+// 获取用户角色列表（管理员功能）
+router.get('/:id/roles', 
+  authenticateToken, 
+  requireRole('admin'), 
+  userController.getUserRoles
+);
+
+// 获取用户权限列表（管理员功能）
+router.get('/:id/permissions', 
+  authenticateToken, 
+  requireRole('admin'), 
+  userController.getUserPermissions
 );
 
 module.exports = router;
