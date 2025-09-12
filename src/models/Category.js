@@ -73,7 +73,7 @@ class Category {
    * @returns {Promise<Array>} 分类树
    */
   static async findAllTree(includeInactive = false) {
-    const whereClause = includeInactive ? '' : 'WHERE is_active = true';
+    const whereClause = includeInactive ? '' : 'WHERE c.is_active = true';
     
     const result = await query(
       `SELECT 
@@ -81,7 +81,7 @@ class Category {
         (SELECT COUNT(*) FROM resources WHERE category_id = c.id AND status = 'published') as resource_count
       FROM categories c
       ${whereClause}
-      ORDER BY sort_order ASC, display_name ASC`
+      ORDER BY c.sort_order ASC, c.display_name ASC`
     );
 
     // 构建树形结构
@@ -122,14 +122,14 @@ class Category {
     let paramIndex = 1;
 
     if (!includeInactive) {
-      conditions.push('is_active = true');
+      conditions.push('c.is_active = true');
     }
 
     if (parentId !== undefined) {
       if (parentId === null) {
-        conditions.push('parent_id IS NULL');
+        conditions.push('c.parent_id IS NULL');
       } else {
-        conditions.push(`parent_id = $${paramIndex}`);
+        conditions.push(`c.parent_id = $${paramIndex}`);
         values.push(parentId);
         paramIndex++;
       }
@@ -146,7 +146,7 @@ class Category {
       FROM categories c
       LEFT JOIN categories p ON c.parent_id = p.id
       ${whereClause}
-      ORDER BY sort_order ASC, display_name ASC`,
+      ORDER BY c.sort_order ASC, c.display_name ASC`,
       values
     );
 

@@ -159,6 +159,4 @@ INSERT INTO tags (name, display_name, description, color) VALUES
 ('开源项目', '开源项目', '开源项目介绍和分享', '#54A0FF')
 ON CONFLICT (name) DO NOTHING;
 
--- 插入执行成功日志
-INSERT INTO schema_migrations (version, executed_at, description) 
-VALUES ('006', CURRENT_TIMESTAMP, '插入微社区模块默认数据');
+-- 社区默认数据插入完成

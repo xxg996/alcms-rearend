@@ -312,6 +312,4 @@ CREATE TRIGGER trigger_update_favorite_stats
     AFTER INSERT OR DELETE ON community_favorites
     FOR EACH ROW EXECUTE FUNCTION update_favorite_stats();
 
--- 插入执行成功日志
-INSERT INTO schema_migrations (version, executed_at, description) 
-VALUES ('005', CURRENT_TIMESTAMP, '创建微社区模块数据表');
+-- 社区表创建完成

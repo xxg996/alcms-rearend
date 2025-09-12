@@ -1,6 +1,14 @@
 -- Alcms 数据库表结构设计
 -- 基于RBAC模型，简单合理的PostgreSQL表结构
 
+-- 创建迁移记录表（用于跟踪已执行的迁移）
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id SERIAL PRIMARY KEY,
+    version VARCHAR(50) NOT NULL UNIQUE,
+    executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    description TEXT
+);
+
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,

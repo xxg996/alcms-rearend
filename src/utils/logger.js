@@ -163,43 +163,70 @@ class Logger {
   }
 
   /**
+   * 检查日志系统是否可用
+   */
+  _isAvailable() {
+    return !isShuttingDown && this.winston && !this.winston.destroyed;
+  }
+
+  /**
    * Debug级别日志
    */
   debug(message, meta = {}) {
-    this.winston.debug(message, this.formatMeta(meta));
+    if (!this._isAvailable()) return;
+    try {
+      this.winston.debug(message, this.formatMeta(meta));
+    } catch (error) {
+      // 静默忽略关闭时的错误
+    }
   }
 
   /**
    * Info级别日志
    */
   info(message, meta = {}) {
-    this.winston.info(message, this.formatMeta(meta));
+    if (!this._isAvailable()) return;
+    try {
+      this.winston.info(message, this.formatMeta(meta));
+    } catch (error) {
+      // 静默忽略关闭时的错误
+    }
   }
 
   /**
    * Warn级别日志
    */
   warn(message, meta = {}) {
-    this.winston.warn(message, this.formatMeta(meta));
+    if (!this._isAvailable()) return;
+    try {
+      this.winston.warn(message, this.formatMeta(meta));
+    } catch (error) {
+      // 静默忽略关闭时的错误
+    }
   }
 
   /**
    * Error级别日志
    */
   error(message, error = null, meta = {}) {
-    const errorMeta = this.formatMeta({
-      ...meta,
-      ...(error && {
-        error: {
-          name: error.name,
-          message: error.message,
-          stack: error.stack,
-          code: error.code
-        }
-      })
-    });
-    
-    this.winston.error(message, errorMeta);
+    if (!this._isAvailable()) return;
+    try {
+      const errorMeta = this.formatMeta({
+        ...meta,
+        ...(error && {
+          error: {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            code: error.code
+          }
+        })
+      });
+      
+      this.winston.error(message, errorMeta);
+    } catch (err) {
+      // 静默忽略关闭时的错误
+    }
   }
 
   /**
@@ -335,14 +362,42 @@ createLogDirectory();
 replaceConsole();
 
 // 优雅关闭处理
+let isShuttingDown = false;
+
 process.on('SIGINT', () => {
-  log.info('接收到SIGINT信号，准备关闭日志系统');
-  logger.end();
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  
+  // 先输出关闭信息，然后关闭日志系统
+  console.log('接收到SIGINT信号，准备关闭日志系统');
+  
+  // 给日志一点时间完成当前写入操作
+  setTimeout(() => {
+    try {
+      logger.end();
+    } catch (error) {
+      // 忽略关闭时的错误
+    }
+    process.exit(0);
+  }, 100);
 });
 
 process.on('SIGTERM', () => {
-  log.info('接收到SIGTERM信号，准备关闭日志系统');
-  logger.end();
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  
+  // 先输出关闭信息，然后关闭日志系统
+  console.log('接收到SIGTERM信号，准备关闭日志系统');
+  
+  // 给日志一点时间完成当前写入操作
+  setTimeout(() => {
+    try {
+      logger.end();
+    } catch (error) {
+      // 忽略关闭时的错误
+    }
+    process.exit(0);
+  }, 100);
 });
 
 module.exports = {
