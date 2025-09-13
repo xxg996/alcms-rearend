@@ -60,7 +60,7 @@ class CommunityBoard {
         (SELECT row_to_json(u) FROM (
           SELECT id, username, nickname, avatar_url 
           FROM users 
-          WHERE id = (SELECT user_id FROM community_posts WHERE board_id = cb.id ORDER BY last_reply_time DESC LIMIT 1)
+          WHERE id = (SELECT author_id FROM community_posts WHERE board_id = cb.id ORDER BY last_reply_time DESC LIMIT 1)
         ) u) as last_poster
       FROM community_boards cb
       WHERE cb.id = $1

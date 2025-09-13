@@ -1,6 +1,10 @@
 /**
  * 社区板块控制器
  * 处理板块的CRUD操作和管理功能
+ * @swagger
+ * tags:
+ *   name: Community-Boards
+ *   description: 社区板块管理相关API
  */
 
 const CommunityBoard = require('../models/CommunityBoard');
@@ -9,7 +13,41 @@ const { logger } = require('../utils/logger');
 
 class CommunityBoardController {
   /**
-   * 获取板块列表
+   * @swagger
+   * /api/community/boards:
+   *   get:
+   *     summary: 获取板块列表
+   *     description: 获取社区所有板块列表，支持筛选选项
+   *     tags: [Community-Boards]
+   *     parameters:
+   *       - in: query
+   *         name: includeStats
+   *         schema:
+   *           type: boolean
+   *           default: false
+   *         description: 是否包含板块统计信息
+   *       - in: query
+   *         name: activeOnly
+   *         schema:
+   *           type: boolean
+   *           default: true
+   *         description: 是否只显示激活的板块
+   *     responses:
+   *       200:
+   *         description: 获取板块列表成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/ApiResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       type: array
+   *                       items:
+   *                         $ref: '#/components/schemas/CommunityBoard'
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getBoards(req, res) {
     try {
@@ -28,7 +66,36 @@ class CommunityBoardController {
   }
 
   /**
-   * 获取板块详情
+   * @swagger
+   * /api/community/boards/{id}:
+   *   get:
+   *     summary: 获取板块详情
+   *     description: 根据ID获取指定板块的详细信息
+   *     tags: [Community-Boards]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 板块ID
+   *         example: 1
+   *     responses:
+   *       200:
+   *         description: 获取板块详情成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/ApiResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/CommunityBoard'
+   *       404:
+   *         description: 板块不存在
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getBoardById(req, res) {
     try {
@@ -48,7 +115,49 @@ class CommunityBoardController {
   }
 
   /**
-   * 创建板块
+   * @swagger
+   * /api/community/boards:
+   *   post:
+   *     summary: 创建板块
+   *     description: 创建新的社区板块（管理员功能）
+   *     tags: [Community-Boards]
+   *     security:
+   *       - BearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CreateBoardRequest'
+   *           example:
+   *             name: "tech-discussion"
+   *             display_name: "技术讨论"
+   *             description: "技术相关话题讨论区"
+   *             icon_url: "https://example.com/tech-icon.png"
+   *             sort_order: 1
+   *             is_active: true
+   *     responses:
+   *       201:
+   *         description: 创建板块成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/ApiResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/CommunityBoard'
+   *       400:
+   *         $ref: '#/components/responses/ValidationError'
+   *       401:
+   *         $ref: '#/components/responses/UnauthorizedError'
+   *       403:
+   *         $ref: '#/components/responses/ForbiddenError'
+   *       409:
+   *         description: 板块名称已存在
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async createBoard(req, res) {
     try {

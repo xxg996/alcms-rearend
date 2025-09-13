@@ -14,11 +14,12 @@ const { logger } = require('../utils/logger');
 // 获取分类列表
 router.get('/', CategoryController.getCategories);
 
+// 获取热门分类 - 必须放在 /:id 之前
+router.get('/popular', CategoryController.getPopularCategories);
+router.get('/popular/list', CategoryController.getPopularCategories);
+
 // 获取单个分类详情
 router.get('/:id', CategoryController.getCategory);
-
-// 获取热门分类
-router.get('/popular/list', CategoryController.getPopularCategories);
 
 // 需要认证和权限的路由
 

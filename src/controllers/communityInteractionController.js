@@ -1,6 +1,10 @@
 /**
  * 社区互动控制器
  * 处理点赞、收藏、分享、举报等互动功能
+ * @swagger
+ * tags:
+ *   name: Community-Interactions
+ *   description: 社区互动功能相关API
  */
 
 const CommunityInteraction = require('../models/CommunityInteraction');
@@ -11,7 +15,53 @@ const { logger } = require('../utils/logger');
 
 class CommunityInteractionController {
   /**
-   * 点赞或取消点赞
+   * @swagger
+   * /api/community/interactions/like:
+   *   post:
+   *     summary: 点赞/取消点赞
+   *     description: 对帖子或评论进行点赞操作，已点赞则取消点赞
+   *     tags: [Community-Interactions]
+   *     security:
+   *       - BearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/ToggleLikeRequest'
+   *           example:
+   *             target_type: "post"
+   *             target_id: 1
+   *     responses:
+   *       200:
+   *         description: 点赞操作成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/ApiResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       type: object
+   *                       properties:
+   *                         action:
+   *                           type: string
+   *                           enum: [liked, unliked]
+   *                           description: 执行的操作
+   *                           example: "liked"
+   *                         like_count:
+   *                           type: integer
+   *                           description: 更新后的点赞数
+   *                           example: 26
+   *       400:
+   *         $ref: '#/components/responses/ValidationError'
+   *       401:
+   *         $ref: '#/components/responses/UnauthorizedError'
+   *       404:
+   *         description: 目标内容不存在
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async toggleLike(req, res) {
     try {

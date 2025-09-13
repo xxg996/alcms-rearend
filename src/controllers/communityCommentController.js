@@ -1,6 +1,10 @@
 /**
  * 社区评论控制器
  * 处理评论的CRUD操作和楼中楼功能
+ * @swagger
+ * tags:
+ *   name: Community-Comments
+ *   description: 社区评论管理相关API
  */
 
 const CommunityComment = require('../models/CommunityComment');
@@ -10,7 +14,78 @@ const { logger } = require('../utils/logger');
 
 class CommunityCommentController {
   /**
-   * 获取帖子的评论列表
+   * @swagger
+   * /api/community/posts/{postId}/comments:
+   *   get:
+   *     summary: 获取帖子的评论列表
+   *     description: 获取指定帖子的所有评论，支持分页和排序
+   *     tags: [Community-Comments]
+   *     parameters:
+   *       - in: path
+   *         name: postId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 帖子ID
+   *         example: 1
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           default: 1
+   *         description: 页码
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 100
+   *           default: 20
+   *         description: 每页数量
+   *       - in: query
+   *         name: sortBy
+   *         schema:
+   *           type: string
+   *           enum: [created_at, like_count]
+   *           default: created_at
+   *         description: 排序字段
+   *       - in: query
+   *         name: sortOrder
+   *         schema:
+   *           type: string
+   *           enum: [ASC, DESC]
+   *           default: ASC
+   *         description: 排序方向
+   *       - in: query
+   *         name: includeChildren
+   *         schema:
+   *           type: boolean
+   *           default: true
+   *         description: 是否包含子评论
+   *     responses:
+   *       200:
+   *         description: 获取评论列表成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/ApiResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       type: object
+   *                       properties:
+   *                         comments:
+   *                           type: array
+   *                           items:
+   *                             $ref: '#/components/schemas/CommunityComment'
+   *                         pagination:
+   *                           $ref: '#/components/schemas/Pagination'
+   *       404:
+   *         description: 帖子不存在
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getCommentsByPostId(req, res) {
     try {
@@ -69,7 +144,56 @@ class CommunityCommentController {
   }
 
   /**
-   * 创建评论
+   * @swagger
+   * /api/community/comments:
+   *   post:
+   *     summary: 创建评论
+   *     description: 创建新的评论或回复
+   *     tags: [Community-Comments]
+   *     security:
+   *       - BearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CreateCommentRequest'
+   *           examples:
+   *             comment:
+   *               summary: 创建评论
+   *               value:
+   *                 post_id: 1
+   *                 content: "很有用的分享，谢谢作者！"
+   *                 content_type: "text"
+   *             reply:
+   *               summary: 回复评论
+   *               value:
+   *                 post_id: 1
+   *                 parent_id: 5
+   *                 content: "我也有同样的想法"
+   *                 content_type: "text"
+   *     responses:
+   *       201:
+   *         description: 创建评论成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/ApiResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/CommunityComment'
+   *       400:
+   *         $ref: '#/components/responses/ValidationError'
+   *       401:
+   *         $ref: '#/components/responses/UnauthorizedError'
+   *       403:
+   *         $ref: '#/components/responses/ForbiddenError'
+   *       404:
+   *         description: 帖子不存在或父评论不存在
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async createComment(req, res) {
     try {

@@ -1,6 +1,10 @@
 /**
  * 社区帖子控制器
  * 处理帖子的CRUD操作、搜索和管理功能
+ * @swagger
+ * tags:
+ *   name: Community-Posts
+ *   description: 社区帖子管理相关API
  */
 
 const CommunityPost = require('../models/CommunityPost');
@@ -11,7 +15,100 @@ const { logger } = require('../utils/logger');
 
 class CommunityPostController {
   /**
-   * 获取帖子列表
+   * @swagger
+   * /api/community/posts:
+   *   get:
+   *     summary: 获取帖子列表
+   *     description: 获取社区帖子列表，支持分页、筛选和搜索
+   *     tags: [Community-Posts]
+   *     parameters:
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           default: 1
+   *         description: 页码
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 100
+   *           default: 20
+   *         description: 每页数量
+   *       - in: query
+   *         name: boardId
+   *         schema:
+   *           type: integer
+   *         description: 板块ID筛选
+   *       - in: query
+   *         name: authorId
+   *         schema:
+   *           type: integer
+   *         description: 作者ID筛选
+   *       - in: query
+   *         name: status
+   *         schema:
+   *           type: string
+   *           enum: [published, draft, hidden]
+   *           default: published
+   *         description: 帖子状态
+   *       - in: query
+   *         name: isPinned
+   *         schema:
+   *           type: boolean
+   *         description: 是否置顶
+   *       - in: query
+   *         name: isFeatured
+   *         schema:
+   *           type: boolean
+   *         description: 是否精华
+   *       - in: query
+   *         name: sortBy
+   *         schema:
+   *           type: string
+   *           enum: [created_at, last_reply_time, reply_count, like_count]
+   *           default: last_reply_time
+   *         description: 排序字段
+   *       - in: query
+   *         name: sortOrder
+   *         schema:
+   *           type: string
+   *           enum: [ASC, DESC]
+   *           default: DESC
+   *         description: 排序方向
+   *       - in: query
+   *         name: search
+   *         schema:
+   *           type: string
+   *         description: 搜索关键词
+   *       - in: query
+   *         name: tags
+   *         schema:
+   *           type: string
+   *         description: 标签筛选
+   *     responses:
+   *       200:
+   *         description: 获取帖子列表成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/ApiResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       type: object
+   *                       properties:
+   *                         posts:
+   *                           type: array
+   *                           items:
+   *                             $ref: '#/components/schemas/CommunityPost'
+   *                         pagination:
+   *                           $ref: '#/components/schemas/Pagination'
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getPosts(req, res) {
     try {
@@ -88,7 +185,49 @@ class CommunityPostController {
   }
 
   /**
-   * 创建帖子
+   * @swagger
+   * /api/community/posts:
+   *   post:
+   *     summary: 创建帖子
+   *     description: 创建新的社区帖子
+   *     tags: [Community-Posts]
+   *     security:
+   *       - BearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/CreatePostRequest'
+   *           example:
+   *             board_id: 1
+   *             title: "Node.js学习心得分享"
+   *             content: "最近在学习Node.js，想和大家分享一下心得..."
+   *             content_type: "markdown"
+   *             tags: ["nodejs", "javascript", "学习"]
+   *             status: "published"
+   *     responses:
+   *       201:
+   *         description: 创建帖子成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/ApiResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/CommunityPost'
+   *       400:
+   *         $ref: '#/components/responses/ValidationError'
+   *       401:
+   *         $ref: '#/components/responses/UnauthorizedError'
+   *       403:
+   *         $ref: '#/components/responses/ForbiddenError'
+   *       404:
+   *         description: 板块不存在
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async createPost(req, res) {
     try {
