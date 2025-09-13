@@ -20,7 +20,7 @@ class CategoryController {
    *     summary: 获取分类列表
    *     description: 获取分类列表，支持树形结构或扁平列表，可以过滤活跃状态
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: query
    *         name: tree
@@ -67,7 +67,7 @@ class CategoryController {
    *                       resource_count: 12
    *                       children: []
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getCategories(req, res) {
     try {
@@ -109,7 +109,7 @@ class CategoryController {
    *     summary: 获取单个分类详情
    *     description: 根据分类ID获取分类的详细信息，包括分类路径（面包屑）
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -157,7 +157,7 @@ class CategoryController {
    *               success: false
    *               message: "分类不存在"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getCategory(req, res) {
     try {
@@ -200,7 +200,7 @@ class CategoryController {
    *     summary: 创建新分类
    *     description: 创建一个新的分类，需要管理员权限
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     requestBody:
    *       required: true
    *       content:
@@ -256,7 +256,7 @@ class CategoryController {
    *               success: false
    *               message: "无权创建分类"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async createCategory(req, res) {
     try {
@@ -321,7 +321,7 @@ class CategoryController {
    *     summary: 更新分类
    *     description: 更新指定ID的分类，需要管理员权限
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -386,7 +386,7 @@ class CategoryController {
    *               success: false
    *               message: "分类不存在"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async updateCategory(req, res) {
     try {
@@ -458,7 +458,7 @@ class CategoryController {
    *     summary: 删除分类
    *     description: 删除指定ID的分类，需要管理员权限。不能删除有子分类或关联资源的分类
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -515,7 +515,7 @@ class CategoryController {
    *               success: false
    *               message: "分类不存在"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async deleteCategory(req, res) {
     try {
@@ -571,7 +571,7 @@ class CategoryController {
    *     summary: 获取热门分类
    *     description: 根据资源数量获取热门分类列表
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: query
    *         name: limit
@@ -608,7 +608,7 @@ class CategoryController {
    *                   resource_count: 120
    *                   icon_url: "https://example.com/icons/edu.svg"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getPopularCategories(req, res) {
     try {

@@ -19,7 +19,7 @@ const { logger } = require('../utils/logger');
  *     summary: 生成单个卡密
  *     description: 管理员功能，生成单个VIP或积分卡密
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -88,7 +88,7 @@ const { logger } = require('../utils/logger');
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const generateSingleCard = async (req, res) => {
   try {
@@ -152,7 +152,7 @@ const generateSingleCard = async (req, res) => {
  *     summary: 批量生成卡密
  *     description: 管理员功能，批量生成VIP或积分卡密
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -193,7 +193,7 @@ const generateSingleCard = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const generateBatchCards = async (req, res) => {
   try {
@@ -269,7 +269,7 @@ const generateBatchCards = async (req, res) => {
  *     summary: 兑换卡密
  *     description: 用户使用卡密代码兑换VIP或积分
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -332,7 +332,7 @@ const generateBatchCards = async (req, res) => {
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const redeemCard = async (req, res) => {
   try {
@@ -397,7 +397,7 @@ const redeemCard = async (req, res) => {
  *     summary: 查询卡密信息
  *     description: 根据卡密代码查询卡密的详细信息
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: code
@@ -450,7 +450,7 @@ const redeemCard = async (req, res) => {
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getCardInfo = async (req, res) => {
   try {
@@ -523,7 +523,7 @@ const getCardInfo = async (req, res) => {
  *     summary: 获取卡密列表
  *     description: 管理员获取卡密列表，支持过滤和分页
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: status
@@ -574,7 +574,7 @@ const getCardInfo = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getCardsList = async (req, res) => {
   try {
@@ -625,7 +625,7 @@ const getCardsList = async (req, res) => {
  *     summary: 获取卡密统计信息
  *     description: 管理员获取卡密的统计数据
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: batch_id
@@ -665,7 +665,7 @@ const getCardsList = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getCardsStatistics = async (req, res) => {
   try {
@@ -694,7 +694,7 @@ const getCardsStatistics = async (req, res) => {
  *     summary: 获取批次列表
  *     description: 管理员获取卡密批次列表
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: limit
@@ -742,7 +742,7 @@ const getCardsStatistics = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getBatchesList = async (req, res) => {
   try {

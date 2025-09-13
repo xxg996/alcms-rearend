@@ -20,7 +20,7 @@ class TagController {
    *     summary: 获取标签列表
    *     description: 获取标签列表，支持搜索、排序和分页
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: query
    *         name: search
@@ -79,7 +79,7 @@ class TagController {
    *                   limit: 20
    *                   total: 50
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getTags(req, res) {
     try {
@@ -130,7 +130,7 @@ class TagController {
    *     summary: 获取单个标签详情
    *     description: 根据标签ID获取标签的详细信息
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -171,7 +171,7 @@ class TagController {
    *               success: false
    *               message: "标签不存在"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getTag(req, res) {
     try {
@@ -208,7 +208,7 @@ class TagController {
    *     summary: 创建新标签
    *     description: 创建一个新的标签，需要管理员权限
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     requestBody:
    *       required: true
    *       content:
@@ -262,7 +262,7 @@ class TagController {
    *               success: false
    *               message: "无权创建标签"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async createTag(req, res) {
     try {
@@ -425,7 +425,7 @@ class TagController {
    *     summary: 搜索标签
    *     description: 使用关键词搜索标签
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: query
    *         name: q
@@ -474,7 +474,7 @@ class TagController {
    *               success: false
    *               message: "搜索关键词不能为空"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async searchTags(req, res) {
     try {
@@ -514,7 +514,7 @@ class TagController {
    *     summary: 获取热门标签
    *     description: 根据使用次数获取热门标签列表
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: query
    *         name: limit
@@ -551,7 +551,7 @@ class TagController {
    *                   color: "#3776ab"
    *                   usage_count: 280
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getPopularTags(req, res) {
     try {
@@ -581,7 +581,7 @@ class TagController {
    *     summary: 批量创建标签
    *     description: 一次性创建多个标签，需要管理员权限
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     requestBody:
    *       required: true
    *       content:
@@ -640,7 +640,7 @@ class TagController {
    *               success: false
    *               message: "无权创建标签"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async createTags(req, res) {
     try {

@@ -96,6 +96,27 @@
  *                 pagination:
  *                   $ref: '#/components/schemas/PaginationInfo'
  * 
+ *     SuccessResponse:
+ *       type: object
+ *       required:
+ *         - success
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         message:
+ *           type: string
+ *           description: 成功消息
+ *           example: "操作成功"
+ *         data:
+ *           type: object
+ *           description: 响应数据（可选）
+ *         timestamp:
+ *           type: string
+ *           format: date-time
+ *           description: 响应时间戳
+ *           example: "2025-09-12T12:00:00.000Z"
+ * 
  *     ErrorResponse:
  *       type: object
  *       required:

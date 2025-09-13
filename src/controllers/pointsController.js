@@ -19,7 +19,7 @@ const { logger } = require('../utils/logger');
  *     summary: 获取当前用户积分信息
  *     description: 获取登录用户的详细积分信息，包括当前积分、累计获得、累计消费等
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: 积分信息获取成功
@@ -55,7 +55,7 @@ const { logger } = require('../utils/logger');
  *               success: false
  *               message: "用户不存在"
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getMyPoints = async (req, res) => {
   try {
@@ -91,7 +91,7 @@ const getMyPoints = async (req, res) => {
  *     summary: 获取当前用户积分记录
  *     description: 分页获取登录用户的积分变动记录，包括获得、消费、转账等操作记录
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: limit
@@ -150,7 +150,7 @@ const getMyPoints = async (req, res) => {
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getMyPointsRecords = async (req, res) => {
   try {
@@ -181,7 +181,7 @@ const getMyPointsRecords = async (req, res) => {
  *     summary: 获取用户积分信息
  *     description: 管理员功能，获取指定用户的详细积分信息
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
@@ -228,7 +228,7 @@ const getMyPointsRecords = async (req, res) => {
  *               success: false
  *               message: "用户不存在"
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getUserPoints = async (req, res) => {
   try {
@@ -264,7 +264,7 @@ const getUserPoints = async (req, res) => {
  *     summary: 获取用户积分记录
  *     description: 管理员功能，分页获取指定用户的积分变动记录
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
@@ -334,7 +334,7 @@ const getUserPoints = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getUserPointsRecords = async (req, res) => {
   try {
@@ -365,7 +365,7 @@ const getUserPointsRecords = async (req, res) => {
  *     summary: 调整用户积分
  *     description: 管理员功能，手动调整指定用户的积分数量，可以增加或扣除积分
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
@@ -436,7 +436,7 @@ const getUserPointsRecords = async (req, res) => {
  *               success: false
  *               message: "用户不存在"
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const adjustUserPoints = async (req, res) => {
   try {
@@ -483,7 +483,7 @@ const adjustUserPoints = async (req, res) => {
  *     summary: 批量发放积分
  *     description: 管理员功能，一次性向多个用户发放相同数量的积分，单次最备1000个用户
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -549,7 +549,7 @@ const adjustUserPoints = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const batchGrantPoints = async (req, res) => {
   try {
@@ -675,7 +675,7 @@ const batchGrantPoints = async (req, res) => {
  *               success: false
  *               message: "type参数只能是current或total"
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getPointsLeaderboard = async (req, res) => {
   try {
@@ -715,7 +715,7 @@ const getPointsLeaderboard = async (req, res) => {
  *     summary: 获取当前用户积分排名
  *     description: 获取登录用户的积分排名信息，包括排名、积分数、百分位排名等
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: type
@@ -778,7 +778,7 @@ const getPointsLeaderboard = async (req, res) => {
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getMyPointsRank = async (req, res) => {
   try {
@@ -827,7 +827,7 @@ const getMyPointsRank = async (req, res) => {
  *     summary: 获取积分统计
  *     description: 管理员功能，获取系统积分的统计信息，包括总体积分情况、日常数据和分类统计
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: user_id
@@ -885,7 +885,7 @@ const getMyPointsRank = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getPointsStatistics = async (req, res) => {
   try {
@@ -919,7 +919,7 @@ const getPointsStatistics = async (req, res) => {
  *     summary: 积分转账
  *     description: 用户功能，将自己的积分转账给其他用户，单次转账上限为10000积分
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -1014,7 +1014,7 @@ const getPointsStatistics = async (req, res) => {
  *               success: false
  *               message: "目标用户不存在"
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const transferPoints = async (req, res) => {
   try {

@@ -19,7 +19,7 @@ const { logger } = require('../utils/logger');
  *     summary: 获取所有VIP等级配置
  *     description: 获取系统中所有可用的VIP等级配置信息
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: 获取VIP等级成功
@@ -49,7 +49,7 @@ const { logger } = require('../utils/logger');
  *                   duration_days: 30
  *                   is_active: true
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getAllLevels = async (req, res) => {
   try {
@@ -230,7 +230,7 @@ const deleteLevel = async (req, res) => {
  *     summary: 获取当前用户VIP信息
  *     description: 获取当前登录用户的VIP状态和详细信息
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: VIP信息获取成功
@@ -270,7 +270,7 @@ const deleteLevel = async (req, res) => {
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getMyVIPInfo = async (req, res) => {
   try {
@@ -355,7 +355,7 @@ const getUserVIPInfo = async (req, res) => {
  *     summary: 设置用户VIP
  *     description: 管理员设置指定用户的VIP等级和有效期
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
@@ -423,7 +423,7 @@ const getUserVIPInfo = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/Forbidden'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const setUserVIP = async (req, res) => {
   try {
@@ -533,7 +533,7 @@ const cancelUserVIP = async (req, res) => {
  *     summary: 获取用户订单历史
  *     description: 获取当前用户的VIP订单历史记录
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: limit
@@ -572,7 +572,7 @@ const cancelUserVIP = async (req, res) => {
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getMyOrders = async (req, res) => {
   try {

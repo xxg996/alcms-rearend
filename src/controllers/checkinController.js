@@ -19,7 +19,7 @@ const { logger } = require('../utils/logger');
  *     summary: 执行签到
  *     description: 用户执行每日签到，获得积分奖励，支持连续签到奖励机制
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: 签到成功
@@ -59,7 +59,7 @@ const { logger } = require('../utils/logger');
  *               success: false
  *               message: "签到功能暂时不可用"
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const performCheckin = async (req, res) => {
   try {
@@ -108,7 +108,7 @@ const performCheckin = async (req, res) => {
  *     summary: 获取当前用户签到状态
  *     description: 获取登录用户的签到状态，包括今日是否已签到、签到统计和当前配置
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: 签到状态获取成功
@@ -164,7 +164,7 @@ const performCheckin = async (req, res) => {
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getMyCheckinStatus = async (req, res) => {
   try {
@@ -209,7 +209,7 @@ const getMyCheckinStatus = async (req, res) => {
  *     summary: 获取当前用户签到历史
  *     description: 分页获取登录用户的签到历史记录
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: limit
@@ -271,7 +271,7 @@ const getMyCheckinStatus = async (req, res) => {
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getMyCheckinHistory = async (req, res) => {
   try {
@@ -369,7 +369,7 @@ const getMyCheckinHistory = async (req, res) => {
  *               success: false
  *               message: "type参数只能是consecutive、total或monthly"
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getCheckinLeaderboard = async (req, res) => {
   try {
@@ -409,7 +409,7 @@ const getCheckinLeaderboard = async (req, res) => {
  *     summary: 获取所有签到配置
  *     description: 管理员功能，获取系统中所有的签到配置
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: 签到配置获取成功
@@ -443,7 +443,7 @@ const getCheckinLeaderboard = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getAllConfigs = async (req, res) => {
   try {
@@ -471,7 +471,7 @@ const getAllConfigs = async (req, res) => {
  *     summary: 创建签到配置
  *     description: 管理员功能，创建新的签到积分配置方案
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -539,7 +539,7 @@ const getAllConfigs = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const createConfig = async (req, res) => {
   try {
@@ -626,7 +626,7 @@ const createConfig = async (req, res) => {
  *     summary: 更新签到配置
  *     description: 管理员功能，更新指定的签到配置
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: configId
@@ -690,7 +690,7 @@ const createConfig = async (req, res) => {
  *               success: false
  *               message: "签到配置不存在"
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const updateConfig = async (req, res) => {
   try {
@@ -740,7 +740,7 @@ const updateConfig = async (req, res) => {
  *     summary: 获取用户签到信息
  *     description: 管理员功能，获取指定用户的签到统计和今日签到状态
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
@@ -796,7 +796,7 @@ const updateConfig = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getUserCheckinInfo = async (req, res) => {
   try {
@@ -834,7 +834,7 @@ const getUserCheckinInfo = async (req, res) => {
  *     summary: 获取用户签到历史
  *     description: 管理员功能，分页获取指定用户的签到历史记录
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
@@ -906,7 +906,7 @@ const getUserCheckinInfo = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getUserCheckinHistory = async (req, res) => {
   try {
@@ -937,7 +937,7 @@ const getUserCheckinHistory = async (req, res) => {
  *     summary: 补签功能
  *     description: 管理员功能，为指定用户补签某个历史日期，不能补签今天或未来日期
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
@@ -1033,7 +1033,7 @@ const getUserCheckinHistory = async (req, res) => {
  *               success: false
  *               message: "签到功能未配置"
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const makeupCheckin = async (req, res) => {
   try {
@@ -1108,7 +1108,7 @@ const makeupCheckin = async (req, res) => {
  *     summary: 重置用户签到数据
  *     description: 管理员功能，清除指定用户的所有签到记录和统计数据
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
@@ -1148,7 +1148,7 @@ const makeupCheckin = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const resetUserCheckins = async (req, res) => {
   try {
@@ -1177,7 +1177,7 @@ const resetUserCheckins = async (req, res) => {
  *     summary: 获取签到统计
  *     description: 管理员功能，获取系统签到的统计信息，包括签到率、活跃度等数据
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: date_from
@@ -1228,7 +1228,7 @@ const resetUserCheckins = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getCheckinStatistics = async (req, res) => {
   try {

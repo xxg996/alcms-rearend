@@ -21,7 +21,7 @@ const { logger } = require('../utils/logger');
  *     summary: 切换收藏状态
  *     description: 切换指定资源的收藏状态，如果未收藏则收藏，如果已收藏则取消收藏
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: resourceId
@@ -88,7 +88,7 @@ const { logger } = require('../utils/logger');
  *               success: false
  *               message: "资源不存在"
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const toggleFavorite = async (req, res) => {
   try {
@@ -167,7 +167,7 @@ const toggleFavorite = async (req, res) => {
  *     summary: 检查资源收藏状态
  *     description: 检查当前用户是否收藏了指定资源
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: path
  *         name: resourceId
@@ -218,7 +218,7 @@ const toggleFavorite = async (req, res) => {
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const checkFavoriteStatus = async (req, res) => {
   try {
@@ -260,7 +260,7 @@ const checkFavoriteStatus = async (req, res) => {
  *     summary: 批量检查收藏状态
  *     description: 批量检查多个资源的收藏状态，单次最多检查100个资源
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -313,7 +313,7 @@ const checkFavoriteStatus = async (req, res) => {
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const batchCheckFavoriteStatus = async (req, res) => {
   try {
@@ -367,7 +367,7 @@ const batchCheckFavoriteStatus = async (req, res) => {
  *     summary: 获取用户收藏列表
  *     description: 分页获取当前用户的收藏资源列表，支持按分类、类型和关键词筛选
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: page
@@ -453,7 +453,7 @@ const batchCheckFavoriteStatus = async (req, res) => {
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getUserFavorites = async (req, res) => {
   try {
@@ -502,7 +502,7 @@ const getUserFavorites = async (req, res) => {
  *     summary: 获取用户收藏统计
  *     description: 获取当前用户的收藏统计信息，包括总数、分类统计、最近收藏等
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: 获取收藏统计成功
@@ -539,7 +539,7 @@ const getUserFavorites = async (req, res) => {
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getUserFavoriteStats = async (req, res) => {
   try {
@@ -622,7 +622,7 @@ const getUserFavoriteStats = async (req, res) => {
  *               success: false
  *               message: "资源不存在"
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getResourceFavoriteStats = async (req, res) => {
   try {
@@ -673,7 +673,7 @@ const getResourceFavoriteStats = async (req, res) => {
  *     summary: 获取热门收藏资源
  *     description: 管理员功能，获取指定时间段内的热门收藏资源列表
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     parameters:
  *       - in: query
  *         name: limit
@@ -741,7 +741,7 @@ const getResourceFavoriteStats = async (req, res) => {
  *       403:
  *         $ref: '#/components/responses/ForbiddenError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const getPopularFavorites = async (req, res) => {
   try {
@@ -785,7 +785,7 @@ const getPopularFavorites = async (req, res) => {
  *     summary: 批量取消收藏
  *     description: 批量取消多个资源的收藏，单次最多取消50个资源
  *     security:
- *       - bearerAuth: []
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -841,7 +841,7 @@ const getPopularFavorites = async (req, res) => {
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  *       500:
- *         $ref: '#/components/responses/InternalServerError'
+ *         $ref: '#/components/responses/ServerError'
  */
 const batchRemoveFavorites = async (req, res) => {
   try {

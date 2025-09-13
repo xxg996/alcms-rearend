@@ -24,7 +24,7 @@ class ResourceController {
    *     summary: 获取资源列表
    *     description: 获取分页的资源列表，支持多种过滤和排序选项
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: query
    *         name: page
@@ -124,7 +124,7 @@ class ResourceController {
    *       401:
    *         $ref: '#/components/responses/Unauthorized'
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getResources(req, res) {
     try {
@@ -197,7 +197,7 @@ class ResourceController {
    *     summary: 获取单个资源详情
    *     description: 根据资源ID获取资源的详细信息，包括安全的下载链接
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -259,7 +259,7 @@ class ResourceController {
    *               success: false
    *               message: "资源不存在"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getResource(req, res) {
     try {
@@ -315,7 +315,7 @@ class ResourceController {
    *     summary: 创建新资源
    *     description: 创建一个新的资源，需要认证
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     requestBody:
    *       required: true
    *       content:
@@ -373,7 +373,7 @@ class ResourceController {
    *       401:
    *         $ref: '#/components/responses/Unauthorized'
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async createResource(req, res) {
     try {
@@ -470,7 +470,7 @@ class ResourceController {
    *     summary: 更新资源
    *     description: 更新指定ID的资源，只有作者或管理员可以操作
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -541,7 +541,7 @@ class ResourceController {
    *               success: false
    *               message: "资源不存在"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async updateResource(req, res) {
     try {
@@ -606,7 +606,7 @@ class ResourceController {
    *     summary: 删除资源
    *     description: 删除指定ID的资源，只有作者或管理员可以操作
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -651,7 +651,7 @@ class ResourceController {
    *               success: false
    *               message: "资源不存在"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async deleteResource(req, res) {
     try {
@@ -700,7 +700,7 @@ class ResourceController {
    *     summary: 获取资源下载链接
    *     description: 解析加密URL并返回真实下载链接，需要认证和权限验证
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -791,7 +791,7 @@ class ResourceController {
    *               success: false
    *               message: "资源不存在"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async downloadResource(req, res) {
     try {
@@ -906,7 +906,7 @@ class ResourceController {
    *     summary: 搜索资源
    *     description: 使用关键词进行全文搜索资源
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     parameters:
    *       - in: query
    *         name: q
@@ -974,7 +974,7 @@ class ResourceController {
    *               success: false
    *               message: "搜索关键词不能为空"
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async searchResources(req, res) {
     try {
@@ -1023,7 +1023,7 @@ class ResourceController {
    *     summary: 获取资源统计信息
    *     description: 获取系统中资源的统计数据，包括总数、状态分布、类型分布等
    *     security:
-   *       - bearerAuth: []
+   *       - BearerAuth: []
    *     responses:
    *       200:
    *         description: 获取统计信息成功
@@ -1111,7 +1111,7 @@ class ResourceController {
    *       401:
    *         $ref: '#/components/responses/Unauthorized'
    *       500:
-   *         $ref: '#/components/responses/InternalServerError'
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getResourceStats(req, res) {
     try {
