@@ -57,6 +57,12 @@ const swaggerDefinition = {
 3. **分页**: 列表接口支持 \`page\` 和 \`limit\` 参数
 4. **响应格式**: 统一返回 \`{success, message, data}\` 格式
 
+## 导出选项
+
+- **JSON格式**: [/api-docs.json](/api-docs.json) - OpenAPI 3.0 JSON规范
+- **YAML格式**: [/api-docs.yaml](/api-docs.yaml) - OpenAPI 3.0 YAML规范
+- **服务检测**: [/ping](/ping) - 服务状态检查
+
 ## 环境要求
 
 - Node.js >= 16.0.0
@@ -254,6 +260,91 @@ const swaggerUiOptions = {
     .swagger-ui .opblock-description-wrapper {
       padding: 15px;
       background: #f9fafb;
+    }
+    
+    /* 自定义导出按钮样式 */
+    .custom-export-toolbar {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      gap: 10px;
+      flex-direction: column;
+    }
+    
+    .export-btn {
+      background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+    
+    .export-btn:hover {
+      background: linear-gradient(45deg, #1d4ed8, #1e40af);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.15);
+    }
+    
+    .export-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .export-btn::before {
+      content: "📥";
+      font-size: 16px;
+    }
+    
+    .yaml-btn {
+      background: linear-gradient(45deg, #10b981, #059669);
+    }
+    
+    .yaml-btn:hover {
+      background: linear-gradient(45deg, #059669, #047857);
+    }
+    
+    .yaml-btn::before {
+      content: "📋";
+    }
+    
+    .postman-btn {
+      background: linear-gradient(45deg, #f59e0b, #d97706);
+    }
+    
+    .postman-btn:hover {
+      background: linear-gradient(45deg, #d97706, #b45309);
+    }
+    
+    .postman-btn::before {
+      content: "🚀";
+    }
+    
+    /* 添加导出提示信息 */
+    .swagger-ui .info:after {
+      content: "🚀 快速导出：JSON格式 → /api-docs.json | YAML格式 → /api-docs.yaml | 服务状态 → /ping";
+      display: block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 20px;
+      margin: 25px 0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.2);
     }
   `,
   customSiteTitle: 'Alcms API Documentation',
