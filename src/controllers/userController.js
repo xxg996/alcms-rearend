@@ -975,7 +975,7 @@ const batchUpdateUserStatus = async (req, res) => {
 /**
  * @swagger
  * /api/users/batch/delete:
- *   delete:
+ *   post:
  *     summary: 批量删除用户
  *     description: 批量删除多个用户账号（管理员功能，危险操作）
  *     tags: [Users]

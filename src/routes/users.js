@@ -116,7 +116,7 @@ router.patch('/batch/status',
 );
 
 // 批量删除用户（管理员功能）
-router.delete('/batch/delete', 
+router.post('/batch/delete', 
   authenticateToken, 
   requireRole('admin'), 
   userController.batchDeleteUsers
