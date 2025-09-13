@@ -228,7 +228,7 @@ const getProfile = async (req, res) => {
  *         name: status
  *         schema:
  *           type: string
- *           enum: [active, inactive, banned]
+ *           enum: [normal, frozen, banned]
  *         description: 按状态过滤
  *       - in: query
  *         name: search
@@ -887,8 +887,165 @@ const validateChangePassword = [
 ];
 
 const validateUpdateUserStatus = [
-  body('status').isIn(['active', 'inactive', 'banned']).withMessage('无效的状态值')
+  body('status').isIn(['normal', 'frozen', 'banned']).withMessage('无效的状态值')
 ];
+
+/**
+ * @swagger
+ * /api/users/batch/status:
+ *   patch:
+ *     summary: 批量更改用户状态
+ *     description: 批量更改多个用户的状态（管理员功能）
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userIds
+ *               - status
+ *             properties:
+ *               userIds:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *                 description: 要更新的用户ID列表
+ *                 example: [2, 3, 4]
+ *               status:
+ *                 type: string
+ *                 enum: [normal, frozen, banned]
+ *                 description: 新的用户状态
+ *                 example: "banned"
+ *           example:
+ *             userIds: [2, 3, 4]
+ *             status: "banned"
+ *     responses:
+ *       200:
+ *         description: 批量更新用户状态成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         updatedUsers:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/User'
+ *                         affectedCount:
+ *                           type: integer
+ *                           description: 实际更新的用户数量
+ *                         skippedCount:
+ *                           type: integer
+ *                           description: 跳过的用户数量（如管理员自己）
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const batchUpdateUserStatus = async (req, res) => {
+  try {
+    const adminUserId = req.user.id;
+    const { userIds, status } = req.body;
+
+    const result = await UserService.batchUpdateUserStatus(adminUserId, userIds, status);
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('批量更新用户状态失败:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '批量更新用户状态失败'
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /api/users/batch/delete:
+ *   delete:
+ *     summary: 批量删除用户
+ *     description: 批量删除多个用户账号（管理员功能，危险操作）
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userIds
+ *             properties:
+ *               userIds:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *                 description: 要删除的用户ID列表
+ *                 example: [2, 3, 4]
+ *           example:
+ *             userIds: [2, 3, 4]
+ *     responses:
+ *       200:
+ *         description: 批量删除用户成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         deletedUsers:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/User'
+ *                         deletedCount:
+ *                           type: integer
+ *                           description: 实际删除的用户数量
+ *                         skippedCount:
+ *                           type: integer
+ *                           description: 跳过的用户数量（如管理员自己）
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const batchDeleteUsers = async (req, res) => {
+  try {
+    const adminUserId = req.user.id;
+    const { userIds } = req.body;
+
+    const result = await UserService.batchDeleteUsers(adminUserId, userIds);
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('批量删除用户失败:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '批量删除用户失败'
+    });
+  }
+};
 
 /**
  * 验证结果处理中间件
@@ -920,6 +1077,17 @@ const validateAssignRole = [
   body('roleName').isIn(['user', 'vip', 'moderator', 'admin']).withMessage('无效的角色名称')
 ];
 
+const validateBatchUpdateStatus = [
+  body('userIds').isArray({ min: 1 }).withMessage('用户ID列表不能为空'),
+  body('userIds.*').isInt({ min: 1 }).withMessage('用户ID必须是正整数'),
+  body('status').isIn(['normal', 'frozen', 'banned']).withMessage('无效的状态值')
+];
+
+const validateBatchDelete = [
+  body('userIds').isArray({ min: 1 }).withMessage('用户ID列表不能为空'),
+  body('userIds.*').isInt({ min: 1 }).withMessage('用户ID必须是正整数')
+];
+
 module.exports = {
   updateProfile: [validateUpdateProfile, handleValidationErrors, updateProfile],
   changePassword: [validateChangePassword, handleValidationErrors, changePassword],
@@ -933,5 +1101,7 @@ module.exports = {
   removeUserRole: [validateAssignRole, handleValidationErrors, removeUserRole],
   getUserRoles,
   getUserPermissions,
-  getUserStats
+  getUserStats,
+  batchUpdateUserStatus: [validateBatchUpdateStatus, handleValidationErrors, batchUpdateUserStatus],
+  batchDeleteUsers: [validateBatchDelete, handleValidationErrors, batchDeleteUsers]
 };

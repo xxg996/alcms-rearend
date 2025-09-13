@@ -712,6 +712,101 @@ class User {
       throw new Error(`获取用户统计失败: ${error.message}`);
     }
   }
+
+  /**
+   * 批量更新用户状态
+   * @param {Array} userIds - 用户ID数组
+   * @param {string} status - 新状态
+   * @returns {Promise<Array>} 更新后的用户列表
+   */
+  static async batchUpdateStatus(userIds, status) {
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      throw new Error('用户ID列表不能为空');
+    }
+
+    const validStatuses = ['normal', 'banned', 'frozen'];
+    if (!validStatuses.includes(status)) {
+      throw new Error('无效的用户状态');
+    }
+
+    const client = await getClient();
+    
+    try {
+      await client.query('BEGIN');
+
+      // 批量更新用户状态
+      const placeholders = userIds.map((_, index) => `$${index + 2}`).join(',');
+      const sql = `
+        UPDATE users 
+        SET status = $1, updated_at = CURRENT_TIMESTAMP 
+        WHERE id IN (${placeholders})
+        RETURNING id, username, email, nickname, status, updated_at
+      `;
+
+      const result = await client.query(sql, [status, ...userIds]);
+
+      await client.query('COMMIT');
+      return result.rows;
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * 批量删除用户
+   * @param {Array} userIds - 用户ID数组
+   * @returns {Promise<Array>} 被删除的用户列表
+   */
+  static async batchDelete(userIds) {
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      throw new Error('用户ID列表不能为空');
+    }
+
+    const client = await getClient();
+    
+    try {
+      await client.query('BEGIN');
+
+      // 先获取要删除的用户信息
+      const placeholders = userIds.map((_, index) => `$${index + 1}`).join(',');
+      const selectSql = `
+        SELECT id, username, email, nickname FROM users 
+        WHERE id IN (${placeholders})
+      `;
+      const usersResult = await client.query(selectSql, userIds);
+      const usersToDelete = usersResult.rows;
+
+      if (usersToDelete.length === 0) {
+        throw new Error('没有找到要删除的用户');
+      }
+
+      // 批量删除用户相关数据
+      // 1. 删除刷新令牌
+      await client.query(`DELETE FROM refresh_tokens WHERE user_id IN (${placeholders})`, userIds);
+      
+      // 2. 删除用户角色关联
+      await client.query(`DELETE FROM user_roles WHERE user_id IN (${placeholders})`, userIds);
+      
+      // 3. 删除其他相关数据（可根据业务需求扩展）
+      // 例如：用户收藏、评论、帖子等
+      
+      // 4. 删除用户本身
+      await client.query(`DELETE FROM users WHERE id IN (${placeholders})`, userIds);
+
+      await client.query('COMMIT');
+      return usersToDelete;
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 module.exports = User;

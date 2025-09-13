@@ -559,6 +559,128 @@ class UserService extends BaseService {
       }
     });
   }
+
+  /**
+   * 批量更改用户状态
+   */
+  async batchUpdateUserStatus(adminUserId, userIds, newStatus) {
+    return this.withPerformanceMonitoring('batchUpdateUserStatus', async () => {
+      try {
+        this.validateRequired({ adminUserId, userIds, newStatus }, 
+          ['adminUserId', 'userIds', 'newStatus']);
+
+        if (!Array.isArray(userIds) || userIds.length === 0) {
+          throw new Error('用户ID列表不能为空');
+        }
+
+        // 验证状态值（直接使用数据库状态值）
+        const validStatuses = ['normal', 'frozen', 'banned'];
+        
+        if (!validStatuses.includes(newStatus)) {
+          throw new Error(`无效的状态值，必须是: ${validStatuses.join(', ')}`);
+        }
+
+        // 验证管理员权限
+        const adminUser = await User.findById(adminUserId);
+        if (!adminUser) {
+          throw new Error('管理员账户不存在');
+        }
+
+        // 移除管理员自己的ID（不能修改自己的状态）
+        const filteredUserIds = userIds.filter(id => id !== adminUserId);
+        
+        if (filteredUserIds.length === 0) {
+          throw new Error('不能修改自己的账户状态');
+        }
+
+        const results = await User.batchUpdateStatus(filteredUserIds, newStatus);
+
+        // 清除批量用户缓存
+        for (const userId of filteredUserIds) {
+          await this.clearCache(`user:${userId}:*`);
+        }
+
+        this.log('info', '批量更新用户状态成功', { 
+          adminUserId, 
+          affectedUserIds: filteredUserIds,
+          newStatus,
+          affectedCount: results.length
+        });
+
+        // 将数据库状态映射回API状态
+        const reverseStatusMapping = {
+          'normal': 'active',
+          'frozen': 'inactive',
+          'banned': 'banned'
+        };
+
+        const mappedResults = results.map(user => {
+          const sanitizedUser = this.sanitizeUserData(user);
+          sanitizedUser.status = reverseStatusMapping[user.status] || user.status;
+          return sanitizedUser;
+        });
+
+        return this.formatSuccessResponse({
+          updatedUsers: mappedResults,
+          affectedCount: results.length,
+          skippedCount: userIds.length - filteredUserIds.length
+        }, `成功更新 ${results.length} 个用户状态为: ${newStatus}`);
+
+      } catch (error) {
+        this.handleError(error, 'batchUpdateUserStatus');
+      }
+    });
+  }
+
+  /**
+   * 批量删除用户
+   */
+  async batchDeleteUsers(adminUserId, userIds) {
+    return this.withPerformanceMonitoring('batchDeleteUsers', async () => {
+      try {
+        this.validateRequired({ adminUserId, userIds }, ['adminUserId', 'userIds']);
+
+        if (!Array.isArray(userIds) || userIds.length === 0) {
+          throw new Error('用户ID列表不能为空');
+        }
+
+        // 验证管理员权限
+        const adminUser = await User.findById(adminUserId);
+        if (!adminUser) {
+          throw new Error('管理员账户不存在');
+        }
+
+        // 移除管理员自己的ID（不能删除自己）
+        const filteredUserIds = userIds.filter(id => id !== adminUserId);
+        
+        if (filteredUserIds.length === 0) {
+          throw new Error('不能删除自己的账户');
+        }
+
+        const results = await User.batchDelete(filteredUserIds);
+
+        // 清除批量用户缓存
+        for (const userId of filteredUserIds) {
+          await this.clearCache(`user:${userId}:*`);
+        }
+
+        this.log('info', '批量删除用户成功', { 
+          adminUserId, 
+          deletedUserIds: filteredUserIds,
+          deletedCount: results.length
+        });
+
+        return this.formatSuccessResponse({
+          deletedUsers: results.map(user => this.sanitizeUserData(user)),
+          deletedCount: results.length,
+          skippedCount: userIds.length - filteredUserIds.length
+        }, `成功删除 ${results.length} 个用户`);
+
+      } catch (error) {
+        this.handleError(error, 'batchDeleteUsers');
+      }
+    });
+  }
 }
 
 module.exports = new UserService();

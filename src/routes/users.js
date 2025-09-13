@@ -108,4 +108,18 @@ router.get('/:id/permissions',
   userController.getUserPermissions
 );
 
+// 批量更改用户状态（管理员功能）
+router.patch('/batch/status', 
+  authenticateToken, 
+  requireRole('admin'), 
+  userController.batchUpdateUserStatus
+);
+
+// 批量删除用户（管理员功能）
+router.delete('/batch/delete', 
+  authenticateToken, 
+  requireRole('admin'), 
+  userController.batchDeleteUsers
+);
+
 module.exports = router;
