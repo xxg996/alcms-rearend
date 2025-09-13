@@ -384,6 +384,142 @@ class User {
 
     return newUser;
   }
+
+  /**
+   * 根据过滤条件查找用户列表
+   * @param {Object} options - 查询选项
+   * @param {string} [options.role] - 角色过滤
+   * @param {string} [options.status] - 状态过滤
+   * @param {string} [options.search] - 搜索关键词
+   * @param {number} [options.limit] - 数量限制
+   * @param {number} [options.offset] - 偏移量
+   * @returns {Promise<Array>} 用户列表
+   */
+  static async findByFilters(options = {}) {
+    const { role, status, search, limit = 20, offset = 0 } = options;
+
+    let sqlQuery = `
+      SELECT DISTINCT u.id, u.username, u.email, u.nickname, u.avatar_url, 
+             u.bio, u.status, u.created_at, u.updated_at,
+             array_agg(DISTINCT r.name) as roles
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let paramIndex = 1;
+
+    // 状态过滤
+    if (status) {
+      sqlQuery += ` AND u.status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
+
+    // 角色过滤
+    if (role) {
+      sqlQuery += ` AND EXISTS (
+        SELECT 1 FROM user_roles ur2 
+        JOIN roles r2 ON ur2.role_id = r2.id 
+        WHERE ur2.user_id = u.id AND r2.name = $${paramIndex}
+      )`;
+      params.push(role);
+      paramIndex++;
+    }
+
+    // 搜索过滤
+    if (search) {
+      sqlQuery += ` AND (
+        u.username ILIKE $${paramIndex} OR 
+        u.email ILIKE $${paramIndex} OR 
+        u.nickname ILIKE $${paramIndex}
+      )`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    // 分组和排序
+    sqlQuery += `
+      GROUP BY u.id, u.username, u.email, u.nickname, u.avatar_url, 
+               u.bio, u.status, u.created_at, u.updated_at
+      ORDER BY u.created_at DESC
+    `;
+
+    // 分页
+    if (limit > 0) {
+      sqlQuery += ` LIMIT $${paramIndex}`;
+      params.push(limit);
+      paramIndex++;
+    }
+
+    if (offset > 0) {
+      sqlQuery += ` OFFSET $${paramIndex}`;
+      params.push(offset);
+    }
+
+    const result = await query(sqlQuery, params);
+    return result.rows.map(row => ({
+      ...row,
+      roles: row.roles.filter(role => role !== null)
+    }));
+  }
+
+  /**
+   * 根据过滤条件统计用户数量
+   * @param {Object} options - 查询选项
+   * @param {string} [options.role] - 角色过滤
+   * @param {string} [options.status] - 状态过滤
+   * @param {string} [options.search] - 搜索关键词
+   * @returns {Promise<number>} 用户总数
+   */
+  static async countByFilters(options = {}) {
+    const { role, status, search } = options;
+
+    let sqlQuery = `
+      SELECT COUNT(DISTINCT u.id) as count
+      FROM users u
+    `;
+    
+    const params = [];
+    let paramIndex = 1;
+    const conditions = [];
+
+    // 状态过滤
+    if (status) {
+      conditions.push(`u.status = $${paramIndex}`);
+      params.push(status);
+      paramIndex++;
+    }
+
+    // 角色过滤
+    if (role) {
+      sqlQuery += ` LEFT JOIN user_roles ur ON u.id = ur.user_id
+                    LEFT JOIN roles r ON ur.role_id = r.id`;
+      conditions.push(`r.name = $${paramIndex}`);
+      params.push(role);
+      paramIndex++;
+    }
+
+    // 搜索过滤
+    if (search) {
+      conditions.push(`(
+        u.username ILIKE $${paramIndex} OR 
+        u.email ILIKE $${paramIndex} OR 
+        u.nickname ILIKE $${paramIndex}
+      )`);
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    if (conditions.length > 0) {
+      sqlQuery += ` WHERE ${conditions.join(' AND ')}`;
+    }
+
+    const result = await query(sqlQuery, params);
+    return parseInt(result.rows[0].count) || 0;
+  }
 }
 
 module.exports = User;
