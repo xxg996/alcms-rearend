@@ -82,7 +82,7 @@ const swaggerDefinition = {
   ],
   components: {
     securitySchemes: {
-      bearerAuth: {
+      BearerAuth: {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
@@ -160,7 +160,7 @@ const swaggerDefinition = {
   },
   security: [
     {
-      bearerAuth: []
+      BearerAuth: []
     }
   ]
 };
@@ -186,14 +186,8 @@ const swaggerUiOptions = {
     filter: true, // 启用搜索过滤
     showRequestDuration: true, // 显示请求时间
     tryItOutEnabled: true, // 启用 Try it out
-    persistAuthorization: true, // 保持认证状态
-    requestInterceptor: (req) => {
-      // 自动添加 Bearer token 前缀
-      if (req.headers.Authorization && !req.headers.Authorization.startsWith('Bearer ')) {
-        req.headers.Authorization = `Bearer ${req.headers.Authorization}`;
-      }
-      return req;
-    }
+    persistAuthorization: true // 保持认证状态
+    // 移除 requestInterceptor 避免潜在的卡住问题
   },
   customCss: `
     .swagger-ui .topbar { display: none; }
