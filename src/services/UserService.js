@@ -299,6 +299,266 @@ class UserService extends BaseService {
       }
     });
   }
+
+  /**
+   * 根据ID获取用户信息
+   */
+  async getUserById(userId) {
+    return this.withPerformanceMonitoring('getUserById', async () => {
+      try {
+        this.validateRequired({ userId }, ['userId']);
+
+        const cacheKey = `user:${userId}:detail`;
+        
+        return await this.getCached(cacheKey, async () => {
+          const user = await User.findById(userId);
+          
+          if (!user) {
+            throw new Error('用户不存在');
+          }
+
+          // 获取用户角色
+          const roles = await User.getUserRoles(userId);
+
+          const userWithRoles = {
+            ...this.sanitizeUserData(user),
+            roles: roles
+          };
+
+          return this.formatSuccessResponse(userWithRoles, '获取用户信息成功');
+        }, 300); // 缓存5分钟
+
+      } catch (error) {
+        this.handleError(error, 'getUserById');
+      }
+    });
+  }
+
+  /**
+   * 创建用户（管理员功能）
+   */
+  async createUser(adminUserId, userData) {
+    return this.withPerformanceMonitoring('createUser', async () => {
+      try {
+        this.validateRequired({ adminUserId }, ['adminUserId']);
+        this.validateRequired(userData, ['username', 'email', 'password']);
+
+        const { username, email, password, nickname, roleName = 'user', status = 'normal' } = userData;
+
+        // 验证管理员权限
+        const adminUser = await User.findById(adminUserId);
+        if (!adminUser) {
+          throw new Error('管理员账户不存在');
+        }
+
+        // 创建用户
+        const newUser = await User.createByAdmin({
+          username,
+          email,
+          password,
+          nickname,
+          roleName,
+          status
+        });
+
+        this.log('info', '管理员创建用户成功', { 
+          adminUserId, 
+          newUserId: newUser.id,
+          username,
+          email,
+          roleName,
+          status
+        });
+
+        return this.formatSuccessResponse(
+          this.sanitizeUserData(newUser),
+          '用户创建成功'
+        );
+
+      } catch (error) {
+        this.handleError(error, 'createUser');
+      }
+    });
+  }
+
+  /**
+   * 删除用户（管理员功能）
+   */
+  async deleteUser(adminUserId, targetUserId) {
+    return this.withPerformanceMonitoring('deleteUser', async () => {
+      try {
+        this.validateRequired({ adminUserId, targetUserId }, ['adminUserId', 'targetUserId']);
+
+        // 验证管理员权限
+        const adminUser = await User.findById(adminUserId);
+        if (!adminUser) {
+          throw new Error('管理员账户不存在');
+        }
+
+        // 不能删除自己
+        if (adminUserId === targetUserId) {
+          throw new Error('不能删除自己的账户');
+        }
+
+        const deletedUser = await User.deleteUser(targetUserId);
+
+        // 清除用户相关缓存
+        await this.clearCache(`user:${targetUserId}:*`);
+
+        this.log('info', '管理员删除用户成功', { 
+          adminUserId, 
+          deletedUserId: targetUserId,
+          deletedUsername: deletedUser.username
+        });
+
+        return this.formatSuccessResponse(
+          { deletedUser: this.sanitizeUserData(deletedUser) },
+          '用户删除成功'
+        );
+
+      } catch (error) {
+        this.handleError(error, 'deleteUser');
+      }
+    });
+  }
+
+  /**
+   * 分配用户角色
+   */
+  async assignUserRole(adminUserId, targetUserId, roleName) {
+    return this.withPerformanceMonitoring('assignUserRole', async () => {
+      try {
+        this.validateRequired({ adminUserId, targetUserId, roleName }, 
+          ['adminUserId', 'targetUserId', 'roleName']);
+
+        // 验证管理员权限
+        const adminUser = await User.findById(adminUserId);
+        if (!adminUser) {
+          throw new Error('管理员账户不存在');
+        }
+
+        // 验证目标用户存在
+        const targetUser = await User.findById(targetUserId);
+        if (!targetUser) {
+          throw new Error('目标用户不存在');
+        }
+
+        // 分配角色
+        await User.assignRole(targetUserId, roleName);
+
+        // 清除用户相关缓存
+        await this.clearCache(`user:${targetUserId}:*`);
+
+        this.log('info', '分配用户角色成功', { 
+          adminUserId, 
+          targetUserId, 
+          roleName 
+        });
+
+        return this.formatSuccessResponse(null, `角色 ${roleName} 分配成功`);
+
+      } catch (error) {
+        this.handleError(error, 'assignUserRole');
+      }
+    });
+  }
+
+  /**
+   * 移除用户角色
+   */
+  async removeUserRole(adminUserId, targetUserId, roleName) {
+    return this.withPerformanceMonitoring('removeUserRole', async () => {
+      try {
+        this.validateRequired({ adminUserId, targetUserId, roleName }, 
+          ['adminUserId', 'targetUserId', 'roleName']);
+
+        // 验证管理员权限
+        const adminUser = await User.findById(adminUserId);
+        if (!adminUser) {
+          throw new Error('管理员账户不存在');
+        }
+
+        // 验证目标用户存在
+        const targetUser = await User.findById(targetUserId);
+        if (!targetUser) {
+          throw new Error('目标用户不存在');
+        }
+
+        // 移除角色
+        await User.removeRole(targetUserId, roleName);
+
+        // 清除用户相关缓存
+        await this.clearCache(`user:${targetUserId}:*`);
+
+        this.log('info', '移除用户角色成功', { 
+          adminUserId, 
+          targetUserId, 
+          roleName 
+        });
+
+        return this.formatSuccessResponse(null, `角色 ${roleName} 移除成功`);
+
+      } catch (error) {
+        this.handleError(error, 'removeUserRole');
+      }
+    });
+  }
+
+  /**
+   * 获取用户角色列表
+   */
+  async getUserRoles(userId) {
+    return this.withPerformanceMonitoring('getUserRoles', async () => {
+      try {
+        this.validateRequired({ userId }, ['userId']);
+
+        const cacheKey = `user:${userId}:roles`;
+        
+        return await this.getCached(cacheKey, async () => {
+          // 验证用户存在
+          const user = await User.findById(userId);
+          if (!user) {
+            throw new Error('用户不存在');
+          }
+
+          const roles = await User.getUserRoles(userId);
+          
+          return this.formatSuccessResponse(roles, '获取用户角色成功');
+        }, 300); // 缓存5分钟
+
+      } catch (error) {
+        this.handleError(error, 'getUserRoles');
+      }
+    });
+  }
+
+  /**
+   * 获取用户权限列表
+   */
+  async getUserPermissions(userId) {
+    return this.withPerformanceMonitoring('getUserPermissions', async () => {
+      try {
+        this.validateRequired({ userId }, ['userId']);
+
+        const cacheKey = `user:${userId}:permissions`;
+        
+        return await this.getCached(cacheKey, async () => {
+          // 验证用户存在
+          const user = await User.findById(userId);
+          if (!user) {
+            throw new Error('用户不存在');
+          }
+
+          const permissions = await User.getUserPermissions(userId);
+          
+          return this.formatSuccessResponse(permissions, '获取用户权限成功');
+        }, 600); // 缓存10分钟
+
+      } catch (error) {
+        this.handleError(error, 'getUserPermissions');
+      }
+    });
+  }
 }
 
 module.exports = new UserService();

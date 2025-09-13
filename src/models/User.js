@@ -158,6 +158,43 @@ class User {
   }
 
   /**
+   * 根据ID更新用户信息（通用方法）
+   * @param {number} userId - 用户ID
+   * @param {Object} updateData - 更新的数据
+   * @returns {Promise<Object>} 更新后的用户信息
+   */
+  static async updateById(userId, updateData) {
+    const fields = Object.keys(updateData);
+    const updateFields = [];
+    const values = [];
+    let paramIndex = 1;
+
+    for (const field of fields) {
+      updateFields.push(`${field} = $${paramIndex}`);
+      values.push(updateData[field]);
+      paramIndex++;
+    }
+
+    if (updateFields.length === 0) {
+      throw new Error('没有可更新的字段');
+    }
+
+    values.push(userId);
+    const result = await query(
+      `UPDATE users SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $${paramIndex} 
+       RETURNING id, username, email, nickname, avatar_url, bio, status, created_at, updated_at`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('用户不存在');
+    }
+
+    return result.rows[0];
+  }
+
+  /**
    * 修改用户状态
    * @param {number} userId - 用户ID
    * @param {string} status - 新状态 (normal, banned, frozen)
@@ -201,6 +238,41 @@ class User {
 
     await query(
       'INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2) ON CONFLICT (user_id, role_id) DO NOTHING',
+      [userId, roleId]
+    );
+  }
+
+  /**
+   * 移除用户角色
+   * @param {number} userId - 用户ID
+   * @param {string} roleName - 角色名称
+   * @returns {Promise<void>}
+   */
+  static async removeRole(userId, roleName) {
+    const roleResult = await query(
+      'SELECT id FROM roles WHERE name = $1',
+      [roleName]
+    );
+
+    if (roleResult.rows.length === 0) {
+      throw new Error('角色不存在');
+    }
+
+    const roleId = roleResult.rows[0].id;
+
+    // 检查用户是否拥有该角色
+    const userRoleResult = await query(
+      'SELECT 1 FROM user_roles WHERE user_id = $1 AND role_id = $2',
+      [userId, roleId]
+    );
+
+    if (userRoleResult.rows.length === 0) {
+      throw new Error('用户没有该角色');
+    }
+
+    // 移除角色
+    await query(
+      'DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2',
       [userId, roleId]
     );
   }
@@ -519,6 +591,126 @@ class User {
 
     const result = await query(sqlQuery, params);
     return parseInt(result.rows[0].count) || 0;
+  }
+
+  /**
+   * 获取用户统计信息
+   * @returns {Promise<Object>} 用户统计数据
+   */
+  static async getStats() {
+    try {
+      // 获取基础统计
+      const totalStatsResult = await query(`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(CASE WHEN status = 'normal' THEN 1 END) as normal,
+          COUNT(CASE WHEN status = 'banned' THEN 1 END) as banned,
+          COUNT(CASE WHEN status = 'frozen' THEN 1 END) as frozen
+        FROM users
+      `);
+
+      // 获取角色分布统计
+      const roleStatsResult = await query(`
+        SELECT 
+          r.name as role_name,
+          r.display_name,
+          COUNT(ur.user_id) as count
+        FROM roles r
+        LEFT JOIN user_roles ur ON r.id = ur.role_id
+        GROUP BY r.id, r.name, r.display_name
+        ORDER BY count DESC
+      `);
+
+      // 获取时间段统计（今日、本周、本月新增用户）
+      const timeStatsResult = await query(`
+        SELECT
+          COUNT(CASE WHEN created_at >= CURRENT_DATE THEN 1 END) as new_today,
+          COUNT(CASE WHEN created_at >= DATE_TRUNC('week', CURRENT_DATE) THEN 1 END) as new_this_week,
+          COUNT(CASE WHEN created_at >= DATE_TRUNC('month', CURRENT_DATE) THEN 1 END) as new_this_month,
+          COUNT(CASE WHEN created_at >= DATE_TRUNC('year', CURRENT_DATE) THEN 1 END) as new_this_year
+        FROM users
+      `);
+
+      // 获取最近活跃统计（如果有last_login_at字段）
+      const activityStatsResult = await query(`
+        SELECT
+          COUNT(CASE WHEN updated_at >= CURRENT_DATE - INTERVAL '1 day' THEN 1 END) as active_1d,
+          COUNT(CASE WHEN updated_at >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as active_7d,
+          COUNT(CASE WHEN updated_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as active_30d
+        FROM users
+        WHERE status = 'normal'
+      `);
+
+      // 获取用户增长趋势（最近7天）
+      const growthTrendResult = await query(`
+        SELECT 
+          DATE(created_at) as date,
+          COUNT(*) as count
+        FROM users
+        WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
+        GROUP BY DATE(created_at)
+        ORDER BY date DESC
+        LIMIT 7
+      `);
+
+      const totalStats = totalStatsResult.rows[0];
+      const roleStats = roleStatsResult.rows;
+      const timeStats = timeStatsResult.rows[0];
+      const activityStats = activityStatsResult.rows[0];
+      const growthTrend = growthTrendResult.rows;
+
+      // 构建角色统计对象
+      const byRole = {};
+      roleStats.forEach(role => {
+        byRole[role.role_name] = {
+          count: parseInt(role.count) || 0,
+          display_name: role.display_name
+        };
+      });
+
+      return {
+        // 总体统计
+        total: parseInt(totalStats.total) || 0,
+        active: parseInt(totalStats.normal) || 0,
+        banned: parseInt(totalStats.banned) || 0,
+        frozen: parseInt(totalStats.frozen) || 0,
+
+        // 角色分布
+        byRole,
+
+        // 时间段新增用户
+        newUsers: {
+          today: parseInt(timeStats.new_today) || 0,
+          thisWeek: parseInt(timeStats.new_this_week) || 0,
+          thisMonth: parseInt(timeStats.new_this_month) || 0,
+          thisYear: parseInt(timeStats.new_this_year) || 0
+        },
+
+        // 活跃度统计
+        activeUsers: {
+          last1Day: parseInt(activityStats.active_1d) || 0,
+          last7Days: parseInt(activityStats.active_7d) || 0,
+          last30Days: parseInt(activityStats.active_30d) || 0
+        },
+
+        // 增长趋势
+        growthTrend: growthTrend.map(item => ({
+          date: item.date,
+          count: parseInt(item.count) || 0
+        })),
+
+        // 计算比率
+        ratios: {
+          activeRate: totalStats.total > 0 ? 
+            ((parseInt(totalStats.normal) / parseInt(totalStats.total)) * 100).toFixed(2) : '0.00',
+          bannedRate: totalStats.total > 0 ? 
+            ((parseInt(totalStats.banned) / parseInt(totalStats.total)) * 100).toFixed(2) : '0.00'
+        }
+      };
+
+    } catch (error) {
+      throw new Error(`获取用户统计失败: ${error.message}`);
+    }
   }
 }
 
