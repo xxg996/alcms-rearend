@@ -211,8 +211,8 @@ class UserService extends BaseService {
         this.validateRequired({ adminUserId, targetUserId, newStatus }, 
           ['adminUserId', 'targetUserId', 'newStatus']);
 
-        // 验证状态值
-        const validStatuses = ['active', 'inactive', 'banned'];
+        // 验证状态值（直接使用数据库状态值）
+        const validStatuses = ['normal', 'frozen', 'banned'];
         if (!validStatuses.includes(newStatus)) {
           throw new Error(`无效的状态值，必须是: ${validStatuses.join(', ')}`);
         }
@@ -223,8 +223,7 @@ class UserService extends BaseService {
         }
 
         const updatedUser = await User.updateById(targetUserId, {
-          status: newStatus,
-          updated_at: new Date()
+          status: newStatus
         });
 
         if (!updatedUser) {

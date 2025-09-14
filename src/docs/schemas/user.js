@@ -49,9 +49,9 @@
  *           example: "admin"
  *         status:
  *           type: string
- *           enum: [active, inactive, banned]
+ *           enum: [normal, frozen, banned]
  *           description: 用户状态
- *           example: "active"
+ *           example: "normal"
  *         last_login_at:
  *           type: string
  *           format: date-time
@@ -127,7 +127,7 @@
  *       properties:
  *         status:
  *           type: string
- *           enum: [active, inactive, banned]
+ *           enum: [normal, frozen, banned]
  *           description: 用户状态
  *           example: "banned"
  * 
