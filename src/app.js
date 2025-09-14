@@ -50,6 +50,7 @@ const vipRoutes = require('./routes/vip');
 const cardKeyRoutes = require('./routes/cardKey');
 const pointsRoutes = require('./routes/points');
 const checkinRoutes = require('./routes/checkin');
+const rolePermissionRoutes = require('./routes/rolePermissions');
 
 // 创建Express应用实例
 const app = express();
@@ -96,6 +97,7 @@ app.use('/api/vip', vipRoutes);
 app.use('/api/card-keys', cardKeyRoutes);
 app.use('/api/points', pointsRoutes);
 app.use('/api/checkin', checkinRoutes);
+app.use('/api/admin', rolePermissionRoutes);
 
 // CMS路由注册
 app.use('/api/resources', require('./routes/resources'));
