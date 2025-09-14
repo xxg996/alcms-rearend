@@ -680,6 +680,114 @@ class UserService extends BaseService {
       }
     });
   }
+
+  /**
+   * 更新用户资料（管理员功能）
+   */
+  async updateUserProfile(adminUserId, targetUserId, updateData) {
+    return this.withPerformanceMonitoring('updateUserProfile', async () => {
+      try {
+        this.validateRequired({ adminUserId, targetUserId }, ['adminUserId', 'targetUserId']);
+
+        // 验证管理员权限
+        const adminUser = await User.findById(adminUserId);
+        if (!adminUser) {
+          throw new Error('管理员账户不存在');
+        }
+
+        // 验证目标用户存在
+        const targetUser = await User.findById(targetUserId);
+        if (!targetUser) {
+          throw new Error('目标用户不存在');
+        }
+
+        const { username, email, nickname, avatar_url, bio } = updateData;
+        const profileUpdateData = {};
+
+        // 验证用户名
+        if (username !== undefined) {
+          if (!username || username.length < 3 || username.length > 50) {
+            throw new Error('用户名长度必须在3-50个字符之间');
+          }
+          
+          // 检查用户名是否已存在（除了目标用户自己）
+          const existingUser = await User.findByUsernameExcludeId(username, targetUserId);
+          if (existingUser) {
+            throw new Error('用户名已存在');
+          }
+          
+          profileUpdateData.username = username;
+        }
+
+        // 验证邮箱
+        if (email !== undefined) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!email || !emailRegex.test(email)) {
+            throw new Error('邮箱格式不正确');
+          }
+          
+          // 检查邮箱是否已存在（除了目标用户自己）
+          const existingUser = await User.findByEmailExcludeId(email, targetUserId);
+          if (existingUser) {
+            throw new Error('邮箱已存在');
+          }
+          
+          profileUpdateData.email = email;
+        }
+
+        // 验证昵称
+        if (nickname !== undefined) {
+          if (nickname && (nickname.length < 1 || nickname.length > 100)) {
+            throw new Error('昵称长度必须在1-100个字符之间');
+          }
+          profileUpdateData.nickname = nickname;
+        }
+
+        // 验证头像URL
+        if (avatar_url !== undefined) {
+          if (avatar_url && avatar_url.length > 500) {
+            throw new Error('头像URL长度不能超过500个字符');
+          }
+          profileUpdateData.avatar_url = avatar_url;
+        }
+
+        // 验证个人简介
+        if (bio !== undefined) {
+          if (bio && bio.length > 500) {
+            throw new Error('个人简介长度不能超过500个字符');
+          }
+          profileUpdateData.bio = bio;
+        }
+
+        if (Object.keys(profileUpdateData).length === 0) {
+          throw new Error('没有提供要更新的数据');
+        }
+
+        const updatedUser = await User.updateById(targetUserId, profileUpdateData);
+
+        if (!updatedUser) {
+          throw new Error('更新用户资料失败');
+        }
+
+        // 清除用户相关缓存
+        await this.clearCache(`user:${targetUserId}:*`);
+
+        this.log('info', '管理员更新用户资料成功', { 
+          adminUserId,
+          targetUserId, 
+          updatedFields: Object.keys(profileUpdateData) 
+        });
+
+        return this.formatSuccessResponse(
+          this.sanitizeUserData(updatedUser),
+          '用户资料更新成功'
+        );
+
+      } catch (error) {
+        this.handleError(error, 'updateUserProfile');
+      }
+    });
+  }
 }
 
 module.exports = new UserService();

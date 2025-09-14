@@ -66,6 +66,13 @@ router.post('/',
   userController.createUser
 );
 
+// 更新用户资料（管理员功能）
+router.put('/:id', 
+  authenticateToken, 
+  requireRole('admin'), 
+  userController.updateUserProfile
+);
+
 // 删除用户（管理员功能）
 router.delete('/:id', 
   authenticateToken, 

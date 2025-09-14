@@ -48,6 +48,34 @@ class User {
   }
 
   /**
+   * 根据用户名查找用户（排除指定ID）
+   * @param {string} username - 用户名
+   * @param {number} excludeId - 要排除的用户ID
+   * @returns {Promise<Object|null>} 用户信息或null
+   */
+  static async findByUsernameExcludeId(username, excludeId) {
+    const result = await query(
+      'SELECT * FROM users WHERE username = $1 AND id != $2',
+      [username, excludeId]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * 根据邮箱查找用户（排除指定ID）
+   * @param {string} email - 邮箱
+   * @param {number} excludeId - 要排除的用户ID
+   * @returns {Promise<Object|null>} 用户信息或null
+   */
+  static async findByEmailExcludeId(email, excludeId) {
+    const result = await query(
+      'SELECT * FROM users WHERE email = $1 AND id != $2',
+      [email, excludeId]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
    * 创建新用户
    * @param {Object} userData - 用户数据
    * @returns {Promise<Object>} 创建的用户信息

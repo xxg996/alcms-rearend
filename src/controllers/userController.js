@@ -573,6 +573,162 @@ const createUser = async (req, res) => {
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
+
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   put:
+ *     tags: [Users]
+ *     summary: 更新用户资料
+ *     description: 管理员更新指定用户的资料信息（仅限管理员）
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *         example: 123
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 50
+ *                 description: 用户名
+ *                 example: "newusername"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: 邮箱地址
+ *                 example: "newemail@example.com"
+ *               nickname:
+ *                 type: string
+ *                 maxLength: 100
+ *                 description: 昵称
+ *                 example: "新昵称"
+ *               bio:
+ *                 type: string
+ *                 maxLength: 500
+ *                 description: 个人简介
+ *                 example: "这是更新的个人简介"
+ *               avatar_url:
+ *                 type: string
+ *                 format: uri
+ *                 description: 头像URL
+ *                 example: "https://example.com/avatar.jpg"
+ *           example:
+ *             username: "updateduser"
+ *             email: "updated@example.com"
+ *             nickname: "更新的昵称"
+ *             bio: "管理员更新的个人简介"
+ *     responses:
+ *       200:
+ *         description: 用户资料更新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
+ *             example:
+ *               success: true
+ *               message: "用户资料更新成功"
+ *               data:
+ *                 id: 123
+ *                 username: "updateduser"
+ *                 email: "updated@example.com"
+ *                 nickname: "更新的昵称"
+ *                 bio: "管理员更新的个人简介"
+ *                 status: "normal"
+ *                 updated_at: "2025-09-14T12:30:00.000Z"
+ *       400:
+ *         description: 请求参数验证失败
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ValidationErrorResponse'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       404:
+ *         description: 用户不存在
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "用户不存在"
+ *       409:
+ *         description: 数据冲突（用户名或邮箱已存在）
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               username_exists:
+ *                 value:
+ *                   success: false
+ *                   message: "用户名已存在"
+ *               email_exists:
+ *                 value:
+ *                   success: false
+ *                   message: "邮箱已被使用"
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const updateUserProfile = async (req, res) => {
+  try {
+    const adminUserId = req.user.id;
+    const targetUserId = parseInt(req.params.id);
+    const updateData = req.body;
+
+    const result = await UserService.updateUserProfile(adminUserId, targetUserId, updateData);
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('更新用户资料失败:', error);
+    
+    if (error.message === '用户不存在') {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
+    if (error.message.includes('用户名已存在')) {
+      return res.status(409).json({
+        success: false,
+        message: '用户名已存在'
+      });
+    }
+
+    if (error.message.includes('邮箱已被使用')) {
+      return res.status(409).json({
+        success: false,
+        message: '邮箱已被使用'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: '更新用户资料失败'
+    });
+  }
+};
+
 const deleteUser = async (req, res) => {
   try {
     const adminUserId = req.user.id;
@@ -1088,6 +1244,15 @@ const validateBatchDelete = [
   body('userIds.*').isInt({ min: 1 }).withMessage('用户ID必须是正整数')
 ];
 
+const validateUpdateUserProfile = [
+  body('username').optional().isLength({ min: 3, max: 50 }).withMessage('用户名长度必须在3-50个字符之间')
+    .matches(/^[a-zA-Z0-9_]+$/).withMessage('用户名只能包含字母、数字和下划线'),
+  body('email').optional().isEmail().withMessage('请输入有效的邮箱地址').normalizeEmail(),
+  body('nickname').optional().isLength({ min: 1, max: 100 }).withMessage('昵称长度必须在1-100个字符之间'),
+  body('avatar_url').optional().isLength({ max: 500 }).withMessage('头像URL长度不能超过500个字符'),
+  body('bio').optional().isLength({ max: 500 }).withMessage('个人简介长度不能超过500个字符')
+];
+
 module.exports = {
   updateProfile: [validateUpdateProfile, handleValidationErrors, updateProfile],
   changePassword: [validateChangePassword, handleValidationErrors, changePassword],
@@ -1095,6 +1260,7 @@ module.exports = {
   getUserList,
   getUserById,
   createUser: [validateCreateUser, handleValidationErrors, createUser],
+  updateUserProfile: [validateUpdateUserProfile, handleValidationErrors, updateUserProfile],
   deleteUser,
   updateUserStatus: [validateUpdateUserStatus, handleValidationErrors, updateUserStatus],
   assignUserRole: [validateAssignRole, handleValidationErrors, assignUserRole],
