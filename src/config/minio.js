@@ -12,7 +12,7 @@ const minioConfig = {
   port: parseInt(process.env.MINIO_PORT) || 9000,
   useSSL: process.env.MINIO_USE_SSL === 'true',
   accessKey: process.env.MINIO_ACCESS_KEY || '5553621',
-  secretKey: process.env.MINIO_SECRET_KEY || '791112deng'
+  secretKey: process.env.MINIO_SECRET_KEY || '5553621555'
 };
 
 // 创建MinIO客户端实例
@@ -21,7 +21,6 @@ const minioClient = new Minio.Client(minioConfig);
 // 默认存储桶配置
 const BUCKETS = {
   IMAGES: process.env.MINIO_BUCKET_IMAGES || 'alcms-images',
-  DOCUMENTS: process.env.MINIO_BUCKET_DOCUMENTS || 'alcms-documents',
   AVATARS: process.env.MINIO_BUCKET_AVATARS || 'alcms-avatars'
 };
 
@@ -71,22 +70,10 @@ const generateFileName = (originalName) => {
   return `${timestamp}_${random}.${extension}`;
 };
 
-// 获取文件MIME类型对应的存储桶
-const getBucketByMimeType = (mimeType) => {
-  if (mimeType.startsWith('image/')) {
-    return BUCKETS.IMAGES;
-  } else if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text')) {
-    return BUCKETS.DOCUMENTS;
-  } else {
-    return BUCKETS.IMAGES; // 默认使用图片存储桶
-  }
-};
-
 module.exports = {
   minioClient,
   BUCKETS,
   initializeBuckets,
   getFileUrl,
-  generateFileName,
-  getBucketByMimeType
+  generateFileName
 };
