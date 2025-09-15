@@ -25,6 +25,12 @@ cache.initialize().then(() => {
   logger.error('缓存系统初始化失败:', err);
 });
 
+// 初始化MinIO存储
+const { initializeBuckets } = require('./config/minio');
+initializeBuckets().catch(err => {
+  logger.error('MinIO初始化失败:', err);
+});
+
 // 导入 Swagger 配置
 const { swaggerDocument, swaggerUi, swaggerOptions } = require('./config/swagger');
 
@@ -51,6 +57,7 @@ const cardKeyRoutes = require('./routes/cardKey');
 const pointsRoutes = require('./routes/points');
 const checkinRoutes = require('./routes/checkin');
 const rolePermissionRoutes = require('./routes/rolePermissions');
+const uploadRoutes = require('./routes/upload');
 
 // 创建Express应用实例
 const app = express();
@@ -98,6 +105,12 @@ app.use('/api/card-keys', cardKeyRoutes);
 app.use('/api/points', pointsRoutes);
 app.use('/api/checkin', checkinRoutes);
 app.use('/api/admin', rolePermissionRoutes);
+
+// 文件管理路由注册 (删除等操作)
+app.use('/api/upload', uploadRoutes);
+
+// 预签名上传路由注册 (主要上传方式)
+app.use('/api/upload/presigned', require('./routes/presignedUpload'));
 
 // CMS路由注册
 app.use('/api/resources', require('./routes/resources'));

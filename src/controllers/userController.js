@@ -756,9 +756,9 @@ const deleteUser = async (req, res) => {
 /**
  * @swagger
  * /api/users/{id}/roles:
- *   post:
- *     summary: 分配用户角色
- *     description: 为指定用户分配角色（管理员功能）
+ *   put:
+ *     summary: 更改用户角色
+ *     description: 批量更改指定用户的角色，支持分配新角色和移除现有角色（管理员功能）
  *     tags: [Users]
  *     security:
  *       - BearerAuth: []
@@ -776,22 +776,63 @@ const deleteUser = async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - roleName
  *             properties:
- *               roleName:
- *                 type: string
- *                 enum: [user, vip, moderator, admin]
- *                 description: 角色名称
- *           example:
- *             roleName: "vip"
+ *               addRoles:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [user, vip, moderator, admin]
+ *                 description: 要添加的角色列表
+ *                 example: ["vip", "moderator"]
+ *               removeRoles:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [user, vip, moderator, admin]
+ *                 description: 要移除的角色列表
+ *                 example: ["user"]
+ *           examples:
+ *             addRoles:
+ *               summary: 添加角色
+ *               value:
+ *                 addRoles: ["vip", "moderator"]
+ *             removeRoles:
+ *               summary: 移除角色
+ *               value:
+ *                 removeRoles: ["user"]
+ *             mixedOperation:
+ *               summary: 同时添加和移除角色
+ *               value:
+ *                 addRoles: ["vip"]
+ *                 removeRoles: ["user"]
  *     responses:
  *       200:
- *         description: 角色分配成功
+ *         description: 角色更改成功
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         addedRoles:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                           description: 成功添加的角色
+ *                         removedRoles:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                           description: 成功移除的角色
+ *                         currentRoles:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                           description: 当前用户的所有角色
  *       400:
  *         $ref: '#/components/responses/ValidationError'
  *       401:
@@ -803,18 +844,26 @@ const deleteUser = async (req, res) => {
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-const assignUserRole = async (req, res) => {
+const updateUserRoles = async (req, res) => {
   try {
     const adminUserId = req.user.id;
     const targetUserId = parseInt(req.params.id);
-    const { roleName } = req.body;
+    const { addRoles = [], removeRoles = [] } = req.body;
 
-    const result = await UserService.assignUserRole(adminUserId, targetUserId, roleName);
+    // 验证至少有一个操作
+    if (addRoles.length === 0 && removeRoles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: '请指定要添加或移除的角色'
+      });
+    }
+
+    const result = await UserService.updateUserRoles(adminUserId, targetUserId, addRoles, removeRoles);
     
     res.json(result);
   } catch (error) {
-    logger.error('分配用户角色失败:', error);
-    if (error.message === '用户不存在' || error.message === '角色不存在') {
+    logger.error('更改用户角色失败:', error);
+    if (error.message === '用户不存在' || error.message.includes('角色不存在')) {
       res.status(404).json({
         success: false,
         message: error.message
@@ -822,86 +871,12 @@ const assignUserRole = async (req, res) => {
     } else {
       res.status(500).json({
         success: false,
-        message: error.message || '分配用户角色失败'
+        message: error.message || '更改用户角色失败'
       });
     }
   }
 };
 
-/**
- * @swagger
- * /api/users/{id}/roles:
- *   delete:
- *     summary: 移除用户角色
- *     description: 移除指定用户的角色（管理员功能）
- *     tags: [Users]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: 用户ID
- *         example: 123
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - roleName
- *             properties:
- *               roleName:
- *                 type: string
- *                 enum: [user, vip, moderator, admin]
- *                 description: 要移除的角色名称
- *           example:
- *             roleName: "vip"
- *     responses:
- *       200:
- *         description: 角色移除成功
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *       400:
- *         $ref: '#/components/responses/ValidationError'
- *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
- *       403:
- *         $ref: '#/components/responses/ForbiddenError'
- *       404:
- *         description: 用户不存在或用户没有该角色
- *       500:
- *         $ref: '#/components/responses/ServerError'
- */
-const removeUserRole = async (req, res) => {
-  try {
-    const adminUserId = req.user.id;
-    const targetUserId = parseInt(req.params.id);
-    const { roleName } = req.body;
-
-    const result = await UserService.removeUserRole(adminUserId, targetUserId, roleName);
-    
-    res.json(result);
-  } catch (error) {
-    logger.error('移除用户角色失败:', error);
-    if (error.message === '用户不存在' || error.message === '角色不存在') {
-      res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: error.message || '移除用户角色失败'
-      });
-    }
-  }
-};
 
 /**
  * @swagger
@@ -1229,8 +1204,18 @@ const validateCreateUser = [
   body('status').optional().isIn(['normal', 'banned', 'frozen']).withMessage('无效的用户状态')
 ];
 
-const validateAssignRole = [
-  body('roleName').isIn(['user', 'vip', 'moderator', 'admin']).withMessage('无效的角色名称')
+const validateUpdateRoles = [
+  body('addRoles').optional().isArray().withMessage('addRoles必须是数组'),
+  body('addRoles.*').optional().isIn(['user', 'vip', 'moderator', 'admin']).withMessage('无效的角色名称'),
+  body('removeRoles').optional().isArray().withMessage('removeRoles必须是数组'),
+  body('removeRoles.*').optional().isIn(['user', 'vip', 'moderator', 'admin']).withMessage('无效的角色名称'),
+  body().custom((value) => {
+    const { addRoles = [], removeRoles = [] } = value;
+    if (addRoles.length === 0 && removeRoles.length === 0) {
+      throw new Error('请指定要添加或移除的角色');
+    }
+    return true;
+  })
 ];
 
 const validateBatchUpdateStatus = [
@@ -1263,8 +1248,7 @@ module.exports = {
   updateUserProfile: [validateUpdateUserProfile, handleValidationErrors, updateUserProfile],
   deleteUser,
   updateUserStatus: [validateUpdateUserStatus, handleValidationErrors, updateUserStatus],
-  assignUserRole: [validateAssignRole, handleValidationErrors, assignUserRole],
-  removeUserRole: [validateAssignRole, handleValidationErrors, removeUserRole],
+  updateUserRoles: [validateUpdateRoles, handleValidationErrors, updateUserRoles],
   getUserRoles,
   getUserPermissions,
   getUserStats,

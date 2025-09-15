@@ -422,13 +422,13 @@ class UserService extends BaseService {
   }
 
   /**
-   * 分配用户角色
+   * 更改用户角色
    */
-  async assignUserRole(adminUserId, targetUserId, roleName) {
-    return this.withPerformanceMonitoring('assignUserRole', async () => {
+  async updateUserRoles(adminUserId, targetUserId, addRoles, removeRoles) {
+    return this.withPerformanceMonitoring('updateUserRoles', async () => {
       try {
-        this.validateRequired({ adminUserId, targetUserId, roleName }, 
-          ['adminUserId', 'targetUserId', 'roleName']);
+        this.validateRequired({ adminUserId, targetUserId }, 
+          ['adminUserId', 'targetUserId']);
 
         // 验证管理员权限
         const adminUser = await User.findById(adminUserId);
@@ -442,63 +442,61 @@ class UserService extends BaseService {
           throw new Error('目标用户不存在');
         }
 
-        // 分配角色
-        await User.assignRole(targetUserId, roleName);
+        const addedRoles = [];
+        const removedRoles = [];
+        const errors = [];
+
+        // 处理添加角色
+        if (addRoles && addRoles.length > 0) {
+          for (const roleName of addRoles) {
+            try {
+              await User.assignRole(targetUserId, roleName);
+              addedRoles.push(roleName);
+            } catch (error) {
+              errors.push(`添加角色 ${roleName} 失败: ${error.message}`);
+            }
+          }
+        }
+
+        // 处理移除角色
+        if (removeRoles && removeRoles.length > 0) {
+          for (const roleName of removeRoles) {
+            try {
+              await User.removeRole(targetUserId, roleName);
+              removedRoles.push(roleName);
+            } catch (error) {
+              errors.push(`移除角色 ${roleName} 失败: ${error.message}`);
+            }
+          }
+        }
+
+        // 获取用户当前角色
+        const currentRoles = await User.getUserRoles(targetUserId);
 
         // 清除用户相关缓存
         await this.clearCache(`user:${targetUserId}:*`);
 
-        this.log('info', '分配用户角色成功', { 
+        this.log('info', '更改用户角色完成', { 
           adminUserId, 
           targetUserId, 
-          roleName 
+          addedRoles,
+          removedRoles,
+          errors: errors.length > 0 ? errors : undefined
         });
 
-        return this.formatSuccessResponse(null, `角色 ${roleName} 分配成功`);
+        const message = errors.length > 0 
+          ? `角色更改部分成功，${errors.length}个操作失败` 
+          : '角色更改成功';
+
+        return this.formatSuccessResponse({
+          addedRoles,
+          removedRoles,
+          currentRoles: currentRoles.map(role => role.name),
+          errors: errors.length > 0 ? errors : undefined
+        }, message);
 
       } catch (error) {
-        this.handleError(error, 'assignUserRole');
-      }
-    });
-  }
-
-  /**
-   * 移除用户角色
-   */
-  async removeUserRole(adminUserId, targetUserId, roleName) {
-    return this.withPerformanceMonitoring('removeUserRole', async () => {
-      try {
-        this.validateRequired({ adminUserId, targetUserId, roleName }, 
-          ['adminUserId', 'targetUserId', 'roleName']);
-
-        // 验证管理员权限
-        const adminUser = await User.findById(adminUserId);
-        if (!adminUser) {
-          throw new Error('管理员账户不存在');
-        }
-
-        // 验证目标用户存在
-        const targetUser = await User.findById(targetUserId);
-        if (!targetUser) {
-          throw new Error('目标用户不存在');
-        }
-
-        // 移除角色
-        await User.removeRole(targetUserId, roleName);
-
-        // 清除用户相关缓存
-        await this.clearCache(`user:${targetUserId}:*`);
-
-        this.log('info', '移除用户角色成功', { 
-          adminUserId, 
-          targetUserId, 
-          roleName 
-        });
-
-        return this.formatSuccessResponse(null, `角色 ${roleName} 移除成功`);
-
-      } catch (error) {
-        this.handleError(error, 'removeUserRole');
+        this.handleError(error, 'updateUserRoles');
       }
     });
   }

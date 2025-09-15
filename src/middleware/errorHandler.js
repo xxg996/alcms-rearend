@@ -11,6 +11,11 @@ const { logger } = require('../utils/logger');
 const validateJsonRequest = (req, res, next) => {
   // 只对有请求体的请求进行验证
   if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+    // 跳过文件上传路由
+    if (req.path.startsWith('/api/upload/')) {
+      return next();
+    }
+    
     // 检查Content-Type
     const contentType = req.get('Content-Type');
     if (contentType && !contentType.includes('application/json')) {

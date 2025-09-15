@@ -87,18 +87,11 @@ router.put('/:id/status',
   userController.updateUserStatus
 );
 
-// 分配用户角色（管理员功能）
-router.post('/:id/roles', 
+// 更改用户角色（管理员功能）
+router.put('/:id/roles', 
   authenticateToken, 
   requireRole('admin'), 
-  userController.assignUserRole
-);
-
-// 移除用户角色（管理员功能）
-router.delete('/:id/roles', 
-  authenticateToken, 
-  requireRole('admin'), 
-  userController.removeUserRole
+  userController.updateUserRoles
 );
 
 // 获取用户角色列表（管理员功能）
