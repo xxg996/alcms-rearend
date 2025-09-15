@@ -51,10 +51,11 @@ const { logger } = require('../utils/logger');
  *                   nickname: "新用户"
  *                   role: "user"
  *                   status: "active"
- *                 access_token: "eyJhbGciOiJIUzI1NiIs..."
- *                 refresh_token: "eyJhbGciOiJIUzI1NiIs..."
- *                 token_type: "Bearer"
- *                 expires_in: 900
+ *                 tokens:
+ *                   accessToken: "eyJhbGciOiJIUzI1NiIs..."
+ *                   refreshToken: "eyJhbGciOiJIUzI1NiIs..."
+ *                   tokenType: "Bearer"
+ *                   expiresIn: "1h"
  *       400:
  *         description: 请求参数错误
  *         content:
@@ -232,10 +233,10 @@ const register = async (req, res) => {
  *                   status: "active"
  *                   roles: ["user"]
  *                 tokens:
- *                   access_token: "eyJhbGciOiJIUzI1NiIs..."
- *                   refresh_token: "eyJhbGciOiJIUzI1NiIs..."
- *                   token_type: "Bearer"
- *                   expires_in: 900
+ *                   accessToken: "eyJhbGciOiJIUzI1NiIs..."
+ *                   refreshToken: "eyJhbGciOiJIUzI1NiIs..."
+ *                   tokenType: "Bearer"
+ *                   expiresIn: "1h"
  *       400:
  *         description: 请求参数错误
  *         content:
@@ -381,10 +382,10 @@ const login = async (req, res) => {
  *               message: "令牌刷新成功"
  *               data:
  *                 tokens:
- *                   access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new_access_token"
- *                   refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new_refresh_token"
- *                   token_type: "Bearer"
- *                   expires_in: 900
+ *                   accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new_access_token"
+ *                   refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new_refresh_token"
+ *                   tokenType: "Bearer"
+ *                   expiresIn: "1h"
  *       400:
  *         description: 请求参数错误
  *         content:

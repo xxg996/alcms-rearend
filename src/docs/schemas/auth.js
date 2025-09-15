@@ -74,29 +74,34 @@
  *               type: object
  *               required:
  *                 - user
- *                 - access_token
- *                 - refresh_token
- *                 - token_type
- *                 - expires_in
+ *                 - tokens
  *               properties:
  *                 user:
  *                   $ref: '#/components/schemas/User'
- *                 access_token:
- *                   type: string
- *                   description: 访问令牌
- *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
- *                 refresh_token:
- *                   type: string
- *                   description: 刷新令牌
- *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
- *                 token_type:
- *                   type: string
- *                   description: 令牌类型
- *                   example: "Bearer"
- *                 expires_in:
- *                   type: integer
- *                   description: 访问令牌过期时间（秒）
- *                   example: 900
+ *                 tokens:
+ *                   type: object
+ *                   required:
+ *                     - accessToken
+ *                     - refreshToken
+ *                     - tokenType
+ *                     - expiresIn
+ *                   properties:
+ *                     accessToken:
+ *                       type: string
+ *                       description: 访问令牌
+ *                       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                     refreshToken:
+ *                       type: string
+ *                       description: 刷新令牌
+ *                       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                     tokenType:
+ *                       type: string
+ *                       description: 令牌类型
+ *                       example: "Bearer"
+ *                     expiresIn:
+ *                       type: string
+ *                       description: 访问令牌过期时间
+ *                       example: "1h"
  * 
  *     TokenResponse:
  *       allOf:
@@ -106,27 +111,32 @@
  *             data:
  *               type: object
  *               required:
- *                 - access_token
- *                 - refresh_token
- *                 - token_type
- *                 - expires_in
+ *                 - tokens
  *               properties:
- *                 access_token:
- *                   type: string
- *                   description: 新的访问令牌
- *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
- *                 refresh_token:
- *                   type: string
- *                   description: 新的刷新令牌
- *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
- *                 token_type:
- *                   type: string
- *                   description: 令牌类型
- *                   example: "Bearer"
- *                 expires_in:
- *                   type: integer
- *                   description: 访问令牌过期时间（秒）
- *                   example: 900
+ *                 tokens:
+ *                   type: object
+ *                   required:
+ *                     - accessToken
+ *                     - refreshToken
+ *                     - tokenType
+ *                     - expiresIn
+ *                   properties:
+ *                     accessToken:
+ *                       type: string
+ *                       description: 新的访问令牌
+ *                       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                     refreshToken:
+ *                       type: string
+ *                       description: 新的刷新令牌
+ *                       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                     tokenType:
+ *                       type: string
+ *                       description: 令牌类型
+ *                       example: "Bearer"
+ *                     expiresIn:
+ *                       type: string
+ *                       description: 访问令牌过期时间
+ *                       example: "1h"
  * 
  *     PasswordResetRequest:
  *       type: object
