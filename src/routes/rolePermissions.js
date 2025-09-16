@@ -12,9 +12,21 @@ const { authenticateToken, requireRole } = require('../middleware/auth');
 const requireAdmin = [authenticateToken, requireRole('admin')];
 
 // 角色管理路由
-router.get('/roles', 
-  ...requireAdmin, 
+router.get('/roles',
+  ...requireAdmin,
   rolePermissionController.getAllRoles
+);
+
+// 创建角色
+router.post('/roles',
+  ...requireAdmin,
+  rolePermissionController.createRole
+);
+
+// 删除角色（使用POST方法）
+router.post('/roles/delete',
+  ...requireAdmin,
+  rolePermissionController.deleteRole
 );
 
 // 权限管理路由
