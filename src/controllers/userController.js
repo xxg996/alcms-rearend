@@ -1206,9 +1206,25 @@ const validateCreateUser = [
 
 const validateUpdateRoles = [
   body('addRoles').optional().isArray().withMessage('addRoles必须是数组'),
-  body('addRoles.*').optional().isIn(['user', 'vip', 'moderator', 'admin']).withMessage('无效的角色名称'),
+  body('addRoles.*').optional().custom(async (roleName) => {
+    // 动态验证角色名称是否存在于数据库中
+    const { query } = require('../config/database');
+    const result = await query('SELECT id FROM roles WHERE name = $1', [roleName]);
+    if (result.rows.length === 0) {
+      throw new Error(`角色 "${roleName}" 不存在`);
+    }
+    return true;
+  }),
   body('removeRoles').optional().isArray().withMessage('removeRoles必须是数组'),
-  body('removeRoles.*').optional().isIn(['user', 'vip', 'moderator', 'admin']).withMessage('无效的角色名称'),
+  body('removeRoles.*').optional().custom(async (roleName) => {
+    // 动态验证角色名称是否存在于数据库中
+    const { query } = require('../config/database');
+    const result = await query('SELECT id FROM roles WHERE name = $1', [roleName]);
+    if (result.rows.length === 0) {
+      throw new Error(`角色 "${roleName}" 不存在`);
+    }
+    return true;
+  }),
   body().custom((value) => {
     const { addRoles = [], removeRoles = [] } = value;
     if (addRoles.length === 0 && removeRoles.length === 0) {
