@@ -502,6 +502,7 @@ class User {
       SELECT DISTINCT u.id, u.username, u.email, u.nickname, u.avatar_url,
              u.bio, u.status, u.created_at, u.updated_at,
              u.is_vip, u.vip_level, u.vip_expire_at, u.vip_activated_at,
+             u.points, u.total_points,
              vl.name as vip_level_name, vl.display_name as vip_level_display_name,
              array_agg(DISTINCT r.name) as roles
       FROM users u
@@ -563,6 +564,7 @@ class User {
       GROUP BY u.id, u.username, u.email, u.nickname, u.avatar_url,
                u.bio, u.status, u.created_at, u.updated_at,
                u.is_vip, u.vip_level, u.vip_expire_at, u.vip_activated_at,
+               u.points, u.total_points,
                vl.name, vl.display_name
       ORDER BY u.created_at DESC
     `;
@@ -590,16 +592,8 @@ class User {
       return {
         ...row,
         roles: row.roles.filter(role => role !== null),
-        vip_info: {
-          is_vip: row.is_vip,
-          vip_level: row.vip_level,
-          vip_level_name: row.vip_level_name,
-          vip_level_display_name: row.vip_level_display_name,
-          vip_expire_at: row.vip_expire_at,
-          vip_activated_at: row.vip_activated_at,
-          is_expired: isVipExpired,
-          is_permanent: row.is_vip && !row.vip_expire_at
-        }
+        is_vip_expired: isVipExpired,
+        is_vip_permanent: row.is_vip && !row.vip_expire_at
       };
     });
   }

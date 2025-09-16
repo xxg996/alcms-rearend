@@ -68,8 +68,52 @@
  *           format: date-time
  *           description: 更新时间
  *           example: "2025-09-12T12:00:00.000Z"
- *         vip_info:
- *           $ref: '#/components/schemas/UserVipInfo'
+ *         points:
+ *           type: integer
+ *           description: 用户当前积分
+ *           example: 1500
+ *         total_points:
+ *           type: integer
+ *           description: 用户累计积分
+ *           example: 3000
+ *         is_vip:
+ *           type: boolean
+ *           description: 是否为VIP用户
+ *           example: true
+ *         vip_level:
+ *           type: integer
+ *           description: VIP等级
+ *           example: 1
+ *         vip_level_name:
+ *           type: string
+ *           nullable: true
+ *           description: VIP等级名称
+ *           example: "vip1"
+ *         vip_level_display_name:
+ *           type: string
+ *           nullable: true
+ *           description: VIP等级显示名称
+ *           example: "普通VIP"
+ *         vip_expire_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           description: VIP过期时间
+ *           example: "2025-12-31T23:59:59.000Z"
+ *         vip_activated_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           description: VIP激活时间
+ *           example: "2025-09-12T08:00:00.000Z"
+ *         is_vip_expired:
+ *           type: boolean
+ *           description: VIP是否已过期
+ *           example: false
+ *         is_vip_permanent:
+ *           type: boolean
+ *           description: 是否为永久VIP
+ *           example: false
  * 
  *     UserProfile:
  *       type: object
@@ -120,7 +164,7 @@
  *                 items:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/UserWithVipInfo'
+ *                     $ref: '#/components/schemas/User'
  * 
  *     UpdateUserStatusRequest:
  *       type: object
@@ -179,56 +223,6 @@
  *           type: integer
  *           description: 本月新增用户数
  *           example: 720
- *
- *     UserVipInfo:
- *       type: object
- *       properties:
- *         is_vip:
- *           type: boolean
- *           description: 是否为VIP用户
- *           example: true
- *         vip_level:
- *           type: integer
- *           description: VIP等级
- *           example: 1
- *         vip_level_name:
- *           type: string
- *           nullable: true
- *           description: VIP等级名称
- *           example: "vip1"
- *         vip_level_display_name:
- *           type: string
- *           nullable: true
- *           description: VIP等级显示名称
- *           example: "普通VIP"
- *         vip_expire_at:
- *           type: string
- *           format: date-time
- *           nullable: true
- *           description: VIP过期时间
- *           example: "2025-12-31T23:59:59.000Z"
- *         vip_activated_at:
- *           type: string
- *           format: date-time
- *           nullable: true
- *           description: VIP激活时间
- *           example: "2025-09-12T08:00:00.000Z"
- *         is_expired:
- *           type: boolean
- *           description: VIP是否已过期
- *           example: false
- *         is_permanent:
- *           type: boolean
- *           description: 是否为永久VIP
- *           example: false
- *
- *     UserWithVipInfo:
- *       allOf:
- *         - $ref: '#/components/schemas/User'
- *         - type: object
- *           properties:
- *             vip_info:
- *               $ref: '#/components/schemas/UserVipInfo'
  *
  *     EnhancedUserStats:
  *       type: object
