@@ -9,13 +9,19 @@ const User = require('./User');
 class VIP {
   /**
    * 获取所有VIP等级配置
+   * @param {boolean} includeInactive - 是否包含禁用的配置
    */
-  static async getAllLevels() {
-    const queryStr = `
-      SELECT * FROM vip_levels 
-      WHERE is_active = true 
-      ORDER BY level ASC
+  static async getAllLevels(includeInactive = false) {
+    let queryStr = `
+      SELECT * FROM vip_levels
     `;
+
+    if (!includeInactive) {
+      queryStr += ` WHERE is_active = true`;
+    }
+
+    queryStr += ` ORDER BY level ASC`;
+
     const result = await query(queryStr);
     return result.rows;
   }
@@ -89,12 +95,40 @@ class VIP {
   }
 
   /**
+   * 切换VIP等级状态（启用/禁用）
+   */
+  static async toggleLevelStatus(level) {
+    const queryStr = `
+      UPDATE vip_levels
+      SET is_active = NOT is_active
+      WHERE level = $1
+      RETURNING *
+    `;
+    const result = await query(queryStr, [level]);
+    return result.rows[0];
+  }
+
+  /**
+   * 设置VIP等级状态
+   */
+  static async setLevelStatus(level, isActive) {
+    const queryStr = `
+      UPDATE vip_levels
+      SET is_active = $2
+      WHERE level = $1
+      RETURNING *
+    `;
+    const result = await query(queryStr, [level, isActive]);
+    return result.rows[0];
+  }
+
+  /**
    * 删除VIP等级配置（软删除）
    */
   static async deleteLevel(level) {
     const queryStr = `
-      UPDATE vip_levels 
-      SET is_active = false 
+      UPDATE vip_levels
+      SET is_active = false
       WHERE level = $1
       RETURNING *
     `;

@@ -17,7 +17,7 @@ const { logger } = require('../utils/logger');
  *   get:
  *     tags: [VIP]
  *     summary: 获取所有VIP等级配置
- *     description: 获取系统中所有可用的VIP等级配置信息
+ *     description: 获取系统中所有VIP等级配置信息（包括已禁用的）
  *     security:
  *       - BearerAuth: []
  *     responses:
@@ -53,8 +53,8 @@ const { logger } = require('../utils/logger');
  */
 const getAllLevels = async (req, res) => {
   try {
-    const levels = await VIP.getAllLevels();
-    
+    const levels = await VIP.getAllLevels(true);
+
     res.json({
       success: true,
       message: 'VIP等级获取成功',
@@ -407,8 +407,8 @@ const updateLevel = async (req, res) => {
 
 /**
  * @swagger
- * /api/admin/vip/levels/{level}:
- *   delete:
+ * /api/admin/vip/levels/{level}/delete:
+ *   post:
  *     tags: [VIP]
  *     summary: 删除VIP等级配置
  *     description: 管理员删除指定VIP等级配置（软删除，仅限管理员）
@@ -891,7 +891,7 @@ const extendUserVIP = async (req, res) => {
 /**
  * @swagger
  * /api/admin/vip/users/{userId}/cancel:
- *   delete:
+ *   post:
  *     tags: [VIP]
  *     summary: 取消用户VIP
  *     description: 管理员取消指定用户的VIP资格（仅限管理员）
@@ -1208,12 +1208,129 @@ const updateExpiredVIP = async (req, res) => {
   }
 };
 
+
+/**
+ * @swagger
+ * /api/admin/vip/levels/{level}/status:
+ *   patch:
+ *     tags: [VIP]
+ *     summary: 设置VIP等级状态
+ *     description: 管理员设置指定VIP等级的启用/禁用状态（仅限管理员）
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: level
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 0
+ *         description: VIP等级
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - is_active
+ *             properties:
+ *               is_active:
+ *                 type: boolean
+ *                 description: 是否启用
+ *                 example: true
+ *           example:
+ *             is_active: true
+ *     responses:
+ *       200:
+ *         description: VIP等级状态设置成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/VIPLevel'
+ *             example:
+ *               success: true
+ *               message: "VIP等级状态设置成功"
+ *               data:
+ *                 id: 1
+ *                 level: 1
+ *                 name: "vip1"
+ *                 display_name: "VIP会员"
+ *                 is_active: true
+ *                 updated_at: "2025-09-17T10:35:20.456Z"
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "is_active参数为必填项"
+ *       404:
+ *         description: VIP等级不存在
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "VIP等级不存在"
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const setLevelStatus = async (req, res) => {
+  try {
+    const { level } = req.params;
+    const { is_active } = req.body;
+
+    if (typeof is_active !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'is_active参数为必填项'
+      });
+    }
+
+    const result = await VIP.setLevelStatus(parseInt(level), is_active);
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'VIP等级不存在'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'VIP等级状态设置成功',
+      data: result
+    });
+  } catch (error) {
+    logger.error('设置VIP等级状态失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '设置VIP等级状态失败'
+    });
+  }
+};
+
 module.exports = {
   getAllLevels,
   getLevelById,
   createLevel,
   updateLevel,
   deleteLevel,
+  setLevelStatus,
   getMyVIPInfo,
   getUserVIPInfo,
   setUserVIP,

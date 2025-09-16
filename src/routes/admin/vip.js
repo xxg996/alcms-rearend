@@ -27,10 +27,17 @@ router.put('/levels/:level',
 );
 
 // 删除VIP等级配置
-router.delete('/levels/:level',
+router.post('/levels/:level/delete',
   authenticateToken,
   requirePermission('vip.level.delete'),
   vipController.deleteLevel
+);
+
+// 设置VIP等级状态
+router.patch('/levels/:level/status',
+  authenticateToken,
+  requirePermission('vip.level.update'),
+  vipController.setLevelStatus
 );
 
 // VIP用户管理
@@ -56,7 +63,7 @@ router.post('/users/:userId/extend',
 );
 
 // 取消用户VIP
-router.delete('/users/:userId/cancel',
+router.post('/users/:userId/cancel',
   authenticateToken,
   requirePermission('vip.user.cancel'),
   vipController.cancelUserVIP
