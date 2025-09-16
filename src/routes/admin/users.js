@@ -99,6 +99,20 @@ router.put('/:id/profile',
   userController.updateUserProfile
 );
 
+// 更新用户信息（管理员功能）
+router.put('/:id',
+  authenticateToken,
+  requireRole('admin'),
+  userController.updateUserProfile
+);
+
+// 删除用户（管理员功能）
+router.delete('/:id',
+  authenticateToken,
+  requireRole('admin'),
+  userController.deleteUser
+);
+
 // 获取用户角色列表（管理员功能）
 router.get('/:id/roles',
   authenticateToken,

@@ -105,8 +105,9 @@ app.use('/api/card-keys', cardKeyRoutes);
 app.use('/api/points', pointsRoutes);
 app.use('/api/checkin', checkinRoutes);
 
-// 管理员功能API路由注册
+// 管理员功能API路由注册 - 角色权限管理
 app.use('/api/admin/roles', rolePermissionRoutes);
+app.use('/api/admin/permissions', rolePermissionRoutes);
 app.use('/api/admin/users', require('./routes/admin/users'));
 app.use('/api/admin/vip', require('./routes/admin/vip'));
 app.use('/api/admin/points', require('./routes/admin/points'));
