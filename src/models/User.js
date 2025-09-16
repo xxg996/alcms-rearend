@@ -496,15 +496,18 @@ class User {
    * @returns {Promise<Array>} 用户列表
    */
   static async findByFilters(options = {}) {
-    const { role, status, search, limit = 20, offset = 0 } = options;
+    const { role, status, search, vip_status, limit = 20, offset = 0 } = options;
 
     let sqlQuery = `
-      SELECT DISTINCT u.id, u.username, u.email, u.nickname, u.avatar_url, 
+      SELECT DISTINCT u.id, u.username, u.email, u.nickname, u.avatar_url,
              u.bio, u.status, u.created_at, u.updated_at,
+             u.is_vip, u.vip_level, u.vip_expire_at, u.vip_activated_at,
+             vl.name as vip_level_name, vl.display_name as vip_level_display_name,
              array_agg(DISTINCT r.name) as roles
       FROM users u
       LEFT JOIN user_roles ur ON u.id = ur.user_id
       LEFT JOIN roles r ON ur.role_id = r.id
+      LEFT JOIN vip_levels vl ON u.vip_level = vl.level AND vl.is_active = true
       WHERE 1=1
     `;
     
@@ -521,12 +524,27 @@ class User {
     // 角色过滤
     if (role) {
       sqlQuery += ` AND EXISTS (
-        SELECT 1 FROM user_roles ur2 
-        JOIN roles r2 ON ur2.role_id = r2.id 
+        SELECT 1 FROM user_roles ur2
+        JOIN roles r2 ON ur2.role_id = r2.id
         WHERE ur2.user_id = u.id AND r2.name = $${paramIndex}
       )`;
       params.push(role);
       paramIndex++;
+    }
+
+    // VIP状态过滤
+    if (vip_status) {
+      if (vip_status === 'vip') {
+        sqlQuery += ` AND u.is_vip = true`;
+      } else if (vip_status === 'non_vip') {
+        sqlQuery += ` AND u.is_vip = false`;
+      } else if (vip_status === 'expired') {
+        sqlQuery += ` AND u.is_vip = true AND u.vip_expire_at IS NOT NULL AND u.vip_expire_at < CURRENT_TIMESTAMP`;
+      } else if (vip_status === 'active') {
+        sqlQuery += ` AND u.is_vip = true AND (u.vip_expire_at IS NULL OR u.vip_expire_at > CURRENT_TIMESTAMP)`;
+      } else if (vip_status === 'permanent') {
+        sqlQuery += ` AND u.is_vip = true AND u.vip_expire_at IS NULL`;
+      }
     }
 
     // 搜索过滤
@@ -542,8 +560,10 @@ class User {
 
     // 分组和排序
     sqlQuery += `
-      GROUP BY u.id, u.username, u.email, u.nickname, u.avatar_url, 
-               u.bio, u.status, u.created_at, u.updated_at
+      GROUP BY u.id, u.username, u.email, u.nickname, u.avatar_url,
+               u.bio, u.status, u.created_at, u.updated_at,
+               u.is_vip, u.vip_level, u.vip_expire_at, u.vip_activated_at,
+               vl.name, vl.display_name
       ORDER BY u.created_at DESC
     `;
 
@@ -560,10 +580,28 @@ class User {
     }
 
     const result = await query(sqlQuery, params);
-    return result.rows.map(row => ({
-      ...row,
-      roles: row.roles.filter(role => role !== null)
-    }));
+    return result.rows.map(row => {
+      // 检查VIP是否过期
+      let isVipExpired = false;
+      if (row.is_vip && row.vip_expire_at) {
+        isVipExpired = new Date(row.vip_expire_at) < new Date();
+      }
+
+      return {
+        ...row,
+        roles: row.roles.filter(role => role !== null),
+        vip_info: {
+          is_vip: row.is_vip,
+          vip_level: row.vip_level,
+          vip_level_name: row.vip_level_name,
+          vip_level_display_name: row.vip_level_display_name,
+          vip_expire_at: row.vip_expire_at,
+          vip_activated_at: row.vip_activated_at,
+          is_expired: isVipExpired,
+          is_permanent: row.is_vip && !row.vip_expire_at
+        }
+      };
+    });
   }
 
   /**
@@ -575,7 +613,7 @@ class User {
    * @returns {Promise<number>} 用户总数
    */
   static async countByFilters(options = {}) {
-    const { role, status, search } = options;
+    const { role, status, search, vip_status } = options;
 
     let sqlQuery = `
       SELECT COUNT(DISTINCT u.id) as count
@@ -605,12 +643,27 @@ class User {
     // 搜索过滤
     if (search) {
       conditions.push(`(
-        u.username ILIKE $${paramIndex} OR 
-        u.email ILIKE $${paramIndex} OR 
+        u.username ILIKE $${paramIndex} OR
+        u.email ILIKE $${paramIndex} OR
         u.nickname ILIKE $${paramIndex}
       )`);
       params.push(`%${search}%`);
       paramIndex++;
+    }
+
+    // VIP状态过滤
+    if (vip_status) {
+      if (vip_status === 'vip') {
+        conditions.push(`u.is_vip = true`);
+      } else if (vip_status === 'non_vip') {
+        conditions.push(`u.is_vip = false`);
+      } else if (vip_status === 'expired') {
+        conditions.push(`u.is_vip = true AND u.vip_expire_at IS NOT NULL AND u.vip_expire_at < CURRENT_TIMESTAMP`);
+      } else if (vip_status === 'active') {
+        conditions.push(`u.is_vip = true AND (u.vip_expire_at IS NULL OR u.vip_expire_at > CURRENT_TIMESTAMP)`);
+      } else if (vip_status === 'permanent') {
+        conditions.push(`u.is_vip = true AND u.vip_expire_at IS NULL`);
+      }
     }
 
     if (conditions.length > 0) {
@@ -639,7 +692,7 @@ class User {
 
       // 获取角色分布统计
       const roleStatsResult = await query(`
-        SELECT 
+        SELECT
           r.name as role_name,
           r.display_name,
           COUNT(ur.user_id) as count
@@ -647,6 +700,31 @@ class User {
         LEFT JOIN user_roles ur ON r.id = ur.role_id
         GROUP BY r.id, r.name, r.display_name
         ORDER BY count DESC
+      `);
+
+      // 获取VIP统计
+      const vipStatsResult = await query(`
+        SELECT
+          COUNT(CASE WHEN is_vip = true THEN 1 END) as total_vip,
+          COUNT(CASE WHEN is_vip = false THEN 1 END) as total_non_vip,
+          COUNT(CASE WHEN is_vip = true AND (vip_expire_at IS NULL OR vip_expire_at > CURRENT_TIMESTAMP) THEN 1 END) as active_vip,
+          COUNT(CASE WHEN is_vip = true AND vip_expire_at IS NOT NULL AND vip_expire_at < CURRENT_TIMESTAMP THEN 1 END) as expired_vip,
+          COUNT(CASE WHEN is_vip = true AND vip_expire_at IS NULL THEN 1 END) as permanent_vip
+        FROM users
+      `);
+
+      // 获取VIP等级分布统计
+      const vipLevelStatsResult = await query(`
+        SELECT
+          u.vip_level,
+          vl.name as level_name,
+          vl.display_name as level_display_name,
+          COUNT(u.id) as count
+        FROM users u
+        LEFT JOIN vip_levels vl ON u.vip_level = vl.level AND vl.is_active = true
+        WHERE u.is_vip = true
+        GROUP BY u.vip_level, vl.name, vl.display_name
+        ORDER BY u.vip_level
       `);
 
       // 获取时间段统计（今日、本周、本月新增用户）
@@ -683,6 +761,8 @@ class User {
 
       const totalStats = totalStatsResult.rows[0];
       const roleStats = roleStatsResult.rows;
+      const vipStats = vipStatsResult.rows[0];
+      const vipLevelStats = vipLevelStatsResult.rows;
       const timeStats = timeStatsResult.rows[0];
       const activityStats = activityStatsResult.rows[0];
       const growthTrend = growthTrendResult.rows;
@@ -696,6 +776,16 @@ class User {
         };
       });
 
+      // 构建VIP等级统计对象
+      const byVipLevel = {};
+      vipLevelStats.forEach(level => {
+        byVipLevel[level.vip_level] = {
+          count: parseInt(level.count) || 0,
+          level_name: level.level_name,
+          level_display_name: level.level_display_name
+        };
+      });
+
       return {
         // 总体统计
         total: parseInt(totalStats.total) || 0,
@@ -705,6 +795,16 @@ class User {
 
         // 角色分布
         byRole,
+
+        // VIP统计
+        vip: {
+          total: parseInt(vipStats.total_vip) || 0,
+          active: parseInt(vipStats.active_vip) || 0,
+          expired: parseInt(vipStats.expired_vip) || 0,
+          permanent: parseInt(vipStats.permanent_vip) || 0,
+          non_vip: parseInt(vipStats.total_non_vip) || 0,
+          byLevel: byVipLevel
+        },
 
         // 时间段新增用户
         newUsers: {

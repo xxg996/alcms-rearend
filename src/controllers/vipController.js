@@ -761,12 +761,22 @@ const setUserVIP = async (req, res) => {
     }
 
     const result = await VIP.setUserVIP(parseInt(userId), vip_level, days || 30);
-    
+
+    // 过滤敏感信息，只返回必要的字段
+    const safeUserResult = {
+      id: result.id,
+      username: result.username,
+      is_vip: result.is_vip,
+      vip_level: result.vip_level,
+      vip_expire_at: result.vip_expire_at,
+      vip_activated_at: result.vip_activated_at
+    };
+
     res.json({
       success: true,
       message: 'VIP设置成功',
       data: {
-        user: result,
+        user: safeUserResult,
         vip_level_info: levelConfig
       }
     });
@@ -853,11 +863,21 @@ const extendUserVIP = async (req, res) => {
     }
 
     const result = await VIP.extendUserVIP(parseInt(userId), days || 30);
-    
+
+    // 过滤敏感信息，只返回必要的字段
+    const safeResult = {
+      id: result.id,
+      username: result.username,
+      is_vip: result.is_vip,
+      vip_level: result.vip_level,
+      vip_expire_at: result.vip_expire_at,
+      vip_activated_at: result.vip_activated_at
+    };
+
     res.json({
       success: true,
       message: days === 0 ? 'VIP设置为永久成功' : 'VIP延长成功',
-      data: result
+      data: safeResult
     });
   } catch (error) {
     logger.error('延长用户VIP失败:', error);
@@ -917,11 +937,20 @@ const cancelUserVIP = async (req, res) => {
   try {
     const { userId } = req.params;
     const result = await VIP.cancelUserVIP(parseInt(userId));
-    
+
+    // 过滤敏感信息，只返回必要的字段
+    const safeResult = {
+      id: result.id,
+      username: result.username,
+      is_vip: result.is_vip,
+      vip_level: result.vip_level,
+      vip_expire_at: result.vip_expire_at
+    };
+
     res.json({
       success: true,
       message: 'VIP取消成功',
-      data: result
+      data: safeResult
     });
   } catch (error) {
     logger.error('取消用户VIP失败:', error);

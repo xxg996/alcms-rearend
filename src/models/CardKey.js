@@ -144,14 +144,25 @@ class CardKey {
         // 设置或延长VIP
         const VIP = require('./VIP');
         const user = await VIP.getUserVIPInfo(userId);
-        
+
+        let vipOperationResult;
         if (user.is_vip && user.vip_level >= cardKey.vip_level) {
           // 如果用户已经是VIP且等级不低于卡密等级，则延长时间
-          result.vipResult = await VIP.extendUserVIP(userId, cardKey.vip_days);
+          vipOperationResult = await VIP.extendUserVIP(userId, cardKey.vip_days);
         } else {
           // 设置新的VIP等级
-          result.vipResult = await VIP.setUserVIP(userId, cardKey.vip_level, cardKey.vip_days);
+          vipOperationResult = await VIP.setUserVIP(userId, cardKey.vip_level, cardKey.vip_days);
         }
+
+        // 过滤敏感信息，只返回必要的字段
+        result.vipResult = {
+          id: vipOperationResult.id,
+          username: vipOperationResult.username,
+          is_vip: vipOperationResult.is_vip,
+          vip_level: vipOperationResult.vip_level,
+          vip_expire_at: vipOperationResult.vip_expire_at,
+          vip_activated_at: vipOperationResult.vip_activated_at
+        };
 
         // 创建订单记录
         const orderData = {

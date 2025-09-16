@@ -235,6 +235,12 @@ const getProfile = async (req, res) => {
  *         schema:
  *           type: string
  *         description: 搜索关键词（在用户名、邮箱、昵称中搜索）
+ *       - in: query
+ *         name: vip_status
+ *         schema:
+ *           type: string
+ *           enum: [vip, non_vip, active, expired, permanent]
+ *         description: 按VIP状态过滤（vip:所有VIP用户, non_vip:非VIP用户, active:有效VIP, expired:过期VIP, permanent:永久VIP）
  *     responses:
  *       200:
  *         description: 获取用户列表成功
@@ -251,13 +257,13 @@ const getProfile = async (req, res) => {
  */
 const getUserList = async (req, res) => {
   try {
-    const { page, limit, role, status, search } = req.query;
-    
-    const filters = { role, status, search };
+    const { page, limit, role, status, search, vip_status } = req.query;
+
+    const filters = { role, status, search, vip_status };
     const pagination = { page, limit };
 
     const result = await UserService.getUserList(filters, pagination);
-    
+
     res.json(result);
   } catch (error) {
     logger.error('获取用户列表失败:', error);
@@ -365,23 +371,52 @@ const updateUserStatus = async (req, res) => {
  *                 - type: object
  *                   properties:
  *                     data:
- *                       $ref: '#/components/schemas/UserStats'
+ *                       $ref: '#/components/schemas/EnhancedUserStats'
  *             example:
  *               success: true
  *               message: "获取用户统计成功"
  *               data:
  *                 total: 1000
  *                 active: 950
- *                 inactive: 30
  *                 banned: 20
+ *                 frozen: 30
  *                 byRole:
- *                   user: 800
- *                   vip: 150
- *                   moderator: 45
- *                   admin: 5
- *                 newUsersToday: 25
- *                 newUsersThisWeek: 180
- *                 newUsersThisMonth: 720
+ *                   user:
+ *                     count: 800
+ *                     display_name: "普通用户"
+ *                   vip:
+ *                     count: 150
+ *                     display_name: "VIP用户"
+ *                   moderator:
+ *                     count: 45
+ *                     display_name: "版主"
+ *                   admin:
+ *                     count: 5
+ *                     display_name: "管理员"
+ *                 vip:
+ *                   total: 150
+ *                   active: 120
+ *                   expired: 25
+ *                   permanent: 30
+ *                   non_vip: 850
+ *                   byLevel:
+ *                     1:
+ *                       count: 80
+ *                       level_name: "vip1"
+ *                       level_display_name: "普通VIP"
+ *                     2:
+ *                       count: 40
+ *                       level_name: "vip2"
+ *                       level_display_name: "高级VIP"
+ *                 newUsers:
+ *                   today: 25
+ *                   thisWeek: 180
+ *                   thisMonth: 720
+ *                   thisYear: 8640
+ *                 activeUsers:
+ *                   last1Day: 200
+ *                   last7Days: 600
+ *                   last30Days: 900
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  *       403:

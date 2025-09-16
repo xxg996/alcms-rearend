@@ -170,13 +170,14 @@ class UserService extends BaseService {
           pagination.limit
         );
 
-        const { role, status, search } = filters;
+        const { role, status, search, vip_status } = filters;
 
         // 构建过滤条件
         const filterOptions = {
           role,
           status,
           search,
+          vip_status,
           limit,
           offset
         };
@@ -184,7 +185,7 @@ class UserService extends BaseService {
         // 获取用户列表和总数
         const [users, totalCount] = await Promise.all([
           User.findByFilters(filterOptions),
-          User.countByFilters({ role, status, search })
+          User.countByFilters({ role, status, search, vip_status })
         ]);
 
         // 脱敏处理

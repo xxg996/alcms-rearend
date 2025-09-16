@@ -4,6 +4,7 @@
  */
 
 const { query } = require('../config/database');
+const User = require('./User');
 
 class VIP {
   /**
@@ -129,7 +130,7 @@ class VIP {
    */
   static async setUserVIP(userId, vipLevel, days = 30) {
     let expireAt = null;
-    
+
     // 如果days为0，表示无限期VIP
     if (days > 0) {
       expireAt = new Date();
@@ -137,8 +138,8 @@ class VIP {
     }
 
     const queryStr = `
-      UPDATE users 
-      SET 
+      UPDATE users
+      SET
         is_vip = true,
         vip_level = $2,
         vip_expire_at = $3,
@@ -147,6 +148,15 @@ class VIP {
       RETURNING *
     `;
     const result = await query(queryStr, [userId, vipLevel, expireAt]);
+
+    // 自动分配VIP角色
+    try {
+      await User.assignRole(userId, 'vip');
+    } catch (error) {
+      // 如果角色已存在或其他错误，记录但不影响主流程
+      console.warn(`为用户 ${userId} 分配VIP角色失败:`, error.message);
+    }
+
     return result.rows[0];
   }
 
@@ -157,19 +167,27 @@ class VIP {
     // 如果days为0，设置为无限期
     if (days === 0) {
       const queryStr = `
-        UPDATE users 
+        UPDATE users
         SET vip_expire_at = NULL
         WHERE id = $1
         RETURNING *
       `;
       const result = await query(queryStr, [userId]);
+
+      // 确保用户有VIP角色
+      try {
+        await User.assignRole(userId, 'vip');
+      } catch (error) {
+        console.warn(`为用户 ${userId} 分配VIP角色失败:`, error.message);
+      }
+
       return result.rows[0];
     }
 
     const queryStr = `
-      UPDATE users 
-      SET vip_expire_at = CASE 
-        WHEN vip_expire_at IS NULL OR vip_expire_at < CURRENT_TIMESTAMP 
+      UPDATE users
+      SET vip_expire_at = CASE
+        WHEN vip_expire_at IS NULL OR vip_expire_at < CURRENT_TIMESTAMP
         THEN CURRENT_TIMESTAMP + INTERVAL '${days} days'
         ELSE vip_expire_at + INTERVAL '${days} days'
       END
@@ -177,6 +195,14 @@ class VIP {
       RETURNING *
     `;
     const result = await query(queryStr, [userId]);
+
+    // 确保用户有VIP角色
+    try {
+      await User.assignRole(userId, 'vip');
+    } catch (error) {
+      console.warn(`为用户 ${userId} 分配VIP角色失败:`, error.message);
+    }
+
     return result.rows[0];
   }
 
@@ -185,8 +211,8 @@ class VIP {
    */
   static async cancelUserVIP(userId) {
     const queryStr = `
-      UPDATE users 
-      SET 
+      UPDATE users
+      SET
         is_vip = false,
         vip_level = 0,
         vip_expire_at = NULL
@@ -194,6 +220,15 @@ class VIP {
       RETURNING *
     `;
     const result = await query(queryStr, [userId]);
+
+    // 移除VIP角色
+    try {
+      await User.removeRole(userId, 'vip');
+    } catch (error) {
+      // 如果用户没有VIP角色或其他错误，记录但不影响主流程
+      console.warn(`为用户 ${userId} 移除VIP角色失败:`, error.message);
+    }
+
     return result.rows[0];
   }
 
@@ -202,14 +237,24 @@ class VIP {
    */
   static async updateExpiredVIP() {
     const queryStr = `
-      UPDATE users 
+      UPDATE users
       SET is_vip = false, vip_level = 0
-      WHERE is_vip = true 
-        AND vip_expire_at IS NOT NULL 
+      WHERE is_vip = true
+        AND vip_expire_at IS NOT NULL
         AND vip_expire_at < CURRENT_TIMESTAMP
       RETURNING id, username, vip_expire_at
     `;
     const result = await query(queryStr);
+
+    // 为所有过期的VIP用户移除VIP角色
+    for (const expiredUser of result.rows) {
+      try {
+        await User.removeRole(expiredUser.id, 'vip');
+      } catch (error) {
+        console.warn(`为过期用户 ${expiredUser.id} 移除VIP角色失败:`, error.message);
+      }
+    }
+
     return result.rows;
   }
 
