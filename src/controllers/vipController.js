@@ -155,7 +155,7 @@ const getLevelById = async (req, res) => {
 
 /**
  * @swagger
- * /api/vip/levels:
+ * /api/admin/vip/levels:
  *   post:
  *     tags: [VIP]
  *     summary: 创建VIP等级配置
@@ -297,7 +297,7 @@ const createLevel = async (req, res) => {
 
 /**
  * @swagger
- * /api/vip/levels/{level}:
+ * /api/admin/vip/levels/{level}:
  *   put:
  *     tags: [VIP]
  *     summary: 更新VIP等级配置
@@ -407,7 +407,7 @@ const updateLevel = async (req, res) => {
 
 /**
  * @swagger
- * /api/vip/levels/{level}:
+ * /api/admin/vip/levels/{level}:
  *   delete:
  *     tags: [VIP]
  *     summary: 删除VIP等级配置
@@ -575,7 +575,7 @@ const getMyVIPInfo = async (req, res) => {
 
 /**
  * @swagger
- * /api/vip/users/{userId}/info:
+ * /api/admin/vip/users/{userId}/info:
  *   get:
  *     tags: [VIP]
  *     summary: 获取用户VIP信息
@@ -656,7 +656,7 @@ const getUserVIPInfo = async (req, res) => {
 
 /**
  * @swagger
- * /api/vip/users/{userId}/set:
+ * /api/admin/vip/users/{userId}/set:
  *   post:
  *     tags: [VIP]
  *     summary: 设置用户VIP
@@ -781,7 +781,7 @@ const setUserVIP = async (req, res) => {
 
 /**
  * @swagger
- * /api/vip/users/{userId}/extend:
+ * /api/admin/vip/users/{userId}/extend:
  *   post:
  *     tags: [VIP]
  *     summary: 延长用户VIP时间
@@ -870,7 +870,7 @@ const extendUserVIP = async (req, res) => {
 
 /**
  * @swagger
- * /api/vip/users/{userId}/cancel:
+ * /api/admin/vip/users/{userId}/cancel:
  *   delete:
  *     tags: [VIP]
  *     summary: 取消用户VIP
@@ -1112,7 +1112,7 @@ const getOrderById = async (req, res) => {
 
 /**
  * @swagger
- * /api/vip/system/update-expired:
+ * /api/admin/vip/system/update-expired:
  *   post:
  *     tags: [VIP]
  *     summary: 更新过期VIP用户

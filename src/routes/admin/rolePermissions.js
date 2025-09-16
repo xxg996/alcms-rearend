@@ -5,8 +5,8 @@
 
 const express = require('express');
 const router = express.Router();
-const rolePermissionController = require('../controllers/rolePermissionController');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const rolePermissionController = require('../../controllers/rolePermissionController');
+const { authenticateToken, requireRole } = require('../../middleware/auth');
 
 // 需要管理员权限的所有路由
 const requireAdmin = [authenticateToken, requireRole('admin')];

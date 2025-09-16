@@ -195,7 +195,7 @@ const getProfile = async (req, res) => {
 
 /**
  * @swagger
- * /api/users:
+ * /api/admin/users:
  *   get:
  *     summary: 获取用户列表
  *     description: 获取所有用户列表，支持分页和过滤（仅限管理员）
@@ -270,7 +270,7 @@ const getUserList = async (req, res) => {
 
 /**
  * @swagger
- * /api/users/{id}/status:
+ * /api/admin/users/{id}/status:
  *   put:
  *     summary: 更新用户状态
  *     description: 修改指定用户的状态（仅限管理员）
@@ -347,7 +347,7 @@ const updateUserStatus = async (req, res) => {
 
 /**
  * @swagger
- * /api/users/stats:
+ * /api/admin/users/stats:
  *   get:
  *     summary: 获取用户统计信息
  *     description: 获取用户相关的统计数据，包括总数、状态分布、角色分布等（仅限管理员）
@@ -405,7 +405,7 @@ const getUserStats = async (req, res) => {
 
 /**
  * @swagger
- * /api/users/{id}:
+ * /api/admin/users/{id}:
  *   get:
  *     summary: 获取指定用户信息
  *     description: 根据用户ID获取指定用户的详细信息（管理员功能）
@@ -465,7 +465,7 @@ const getUserById = async (req, res) => {
 
 /**
  * @swagger
- * /api/users:
+ * /api/admin/users:
  *   post:
  *     summary: 创建用户
  *     description: 管理员创建新用户账号
@@ -534,7 +534,7 @@ const createUser = async (req, res) => {
 
 /**
  * @swagger
- * /api/users/{id}:
+ * /api/admin/users/{id}:
  *   delete:
  *     summary: 删除用户
  *     description: 管理员删除指定用户账号（危险操作）
@@ -576,7 +576,7 @@ const createUser = async (req, res) => {
 
 /**
  * @swagger
- * /api/users/{id}:
+ * /api/admin/users/{id}:
  *   put:
  *     tags: [Users]
  *     summary: 更新用户资料
@@ -755,7 +755,7 @@ const deleteUser = async (req, res) => {
 
 /**
  * @swagger
- * /api/users/{id}/roles:
+ * /api/admin/users/{id}/roles:
  *   put:
  *     summary: 更改用户角色
  *     description: 批量更改指定用户的角色，支持分配新角色和移除现有角色（管理员功能）
@@ -880,7 +880,7 @@ const updateUserRoles = async (req, res) => {
 
 /**
  * @swagger
- * /api/users/{id}/roles:
+ * /api/admin/users/{id}/roles:
  *   get:
  *     summary: 获取用户角色列表
  *     description: 获取指定用户的所有角色（管理员功能）
@@ -942,7 +942,7 @@ const getUserRoles = async (req, res) => {
 
 /**
  * @swagger
- * /api/users/{id}/permissions:
+ * /api/admin/users/{id}/permissions:
  *   get:
  *     summary: 获取用户权限列表
  *     description: 获取指定用户的所有权限（管理员功能）
@@ -1023,7 +1023,7 @@ const validateUpdateUserStatus = [
 
 /**
  * @swagger
- * /api/users/batch/status:
+ * /api/admin/users/batch/status:
  *   patch:
  *     summary: 批量更改用户状态
  *     description: 批量更改多个用户的状态（管理员功能）
@@ -1105,7 +1105,7 @@ const batchUpdateUserStatus = async (req, res) => {
 
 /**
  * @swagger
- * /api/users/batch/delete:
+ * /api/admin/users/batch/delete:
  *   post:
  *     summary: 批量删除用户
  *     description: 批量删除多个用户账号（管理员功能，危险操作）
@@ -1238,6 +1238,144 @@ const validateUpdateUserProfile = [
   body('bio').optional().isLength({ max: 500 }).withMessage('个人简介长度不能超过500个字符')
 ];
 
+/**
+ * 分配用户角色
+ */
+const assignUserRole = async (req, res) => {
+  try {
+    const adminUserId = req.user.id;
+    const targetUserId = parseInt(req.params.id);
+    const { roleName } = req.body;
+
+    const result = await UserService.assignUserRole(adminUserId, targetUserId, roleName);
+
+    res.json(result);
+  } catch (error) {
+    logger.error('分配用户角色失败:', error);
+    if (error.message === '用户不存在' || error.message.includes('角色不存在')) {
+      res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message || '分配用户角色失败'
+      });
+    }
+  }
+};
+
+/**
+ * 撤销用户角色
+ */
+const revokeUserRole = async (req, res) => {
+  try {
+    const adminUserId = req.user.id;
+    const targetUserId = parseInt(req.params.id);
+    const roleId = parseInt(req.params.roleId);
+
+    const result = await UserService.revokeUserRole(adminUserId, targetUserId, roleId);
+
+    res.json(result);
+  } catch (error) {
+    logger.error('撤销用户角色失败:', error);
+    if (error.message === '用户不存在' || error.message.includes('角色不存在')) {
+      res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message || '撤销用户角色失败'
+      });
+    }
+  }
+};
+
+/**
+ * 冻结用户
+ */
+const freezeUser = async (req, res) => {
+  try {
+    const adminUserId = req.user.id;
+    const targetUserId = parseInt(req.params.id);
+    const { reason } = req.body;
+
+    const result = await UserService.freezeUser(adminUserId, targetUserId, reason);
+
+    res.json(result);
+  } catch (error) {
+    logger.error('冻结用户失败:', error);
+    if (error.message === '用户不存在') {
+      res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message || '冻结用户失败'
+      });
+    }
+  }
+};
+
+/**
+ * 解冻用户
+ */
+const unfreezeUser = async (req, res) => {
+  try {
+    const adminUserId = req.user.id;
+    const targetUserId = parseInt(req.params.id);
+
+    const result = await UserService.unfreezeUser(adminUserId, targetUserId);
+
+    res.json(result);
+  } catch (error) {
+    logger.error('解冻用户失败:', error);
+    if (error.message === '用户不存在') {
+      res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message || '解冻用户失败'
+      });
+    }
+  }
+};
+
+/**
+ * 重置用户密码
+ */
+const resetUserPassword = async (req, res) => {
+  try {
+    const adminUserId = req.user.id;
+    const targetUserId = parseInt(req.params.id);
+
+    const result = await UserService.resetUserPassword(adminUserId, targetUserId);
+
+    res.json(result);
+  } catch (error) {
+    logger.error('重置用户密码失败:', error);
+    if (error.message === '用户不存在') {
+      res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message || '重置用户密码失败'
+      });
+    }
+  }
+};
+
 module.exports = {
   updateProfile: [validateUpdateProfile, handleValidationErrors, updateProfile],
   changePassword: [validateChangePassword, handleValidationErrors, changePassword],
@@ -1253,5 +1391,10 @@ module.exports = {
   getUserPermissions,
   getUserStats,
   batchUpdateUserStatus: [validateBatchUpdateStatus, handleValidationErrors, batchUpdateUserStatus],
-  batchDeleteUsers: [validateBatchDelete, handleValidationErrors, batchDeleteUsers]
+  batchDeleteUsers: [validateBatchDelete, handleValidationErrors, batchDeleteUsers],
+  assignUserRole,
+  revokeUserRole,
+  freezeUser,
+  unfreezeUser,
+  resetUserPassword
 };

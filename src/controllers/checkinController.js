@@ -403,7 +403,7 @@ const getCheckinLeaderboard = async (req, res) => {
 
 /**
  * @swagger
- * /api/checkin/configs:
+ * /api/admin/checkin/configs:
  *   get:
  *     tags: [签到管理]
  *     summary: 获取所有签到配置
@@ -465,7 +465,7 @@ const getAllConfigs = async (req, res) => {
 
 /**
  * @swagger
- * /api/checkin/configs:
+ * /api/admin/checkin/configs:
  *   post:
  *     tags: [签到管理]
  *     summary: 创建签到配置
@@ -620,7 +620,7 @@ const createConfig = async (req, res) => {
 
 /**
  * @swagger
- * /api/checkin/configs/{configId}:
+ * /api/admin/checkin/configs/{configId}:
  *   put:
  *     tags: [签到管理]
  *     summary: 更新签到配置
@@ -734,7 +734,7 @@ const updateConfig = async (req, res) => {
 
 /**
  * @swagger
- * /api/checkin/users/{userId}/info:
+ * /api/admin/checkin/users/{userId}/info:
  *   get:
  *     tags: [签到管理]
  *     summary: 获取用户签到信息
@@ -828,7 +828,7 @@ const getUserCheckinInfo = async (req, res) => {
 
 /**
  * @swagger
- * /api/checkin/users/{userId}/history:
+ * /api/admin/checkin/users/{userId}/history:
  *   get:
  *     tags: [签到管理]
  *     summary: 获取用户签到历史
@@ -931,7 +931,7 @@ const getUserCheckinHistory = async (req, res) => {
 
 /**
  * @swagger
- * /api/checkin/users/{userId}/makeup:
+ * /api/admin/checkin/users/{userId}/makeup:
  *   post:
  *     tags: [签到管理]
  *     summary: 补签功能
@@ -1102,7 +1102,7 @@ const makeupCheckin = async (req, res) => {
 
 /**
  * @swagger
- * /api/checkin/users/{userId}/reset:
+ * /api/admin/checkin/users/{userId}/reset:
  *   post:
  *     tags: [签到管理]
  *     summary: 重置用户签到数据
@@ -1171,7 +1171,7 @@ const resetUserCheckins = async (req, res) => {
 
 /**
  * @swagger
- * /api/checkin/statistics:
+ * /api/admin/checkin/statistics:
  *   get:
  *     tags: [签到管理]
  *     summary: 获取签到统计

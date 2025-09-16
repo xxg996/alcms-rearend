@@ -258,18 +258,5 @@ router.get('/interactions/favorite/check',
 // 管理员功能路由
 // ================================
 
-// 获取举报列表 (需要管理员权限)
-router.get('/admin/reports', 
-  authenticateToken, 
-  requirePermission('community.report.handle'), 
-  CommunityInteractionController.getReports
-);
-
-// 处理举报 (需要管理员权限)
-router.patch('/admin/reports/:id', 
-  authenticateToken, 
-  requirePermission('community.report.handle'), 
-  CommunityInteractionController.handleReport
-);
 
 module.exports = router;

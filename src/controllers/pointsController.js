@@ -175,7 +175,7 @@ const getMyPointsRecords = async (req, res) => {
 
 /**
  * @swagger
- * /api/points/users/{userId}/info:
+ * /api/admin/points/users/{userId}/info:
  *   get:
  *     tags: [积分管理]
  *     summary: 获取用户积分信息
@@ -258,7 +258,7 @@ const getUserPoints = async (req, res) => {
 
 /**
  * @swagger
- * /api/points/users/{userId}/records:
+ * /api/admin/points/users/{userId}/records:
  *   get:
  *     tags: [积分管理]
  *     summary: 获取用户积分记录
@@ -359,7 +359,7 @@ const getUserPointsRecords = async (req, res) => {
 
 /**
  * @swagger
- * /api/points/users/{userId}/adjust:
+ * /api/admin/points/users/{userId}/adjust:
  *   post:
  *     tags: [积分管理]
  *     summary: 调整用户积分
@@ -477,7 +477,7 @@ const adjustUserPoints = async (req, res) => {
 
 /**
  * @swagger
- * /api/points/batch/grant:
+ * /api/admin/points/batch/grant:
  *   post:
  *     tags: [积分管理]
  *     summary: 批量发放积分
@@ -821,7 +821,7 @@ const getMyPointsRank = async (req, res) => {
 
 /**
  * @swagger
- * /api/points/statistics:
+ * /api/admin/points/statistics:
  *   get:
  *     tags: [积分管理]
  *     summary: 获取积分统计

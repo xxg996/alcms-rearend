@@ -53,13 +53,5 @@ router.get('/resources/:resourceId/stats',
   favoriteController.getResourceFavoriteStats
 );
 
-// 管理员功能路由
-
-// 获取热门收藏资源
-router.get('/admin/popular', 
-  authenticateToken, 
-  requireAdmin(), 
-  favoriteController.getPopularFavorites
-);
 
 module.exports = router;

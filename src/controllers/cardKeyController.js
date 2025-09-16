@@ -13,7 +13,7 @@ const { logger } = require('../utils/logger');
 
 /**
  * @swagger
- * /api/card-keys/generate/single:
+ * /api/admin/card-keys/generate/single:
  *   post:
  *     tags: [CardKeys]
  *     summary: 生成单个卡密
@@ -146,7 +146,7 @@ const generateSingleCard = async (req, res) => {
 
 /**
  * @swagger
- * /api/card-keys/generate/batch:
+ * /api/admin/card-keys/generate/batch:
  *   post:
  *     tags: [CardKeys]
  *     summary: 批量生成卡密
@@ -517,7 +517,7 @@ const getCardInfo = async (req, res) => {
 
 /**
  * @swagger
- * /api/card-keys/list:
+ * /api/admin/card-keys/list:
  *   get:
  *     tags: [CardKeys]
  *     summary: 获取卡密列表
@@ -619,7 +619,7 @@ const getCardsList = async (req, res) => {
 
 /**
  * @swagger
- * /api/card-keys/statistics:
+ * /api/admin/card-keys/statistics:
  *   get:
  *     tags: [CardKeys]
  *     summary: 获取卡密统计信息
@@ -688,7 +688,7 @@ const getCardsStatistics = async (req, res) => {
 
 /**
  * @swagger
- * /api/card-keys/batches:
+ * /api/admin/card-keys/batches:
  *   get:
  *     tags: [CardKeys]
  *     summary: 获取批次列表

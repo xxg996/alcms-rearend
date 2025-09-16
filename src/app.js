@@ -56,7 +56,7 @@ const vipRoutes = require('./routes/vip');
 const cardKeyRoutes = require('./routes/cardKey');
 const pointsRoutes = require('./routes/points');
 const checkinRoutes = require('./routes/checkin');
-const rolePermissionRoutes = require('./routes/rolePermissions');
+const rolePermissionRoutes = require('./routes/admin/rolePermissions');
 const uploadRoutes = require('./routes/upload');
 
 // 创建Express应用实例
@@ -97,14 +97,21 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API路由注册
+// 用户功能API路由注册
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/vip', vipRoutes);
 app.use('/api/card-keys', cardKeyRoutes);
 app.use('/api/points', pointsRoutes);
 app.use('/api/checkin', checkinRoutes);
-app.use('/api/admin', rolePermissionRoutes);
+
+// 管理员功能API路由注册
+app.use('/api/admin/roles', rolePermissionRoutes);
+app.use('/api/admin/users', require('./routes/admin/users'));
+app.use('/api/admin/vip', require('./routes/admin/vip'));
+app.use('/api/admin/points', require('./routes/admin/points'));
+app.use('/api/admin/card-keys', require('./routes/admin/cardKeys'));
+app.use('/api/admin/checkin', require('./routes/admin/checkin'));
 
 // 文件管理路由注册 (删除等操作)
 app.use('/api/upload', uploadRoutes);
@@ -118,8 +125,15 @@ app.use('/api/categories', require('./routes/categories'));
 app.use('/api/tags', require('./routes/tags'));
 app.use('/api/favorites', require('./routes/favorites'));
 
+// CMS管理员路由注册
+app.use('/api/admin/resources', require('./routes/admin/resources'));
+app.use('/api/admin/categories', require('./routes/admin/categories'));
+app.use('/api/admin/tags', require('./routes/admin/tags'));
+app.use('/api/admin/favorites', require('./routes/admin/favorites'));
+
 // 社区路由注册
 app.use('/api/community', require('./routes/community'));
+app.use('/api/admin/community', require('./routes/admin/community'));
 
 // Swagger API 文档
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
