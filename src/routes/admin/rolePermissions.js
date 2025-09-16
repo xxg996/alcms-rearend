@@ -45,29 +45,5 @@ router.post('/:roleId/permissions/revoke',
   rolePermissionController.revokePermissions
 );
 
-// 权限管理路由 - 在 /api/admin/permissions 路径下
-router.get('/',
-  ...requireAdmin,
-  (req, res, next) => {
-    // 如果是权限管理路径，调用权限控制器
-    if (req.originalUrl.includes('/permissions') && !req.originalUrl.includes('/roles')) {
-      return rolePermissionController.getAllPermissions(req, res, next);
-    }
-    // 否则继续到下一个中间件（角色管理）
-    next();
-  }
-);
-
-// 权限状态管理 - 在 /api/admin/permissions 路径下
-router.patch('/:permissionId/toggle',
-  ...requireAdmin,
-  (req, res, next) => {
-    // 只在权限路径下响应
-    if (req.originalUrl.includes('/permissions')) {
-      return rolePermissionController.togglePermission(req, res, next);
-    }
-    next();
-  }
-);
 
 module.exports = router;

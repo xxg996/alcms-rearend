@@ -57,6 +57,7 @@ const cardKeyRoutes = require('./routes/cardKey');
 const pointsRoutes = require('./routes/points');
 const checkinRoutes = require('./routes/checkin');
 const rolePermissionRoutes = require('./routes/admin/rolePermissions');
+const permissionRoutes = require('./routes/admin/permissions');
 const uploadRoutes = require('./routes/upload');
 
 // 创建Express应用实例
@@ -107,7 +108,7 @@ app.use('/api/checkin', checkinRoutes);
 
 // 管理员功能API路由注册 - 角色权限管理
 app.use('/api/admin/roles', rolePermissionRoutes);
-app.use('/api/admin/permissions', rolePermissionRoutes);
+app.use('/api/admin/permissions', permissionRoutes);
 app.use('/api/admin/users', require('./routes/admin/users'));
 app.use('/api/admin/vip', require('./routes/admin/vip'));
 app.use('/api/admin/points', require('./routes/admin/points'));
