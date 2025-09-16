@@ -33,12 +33,6 @@ router.post('/levels/:level/delete',
   vipController.deleteLevel
 );
 
-// 设置VIP等级状态
-router.patch('/levels/:level/status',
-  authenticateToken,
-  requirePermission('vip.level.update'),
-  vipController.setLevelStatus
-);
 
 // VIP用户管理
 // 获取用户VIP信息

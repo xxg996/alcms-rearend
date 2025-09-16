@@ -1209,120 +1209,6 @@ const updateExpiredVIP = async (req, res) => {
 };
 
 
-/**
- * @swagger
- * /api/admin/vip/levels/{level}/status:
- *   patch:
- *     tags: [VIP]
- *     summary: 设置VIP等级状态
- *     description: 管理员设置指定VIP等级的启用/禁用状态（仅限管理员）
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: level
- *         required: true
- *         schema:
- *           type: integer
- *           minimum: 0
- *         description: VIP等级
- *         example: 1
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - is_active
- *             properties:
- *               is_active:
- *                 type: boolean
- *                 description: 是否启用
- *                 example: true
- *           example:
- *             is_active: true
- *     responses:
- *       200:
- *         description: VIP等级状态设置成功
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/SuccessResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/VIPLevel'
- *             example:
- *               success: true
- *               message: "VIP等级状态设置成功"
- *               data:
- *                 id: 1
- *                 level: 1
- *                 name: "vip1"
- *                 display_name: "VIP会员"
- *                 is_active: true
- *                 updated_at: "2025-09-17T10:35:20.456Z"
- *       400:
- *         description: 请求参数错误
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *             example:
- *               success: false
- *               message: "is_active参数为必填项"
- *       404:
- *         description: VIP等级不存在
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *             example:
- *               success: false
- *               message: "VIP等级不存在"
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- *       500:
- *         $ref: '#/components/responses/ServerError'
- */
-const setLevelStatus = async (req, res) => {
-  try {
-    const { level } = req.params;
-    const { is_active } = req.body;
-
-    if (typeof is_active !== 'boolean') {
-      return res.status(400).json({
-        success: false,
-        message: 'is_active参数为必填项'
-      });
-    }
-
-    const result = await VIP.setLevelStatus(parseInt(level), is_active);
-
-    if (!result) {
-      return res.status(404).json({
-        success: false,
-        message: 'VIP等级不存在'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'VIP等级状态设置成功',
-      data: result
-    });
-  } catch (error) {
-    logger.error('设置VIP等级状态失败:', error);
-    res.status(500).json({
-      success: false,
-      message: '设置VIP等级状态失败'
-    });
-  }
-};
 
 module.exports = {
   getAllLevels,
@@ -1330,7 +1216,6 @@ module.exports = {
   createLevel,
   updateLevel,
   deleteLevel,
-  setLevelStatus,
   getMyVIPInfo,
   getUserVIPInfo,
   setUserVIP,
