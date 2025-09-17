@@ -13,6 +13,8 @@ const Category = require('../models/Category');
 const Tag = require('../models/Tag');
 const { generateSignedUrl, validateDownloadPermission, generateSecureResourceInfo, deobfuscateUrl } = require('../utils/downloadUtils');
 const { generateSecureResourceInfoBatch } = require('../utils/downloadUtilsBatch');
+const { checkAndResetDailyDownloads } = require('../utils/downloadLimitUtils');
+const { query } = require('../config/database');
 const { logger } = require('../utils/logger');
 
 class ResourceController {
@@ -195,7 +197,7 @@ class ResourceController {
    *   get:
    *     tags: [Resources]
    *     summary: 获取单个资源详情
-   *     description: 根据资源ID获取资源的详细信息，包括安全的下载链接
+   *     description: 根据资源ID获取资源的详细信息，包括安全的下载链接。对于已认证用户，额外返回用户的下载余量和成本信息
    *     security:
    *       - BearerAuth: []
    *     parameters:
@@ -229,13 +231,22 @@ class ResourceController {
    *                 status: "published"
    *                 is_public: true
    *                 is_free: false
-   *                 required_vip_level: "vip1"
    *                 required_points: 100
    *                 view_count: 1251
    *                 download_count: 89
    *                 like_count: 45
    *                 created_at: "2025-09-11T10:00:00.000Z"
    *                 updated_at: "2025-09-12T08:00:00.000Z"
+   *                 user_download_status:
+   *                   daily_limit: 50
+   *                   daily_used: 15
+   *                   remaining_downloads: 35
+   *                   can_download: true
+   *                   purchased_today: false
+   *                   download_cost:
+   *                     type: "download_count"
+   *                     cost: 1
+   *                   purchased_info: null
    *       400:
    *         $ref: '#/components/responses/BadRequest'
    *       401:
@@ -292,6 +303,45 @@ class ResourceController {
 
       // 生成安全的资源信息（隐藏真实下载链接）
       const secureResource = await generateSecureResourceInfo(resource, userId);
+
+      // 如果用户已登录，添加下载状态信息
+      if (userId) {
+        // 获取用户下载状态
+        const downloadStatus = await checkAndResetDailyDownloads(userId);
+
+        // 检查今日是否已购买过该资源
+        const purchaseCheck = await query(`
+          SELECT id, points_cost FROM daily_purchases
+          WHERE user_id = $1 AND resource_id = $2 AND purchase_date = CURRENT_DATE
+        `, [userId, resource.id]);
+
+        const hasPurchasedToday = purchaseCheck.rows.length > 0;
+        const purchase = purchaseCheck.rows[0];
+
+        // 计算下载成本
+        let downloadCost = null;
+        if (!resource.is_free && !hasPurchasedToday) {
+          if (downloadStatus.canDownload) {
+            downloadCost = { type: 'download_count', cost: 1 };
+          } else if (resource.required_points && resource.required_points > 0) {
+            downloadCost = { type: 'points', cost: resource.required_points };
+          }
+        }
+
+        // 添加用户下载状态信息
+        secureResource.user_download_status = {
+          daily_limit: downloadStatus.dailyLimit,
+          daily_used: downloadStatus.dailyUsed,
+          remaining_downloads: downloadStatus.remainingDownloads,
+          can_download: downloadStatus.canDownload,
+          purchased_today: hasPurchasedToday,
+          download_cost: downloadCost,
+          purchased_info: hasPurchasedToday ? {
+            cost_type: purchase.points_cost > 0 ? 'points' : 'download_count',
+            cost: purchase.points_cost || 1
+          } : null
+        };
+      }
 
       res.json({
         success: true,
@@ -692,211 +742,7 @@ class ResourceController {
     }
   }
 
-  /**
-   * @swagger
-   * /api/resources/{id}/download:
-   *   post:
-   *     tags: [Resources]
-   *     summary: 获取资源下载链接
-   *     description: 解析加密URL并返回真实下载链接，需要认证和权限验证
-   *     security:
-   *       - BearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: integer
-   *         description: 资源ID
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required:
-   *               - encrypted_url
-   *             properties:
-   *               encrypted_url:
-   *                 type: string
-   *                 description: 加密的下载URL
-   *                 example: "abc123def456..."
-   *           example:
-   *             encrypted_url: "abc123def456..."
-   *     responses:
-   *       200:
-   *         description: 获取下载链接成功
-   *         content:
-   *           application/json:
-   *             schema:
-   *               allOf:
-   *                 - $ref: '#/components/schemas/SuccessResponse'
-   *                 - type: object
-   *                   properties:
-   *                     data:
-   *                       type: object
-   *                       properties:
-   *                         download_url:
-   *                           type: string
-   *                           format: uri
-   *                           description: 真实下载链接
-   *                         file_name:
-   *                           type: string
-   *                           description: 文件名称
-   *                         file_size:
-   *                           type: integer
-   *                           description: 文件大小
-   *                         mime_type:
-   *                           type: string
-   *                           description: 文件MIME类型
-   *                         is_external:
-   *                           type: boolean
-   *                           description: 是否为外部链接
-   *             example:
-   *               success: true
-   *               message: "获取下载链接成功"
-   *               data:
-   *                 download_url: "https://cdn.example.com/files/resource.zip"
-   *                 file_name: "Vue.js 完整教程"
-   *                 file_size: 1024000
-   *                 mime_type: "application/zip"
-   *                 is_external: false
-   *       400:
-   *         description: 请求参数错误
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/ErrorResponse'
-   *             example:
-   *               success: false
-   *               message: "缺少encrypted_url参数"
-   *       401:
-   *         $ref: '#/components/responses/Unauthorized'
-   *       403:
-   *         description: 无权下载此资源
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/ErrorResponse'
-   *             example:
-   *               success: false
-   *               message: "需要VIP等级: vip1"
-   *       404:
-   *         description: 资源不存在
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/ErrorResponse'
-   *             example:
-   *               success: false
-   *               message: "资源不存在"
-   *       500:
-   *         $ref: '#/components/responses/ServerError'
-   */
-  static async downloadResource(req, res) {
-    try {
-      const { id } = req.params;
-      const { encrypted_url } = req.body || req.query;
-      const userId = req.user?.id;
-      const userAgent = req.headers['user-agent'];
-      const ipAddress = req.ip || req.connection.remoteAddress;
-
-      // 验证必需参数
-      if (!encrypted_url) {
-        return res.status(400).json({
-          success: false,
-          message: '缺少encrypted_url参数'
-        });
-      }
-
-      // 解密URL
-      const decryptedData = deobfuscateUrl(encrypted_url);
-      if (!decryptedData) {
-        return res.status(400).json({
-          success: false,
-          message: '无效的加密URL'
-        });
-      }
-
-      // 验证资源ID是否匹配
-      if (decryptedData.resourceId !== parseInt(id)) {
-        return res.status(400).json({
-          success: false,
-          message: '资源ID不匹配'
-        });
-      }
-
-      const resource = await Resource.findById(parseInt(id));
-
-      if (!resource) {
-        return res.status(404).json({
-          success: false,
-          message: '资源不存在'
-        });
-      }
-
-      // 检查下载权限
-      const permissionCheck = await validateDownloadPermission(userId, resource);
-      if (!permissionCheck.allowed) {
-        return res.status(403).json({
-          success: false,
-          message: permissionCheck.reason
-        });
-      }
-
-      // 验证URL是否属于该资源
-      const realUrl = decryptedData.url;
-      const isValidUrl = realUrl === resource.file_url || 
-                        realUrl === resource.download_url || 
-                        realUrl === resource.external_url;
-
-      if (!isValidUrl) {
-        return res.status(400).json({
-          success: false,
-          message: 'URL不属于该资源'
-        });
-      }
-
-      // 记录下载
-      await Resource.recordDownload({
-        userId,
-        resourceId: parseInt(id),
-        ipAddress,
-        userAgent,
-        downloadUrl: realUrl,
-        expiresAt: null // 真实链接不需要过期时间
-      });
-
-      // 扣除积分（如果需要）
-      if (permissionCheck.pointsToDeduct > 0) {
-        const { query } = require('../config/database');
-        await query(`
-          INSERT INTO user_points (user_id, points, reason, resource_id)
-          VALUES ($1, $2, $3, $4)
-        `, [userId, -permissionCheck.pointsToDeduct, '下载资源消耗', parseInt(id)]);
-      }
-
-      // 返回真实下载链接
-      res.json({
-        success: true,
-        message: '获取下载链接成功',
-        data: {
-          download_url: realUrl,
-          file_name: resource.title,
-          file_size: resource.file_size,
-          mime_type: resource.file_mime_type,
-          is_external: realUrl === resource.external_url
-        }
-      });
-    } catch (error) {
-      logger.error('获取下载链接失败:', error);
-      res.status(500).json({
-        success: false,
-        message: '获取下载链接失败',
-        error: error.message
-      });
-    }
-  }
+  // 注意：下载功能已迁移到 /api/admin/resources/:id/files 和 /api/user/download/:fileId
 
   /**
    * @swagger

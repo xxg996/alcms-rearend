@@ -48,17 +48,6 @@ router.delete('/:id',
   clearResourceCache // 删除后清除缓存
 );
 
-// 下载资源（需要登录，权限在控制器中检查）
-router.post('/:id/download', 
-  authenticateToken,
-  ResourceController.downloadResource
-);
-
-// 下载资源（GET方法，支持URL参数）
-router.get('/:id/download', 
-  authenticateToken,
-  ResourceController.downloadResource
-);
-
+// 注意：下载功能已迁移到 /api/admin/resources/:id/files 和 /api/user/download/:fileId
 
 module.exports = router;

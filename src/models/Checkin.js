@@ -93,6 +93,43 @@ class Checkin {
   }
 
   /**
+   * 删除签到配置
+   */
+  static async deleteConfig(configId) {
+    // 首先检查配置是否存在
+    const checkQueryStr = `
+      SELECT id, is_active FROM checkin_configs
+      WHERE id = $1
+    `;
+    const checkResult = await query(checkQueryStr, [configId]);
+
+    if (checkResult.rows.length === 0) {
+      throw new Error('签到配置不存在');
+    }
+
+    const config = checkResult.rows[0];
+
+    // 检查是否为激活状态的配置
+    if (config.is_active) {
+      throw new Error('无法删除正在使用的配置，请先停用该配置');
+    }
+
+    // 执行删除操作
+    const deleteQueryStr = `
+      DELETE FROM checkin_configs
+      WHERE id = $1 AND is_active = false
+      RETURNING *
+    `;
+    const result = await query(deleteQueryStr, [configId]);
+
+    if (result.rows.length === 0) {
+      throw new Error('删除失败，配置可能正在使用中');
+    }
+
+    return result.rows[0];
+  }
+
+  /**
    * 获取用户今日签到状态
    */
   static async getTodayCheckinStatus(userId) {

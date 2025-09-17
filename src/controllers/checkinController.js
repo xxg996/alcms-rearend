@@ -734,6 +734,114 @@ const updateConfig = async (req, res) => {
 
 /**
  * @swagger
+ * /api/admin/checkin/configs/{configId}:
+ *   delete:
+ *     tags: [签到管理]
+ *     summary: 删除签到配置
+ *     description: 管理员功能，删除指定的签到配置（仅限非激活状态的配置）
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: configId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 配置ID
+ *         example: 2
+ *     responses:
+ *       200:
+ *         description: 签到配置删除成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/CheckinConfig'
+ *             example:
+ *               success: true
+ *               message: "签到配置删除成功"
+ *               data:
+ *                 id: 2
+ *                 name: "测试配置"
+ *                 is_active: false
+ *       400:
+ *         description: 删除失败，配置正在使用中
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               config_in_use:
+ *                 summary: 配置正在使用中
+ *                 value:
+ *                   success: false
+ *                   message: "无法删除正在使用的配置，请先停用该配置"
+ *       404:
+ *         description: 配置不存在
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "签到配置不存在"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const deleteConfig = async (req, res) => {
+  try {
+    const { configId } = req.params;
+
+    // 验证配置ID
+    if (!configId || isNaN(parseInt(configId))) {
+      return res.status(400).json({
+        success: false,
+        message: '配置ID必须为有效的数字'
+      });
+    }
+
+    const deletedConfig = await Checkin.deleteConfig(parseInt(configId));
+
+    res.json({
+      success: true,
+      message: '签到配置删除成功',
+      data: deletedConfig
+    });
+  } catch (error) {
+    logger.error('删除签到配置失败:', error);
+
+    if (error.message === '签到配置不存在') {
+      return res.status(404).json({
+        success: false,
+        message: '签到配置不存在'
+      });
+    }
+
+    if (error.message === '无法删除正在使用的配置，请先停用该配置') {
+      return res.status(400).json({
+        success: false,
+        message: '无法删除正在使用的配置，请先停用该配置'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: '删除签到配置失败'
+    });
+  }
+};
+
+/**
+ * @swagger
  * /api/admin/checkin/users/{userId}/info:
  *   get:
  *     tags: [签到管理]
@@ -1258,6 +1366,7 @@ module.exports = {
   getAllConfigs,
   createConfig,
   updateConfig,
+  deleteConfig,
   getUserCheckinInfo,
   getUserCheckinHistory,
   makeupCheckin,

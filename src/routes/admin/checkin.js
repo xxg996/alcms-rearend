@@ -33,6 +33,13 @@ router.put('/configs/:configId',
   checkinController.updateConfig
 );
 
+// 删除签到配置
+router.delete('/configs/:configId',
+  authenticateToken,
+  requirePermission('checkin.config.delete'),
+  checkinController.deleteConfig
+);
+
 // 用户签到管理
 // 获取用户签到信息
 router.get('/users/:userId/info',

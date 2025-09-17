@@ -6,6 +6,11 @@
 const crypto = require('crypto');
 const { query } = require('../config/database');
 const { logger } = require('./logger');
+const {
+  checkAndResetDailyDownloads,
+  consumeDownload,
+  recordDownload
+} = require('./downloadLimitUtils');
 
 /**
  * 验证用户下载权限
@@ -29,6 +34,17 @@ async function validateDownloadPermission(userId, resource) {
         allowed: false,
         reason: '资源未发布，无法下载'
       };
+    }
+
+    // 检查每日下载次数限制（只对登录用户）
+    if (userId) {
+      const downloadStatus = await checkAndResetDailyDownloads(userId);
+      if (!downloadStatus.canDownload) {
+        return {
+          allowed: false,
+          reason: `今日下载次数已用完 (${downloadStatus.dailyUsed}/${downloadStatus.dailyLimit})`
+        };
+      }
     }
 
     // 检查公开状态
@@ -61,17 +77,6 @@ async function validateDownloadPermission(userId, resource) {
         };
       }
 
-      // 检查VIP权限
-      if (resource.required_vip_level) {
-        const userVipLevel = await getUserVipLevel(userId);
-        if (!userVipLevel || !isVipLevelSufficient(userVipLevel, resource.required_vip_level)) {
-          return {
-            allowed: false,
-            reason: `需要 ${resource.required_vip_level} 及以上会员权限`
-          };
-        }
-      }
-
       // 检查积分要求
       if (resource.required_points > 0) {
         const userPoints = await getUserPoints(userId);
@@ -81,17 +86,6 @@ async function validateDownloadPermission(userId, resource) {
             reason: `需要 ${resource.required_points} 积分，当前积分不足`
           };
         }
-      }
-    }
-
-    // 检查下载次数限制
-    if (resource.download_limit && resource.download_limit > 0) {
-      const downloadCount = await getUserResourceDownloadCount(userId, resource.id);
-      if (downloadCount >= resource.download_limit) {
-        return {
-          allowed: false,
-          reason: `下载次数已达到限制（${resource.download_limit}次）`
-        };
       }
     }
 
@@ -170,6 +164,24 @@ async function generateSignedUrl(resource, userId, options = {}) {
     const permissionCheck = await validateDownloadPermission(userId, resource);
     if (permissionCheck.pointsToDeduct > 0) {
       await deductUserPoints(userId, permissionCheck.pointsToDeduct, resource.id);
+    }
+
+    // 消耗一次下载次数（如果是登录用户）
+    if (userId) {
+      await consumeDownload(userId);
+    }
+
+    // 记录下载行为
+    if (userId) {
+      await recordDownload({
+        userId,
+        resourceId: resource.id,
+        ipAddress,
+        userAgent,
+        downloadUrl: actualDownloadUrl,
+        expiresAt,
+        isSuccessful: true
+      });
     }
 
     return {
@@ -363,15 +375,10 @@ function deobfuscateUrl(obfuscatedUrl) {
  */
 async function generateSecureResourceInfo(resource, userId = null) {
   const secureResource = { ...resource };
-  
-  // 生成下载信息数组
-  secureResource.downloadInfo = await generateDownloadInfoArray(resource, userId);
-  
-  // 移除原始的下载URL字段，确保安全
-  delete secureResource.file_url;
-  delete secureResource.download_url;
-  delete secureResource.external_url;
-  
+
+  // 注意：下载信息已迁移到 resource_files 表，通过专门的接口获取
+  // 不再在资源详情中包含下载信息
+
   return secureResource;
 }
 

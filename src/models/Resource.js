@@ -21,17 +21,9 @@ class Resource {
       categoryId,
       resourceTypeId,
       coverImageUrl,
-      fileUrl,
-      fileSize,
-      fileMimeType,
-      duration,
-      externalUrl,
-      downloadUrl,
       isPublic = true,
       isFree = true,
-      requiredVipLevel,
       requiredPoints = 0,
-      downloadLimit,
       authorId,
       tags = []
     } = resourceData;
@@ -61,16 +53,12 @@ class Resource {
       const resourceResult = await client.query(
         `INSERT INTO resources (
           title, slug, description, content, summary, category_id, resource_type_id,
-          cover_image_url, file_url, file_size, file_mime_type, duration,
-          external_url, download_url, is_public, is_free, required_vip_level,
-          required_points, download_limit, author_id, published_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+          cover_image_url, is_public, is_free, required_points, author_id, published_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *`,
         [
           title, finalSlug, description, content, summary, categoryId, resourceTypeId,
-          coverImageUrl, fileUrl, fileSize, fileMimeType, duration,
-          externalUrl, downloadUrl, isPublic, isFree, requiredVipLevel,
-          requiredPoints, downloadLimit, authorId, new Date()
+          coverImageUrl, isPublic, isFree, requiredPoints, authorId, new Date()
         ]
       );
 
@@ -237,7 +225,7 @@ class Resource {
     const resourcesQuery = `
       SELECT 
         r.id, r.title, r.slug, r.description, r.summary, r.cover_image_url,
-        r.is_public, r.is_free, r.required_vip_level, r.required_points,
+        r.is_public, r.is_free, r.required_points,
         r.view_count, r.download_count, r.like_count, r.created_at, r.published_at,
         rt.name as resource_type_name, rt.display_name as resource_type_display_name,
         c.name as category_name, c.display_name as category_display_name,
@@ -290,9 +278,7 @@ class Resource {
   static async update(id, updateData) {
     const allowedFields = [
       'title', 'slug', 'description', 'content', 'summary', 'category_id',
-      'cover_image_url', 'file_url', 'file_size', 'file_mime_type', 'duration',
-      'external_url', 'download_url', 'is_public', 'is_free', 'required_vip_level',
-      'required_points', 'download_limit', 'status'
+      'cover_image_url', 'is_public', 'is_free', 'required_points', 'status'
     ];
 
     const updateFields = [];

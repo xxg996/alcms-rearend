@@ -120,12 +120,17 @@ const resourceListCache = cacheMiddleware({
 
 /**
  * 资源详情缓存中间件
+ * 注意：包含用户下载状态等动态数据，不适合缓存
  */
 const resourceDetailCache = cacheMiddleware({
   ttl: TTL.MEDIUM, // 1小时
   keyGenerator: (req) => {
-    const userId = req.user?.id || 'anonymous';
-    return cache.generateKey('resource', 'detail', req.params.id, userId);
+    // 只缓存匿名用户的资源详情（不包含用户相关动态数据）
+    return cache.generateKey('resource', 'detail', req.params.id, 'anonymous');
+  },
+  condition: (req) => {
+    // 只为匿名用户缓存，已登录用户的响应包含动态数据，不应缓存
+    return !req.user;
   }
 });
 

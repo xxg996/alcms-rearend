@@ -37,17 +37,8 @@ async function generateSecureResourceInfoBatch(resources, userId = null) {
       // 添加标签信息
       secureResource.tags = tagsMap[resource.id] || [];
       
-      // 生成下载信息
-      secureResource.downloadInfo = generateDownloadInfoForResource(
-        resource, 
-        downloadPermissions[index], 
-        userId
-      );
-      
-      // 移除敏感的URL字段
-      delete secureResource.file_url;
-      delete secureResource.download_url;
-      delete secureResource.external_url;
+      // 注意：下载信息已迁移到 resource_files 表，通过专门的接口获取
+      // 不再在资源列表中包含下载信息
       
       return secureResource;
     });

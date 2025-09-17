@@ -31,6 +31,10 @@ initializeBuckets().catch(err => {
   logger.error('MinIO初始化失败:', err);
 });
 
+// 启动每日重置任务
+const { startDailyResetTask } = require('./tasks/dailyResetTask');
+startDailyResetTask();
+
 // 导入 Swagger 配置
 const { swaggerDocument, swaggerUi, swaggerOptions } = require('./config/swagger');
 
@@ -105,6 +109,7 @@ app.use('/api/vip', vipRoutes);
 app.use('/api/card-keys', cardKeyRoutes);
 app.use('/api/points', pointsRoutes);
 app.use('/api/checkin', checkinRoutes);
+app.use('/api/user', require('./routes/download'));
 
 // 管理员功能API路由注册 - 角色权限管理
 app.use('/api/admin/roles', rolePermissionRoutes);
@@ -114,6 +119,8 @@ app.use('/api/admin/vip', require('./routes/admin/vip'));
 app.use('/api/admin/points', require('./routes/admin/points'));
 app.use('/api/admin/card-keys', require('./routes/admin/cardKeys'));
 app.use('/api/admin/checkin', require('./routes/admin/checkin'));
+app.use('/api/admin/download', require('./routes/admin/download'));
+app.use('/api/admin', require('./routes/admin/resourceFiles'));
 
 // 文件管理路由注册 (删除等操作)
 app.use('/api/upload', uploadRoutes);

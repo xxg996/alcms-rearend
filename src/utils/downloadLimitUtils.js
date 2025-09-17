@@ -1,0 +1,300 @@
+/**
+ * 每日下载限制工具函数
+ * 处理用户每日下载次数限制和重置
+ */
+
+const { query } = require('../config/database');
+const { logger } = require('./logger');
+
+/**
+ * 检查并重置用户的每日下载次数
+ * @param {number} userId - 用户ID
+ * @returns {Promise<Object>} 用户当前下载状态
+ */
+async function checkAndResetDailyDownloads(userId) {
+  try {
+    // 获取用户当前状态
+    const userResult = await query(`
+      SELECT
+        id,
+        daily_download_limit,
+        daily_downloads_used,
+        last_download_reset_date,
+        is_vip,
+        vip_level
+      FROM users
+      WHERE id = $1
+    `, [userId]);
+
+    if (userResult.rows.length === 0) {
+      throw new Error('用户不存在');
+    }
+
+    const user = userResult.rows[0];
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD格式
+    const lastResetDate = user.last_download_reset_date?.toISOString().split('T')[0];
+
+    // 如果是新的一天，重置下载次数
+    if (lastResetDate !== today) {
+      await query(`
+        UPDATE users
+        SET
+          daily_downloads_used = 0,
+          last_download_reset_date = CURRENT_DATE
+        WHERE id = $1
+      `, [userId]);
+
+      user.daily_downloads_used = 0;
+      user.last_download_reset_date = new Date();
+
+      logger.info(`用户 ${userId} 的每日下载次数已重置`);
+    }
+
+    // 获取用户实际的下载限制（VIP用户可能有更高限制）
+    const actualLimit = await getUserActualDownloadLimit(userId, user);
+
+    return {
+      userId: user.id,
+      dailyLimit: actualLimit,
+      dailyUsed: user.daily_downloads_used,
+      remainingDownloads: Math.max(0, actualLimit - user.daily_downloads_used),
+      canDownload: user.daily_downloads_used < actualLimit
+    };
+
+  } catch (error) {
+    logger.error('检查每日下载次数失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 获取用户实际的每日下载限制
+ * @param {number} userId - 用户ID
+ * @param {Object} user - 用户信息
+ * @returns {Promise<number>} 实际下载限制
+ */
+async function getUserActualDownloadLimit(userId, user) {
+  try {
+    // 如果是VIP用户，获取VIP等级的下载限制
+    if (user.is_vip && user.vip_level > 0) {
+      const vipResult = await query(`
+        SELECT daily_download_limit
+        FROM vip_levels
+        WHERE level = $1 AND is_active = true
+      `, [user.vip_level]);
+
+      if (vipResult.rows.length > 0) {
+        const vipLimit = vipResult.rows[0].daily_download_limit;
+        // 返回VIP限制和普通用户限制中的较大值
+        return Math.max(vipLimit, user.daily_download_limit);
+      }
+    }
+
+    // 返回普通用户限制
+    return user.daily_download_limit;
+
+  } catch (error) {
+    logger.error('获取用户下载限制失败:', error);
+    // 出错时返回默认限制
+    return user.daily_download_limit || 10;
+  }
+}
+
+/**
+ * 消耗一次下载次数
+ * @param {number} userId - 用户ID
+ * @returns {Promise<Object>} 更新后的下载状态
+ */
+async function consumeDownload(userId) {
+  try {
+    // 先检查并重置每日下载次数
+    const downloadStatus = await checkAndResetDailyDownloads(userId);
+
+    if (!downloadStatus.canDownload) {
+      throw new Error(`今日下载次数已用完，限制: ${downloadStatus.dailyLimit}次`);
+    }
+
+    // 增加已使用次数
+    await query(`
+      UPDATE users
+      SET daily_downloads_used = daily_downloads_used + 1
+      WHERE id = $1
+    `, [userId]);
+
+    // 返回更新后的状态
+    return {
+      ...downloadStatus,
+      dailyUsed: downloadStatus.dailyUsed + 1,
+      remainingDownloads: downloadStatus.remainingDownloads - 1,
+      canDownload: downloadStatus.remainingDownloads > 1
+    };
+
+  } catch (error) {
+    logger.error('消耗下载次数失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 记录下载行为到下载记录表
+ * @param {Object} downloadData - 下载记录数据
+ * @returns {Promise<Object>} 下载记录
+ */
+async function recordDownload(downloadData) {
+  const {
+    userId,
+    resourceId,
+    ipAddress,
+    userAgent,
+    downloadUrl,
+    expiresAt,
+    isSuccessful = true
+  } = downloadData;
+
+  try {
+    const result = await query(`
+      INSERT INTO download_records (
+        user_id,
+        resource_id,
+        ip_address,
+        user_agent,
+        download_url,
+        expires_at,
+        is_successful
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `, [userId, resourceId, ipAddress, userAgent, downloadUrl, expiresAt, isSuccessful]);
+
+    return result.rows[0];
+
+  } catch (error) {
+    logger.error('记录下载行为失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 获取用户今日下载次数（从下载记录表统计）
+ * @param {number} userId - 用户ID
+ * @returns {Promise<number>} 今日下载次数
+ */
+async function getTodayDownloadCount(userId) {
+  try {
+    const result = await query(`
+      SELECT COUNT(*) as download_count
+      FROM download_records
+      WHERE user_id = $1
+        AND DATE(downloaded_at) = CURRENT_DATE
+        AND is_successful = true
+    `, [userId]);
+
+    return parseInt(result.rows[0].download_count) || 0;
+
+  } catch (error) {
+    logger.error('获取今日下载次数失败:', error);
+    return 0;
+  }
+}
+
+/**
+ * 批量重置所有用户的每日下载次数并清理过期购买记录（定时任务使用）
+ * @returns {Promise<number>} 重置的用户数量
+ */
+async function resetAllUsersDailyDownloads() {
+  try {
+    // 重置用户每日下载次数
+    const result = await query(`
+      UPDATE users
+      SET
+        daily_downloads_used = 0,
+        last_download_reset_date = CURRENT_DATE
+      WHERE last_download_reset_date < CURRENT_DATE
+      RETURNING id
+    `);
+
+    const resetCount = result.rows.length;
+
+    // 清理昨天及之前的购买记录
+    const cleanupResult = await query(`
+      DELETE FROM daily_purchases
+      WHERE purchase_date < CURRENT_DATE
+    `);
+
+    const cleanupCount = cleanupResult.rowCount || 0;
+
+    logger.info(`批量重置了 ${resetCount} 个用户的每日下载次数，清理了 ${cleanupCount} 条过期购买记录`);
+
+    return resetCount;
+
+  } catch (error) {
+    logger.error('批量重置每日下载次数失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 获取用户下载统计信息
+ * @param {number} userId - 用户ID
+ * @returns {Promise<Object>} 下载统计
+ */
+async function getUserDownloadStats(userId) {
+  try {
+    const downloadStatus = await checkAndResetDailyDownloads(userId);
+    const todayCount = await getTodayDownloadCount(userId);
+
+    // 获取本周下载次数
+    const weekResult = await query(`
+      SELECT COUNT(*) as week_count
+      FROM download_records
+      WHERE user_id = $1
+        AND downloaded_at >= DATE_TRUNC('week', CURRENT_DATE)
+        AND is_successful = true
+    `, [userId]);
+
+    // 获取本月下载次数
+    const monthResult = await query(`
+      SELECT COUNT(*) as month_count
+      FROM download_records
+      WHERE user_id = $1
+        AND downloaded_at >= DATE_TRUNC('month', CURRENT_DATE)
+        AND is_successful = true
+    `, [userId]);
+
+    // 获取总下载次数
+    const totalResult = await query(`
+      SELECT COUNT(*) as total_count
+      FROM download_records
+      WHERE user_id = $1 AND is_successful = true
+    `, [userId]);
+
+    return {
+      daily: {
+        limit: downloadStatus.dailyLimit,
+        used: downloadStatus.dailyUsed,
+        remaining: downloadStatus.remainingDownloads,
+        canDownload: downloadStatus.canDownload
+      },
+      statistics: {
+        today: todayCount,
+        thisWeek: parseInt(weekResult.rows[0].week_count) || 0,
+        thisMonth: parseInt(monthResult.rows[0].month_count) || 0,
+        total: parseInt(totalResult.rows[0].total_count) || 0
+      }
+    };
+
+  } catch (error) {
+    logger.error('获取用户下载统计失败:', error);
+    throw error;
+  }
+}
+
+module.exports = {
+  checkAndResetDailyDownloads,
+  getUserActualDownloadLimit,
+  consumeDownload,
+  recordDownload,
+  getTodayDownloadCount,
+  resetAllUsersDailyDownloads,
+  getUserDownloadStats
+};

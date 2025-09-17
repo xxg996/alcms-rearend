@@ -91,12 +91,6 @@
  *           type: boolean
  *           description: 是否免费
  *           example: false
- *         required_vip_level:
- *           type: string
- *           nullable: true
- *           enum: [vip1, vip2, vip3, lifetime]
- *           description: 所需VIP等级
- *           example: "vip1"
  *         required_points:
  *           type: integer
  *           description: 所需积分
@@ -139,11 +133,6 @@
  *           description: 标签列表
  *           items:
  *             $ref: '#/components/schemas/Tag'
- *         downloadInfo:
- *           type: array
- *           description: 下载信息
- *           items:
- *             $ref: '#/components/schemas/DownloadInfo'
  * 
  *     Tag:
  *       type: object
@@ -169,39 +158,7 @@
  *           description: 标签颜色
  *           example: "#4CAF50"
  * 
- *     DownloadInfo:
- *       type: object
- *       required:
- *         - type
- *         - available
- *       properties:
- *         type:
- *           type: string
- *           enum: [direct, signed, protected, none]
- *           description: 下载类型
- *           example: "signed"
- *         url:
- *           type: string
- *           format: uri
- *           nullable: true
- *           description: 下载链接
- *           example: "https://example.com/downloads/file.zip?token=abc123"
- *         available:
- *           type: boolean
- *           description: 是否可下载
- *           example: true
- *         reason:
- *           type: string
- *           nullable: true
- *           description: 不可下载原因
- *           example: "需要VIP等级: vip1"
- *         expires_at:
- *           type: string
- *           format: date-time
- *           nullable: true
- *           description: 链接过期时间
- *           example: "2025-09-12T12:00:00.000Z"
- * 
+ *
  *     ResourceListParams:
  *       allOf:
  *         - $ref: '#/components/schemas/PaginationParams'
@@ -319,11 +276,6 @@
  *           default: true
  *           description: 是否免费
  *           example: false
- *         required_vip_level:
- *           type: string
- *           enum: [vip1, vip2, vip3, lifetime]
- *           description: 所需VIP等级
- *           example: "vip1"
  *         required_points:
  *           type: integer
  *           minimum: 0
@@ -373,11 +325,6 @@
  *           type: boolean
  *           description: 是否免费
  *           example: true
- *         required_vip_level:
- *           type: string
- *           enum: [vip1, vip2, vip3, lifetime]
- *           description: 所需VIP等级
- *           example: "vip2"
  *         required_points:
  *           type: integer
  *           minimum: 0

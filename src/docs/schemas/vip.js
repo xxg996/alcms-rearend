@@ -47,6 +47,10 @@
  *           type: integer
  *           description: VIP有效期（天数），0表示永久
  *           example: 30
+ *         daily_download_limit:
+ *           type: integer
+ *           description: 每日下载次数限制
+ *           example: 100
  *         is_active:
  *           type: boolean
  *           description: 是否启用该等级
