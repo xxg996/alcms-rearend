@@ -14,6 +14,11 @@ router.get('/download-stats',
   downloadController.getUserDownloadStatistics
 );
 
+// 获取资源文件列表（只返回文件名，不包含下载链接）- 公开接口
+router.get('/files/:resourceId',
+  downloadController.getResourceFilesList
+);
+
 // 下载资源文件
 router.get('/file/:resourceId',
   authenticateToken,

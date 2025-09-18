@@ -384,8 +384,191 @@ const downloadResourceFiles = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/user/files/{resourceId}:
+ *   get:
+ *     tags: [Download]
+ *     summary: 获取资源文件列表（公开接口）
+ *     description: 根据资源ID获取该资源的文件列表信息，只返回文件名称等基本信息，不包含下载链接。此接口为公开接口，无需认证
+ *     parameters:
+ *       - in: path
+ *         name: resourceId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 资源ID
+ *     responses:
+ *       200:
+ *         description: 文件列表获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         resource:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: integer
+ *                               description: 资源ID
+ *                             title:
+ *                               type: string
+ *                               description: 资源标题
+ *                             description:
+ *                               type: string
+ *                               description: 资源描述
+ *                             is_free:
+ *                               type: boolean
+ *                               description: 是否免费
+ *                             required_points:
+ *                               type: integer
+ *                               description: 所需积分
+ *                         files:
+ *                           type: array
+ *                           description: 文件列表
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: integer
+ *                                 description: 文件ID
+ *                               name:
+ *                                 type: string
+ *                                 description: 文件名称
+ *                               file_size:
+ *                                 type: integer
+ *                                 description: 文件大小
+ *                               file_type:
+ *                                 type: string
+ *                                 description: 文件类型
+ *                               file_extension:
+ *                                 type: string
+ *                                 description: 文件扩展名
+ *                               quality:
+ *                                 type: string
+ *                                 description: 文件质量
+ *                               version:
+ *                                 type: string
+ *                                 description: 文件版本
+ *                               language:
+ *                                 type: string
+ *                                 description: 语言
+ *                               is_active:
+ *                                 type: boolean
+ *                                 description: 是否启用
+ *                               download_count:
+ *                                 type: integer
+ *                                 description: 下载次数
+ *                         total_files:
+ *                           type: integer
+ *                           description: 文件总数
+ *             example:
+ *               success: true
+ *               message: "文件列表获取成功"
+ *               data:
+ *                 resource:
+ *                   id: 1
+ *                   title: "示例资源"
+ *                   description: "这是一个示例资源"
+ *                   is_free: false
+ *                   required_points: 10
+ *                 files:
+ *                   - id: 1
+ *                     name: "document.pdf"
+ *                     file_size: 1024000
+ *                     file_type: "application/pdf"
+ *                     file_extension: "pdf"
+ *                     quality: "high"
+ *                     version: "1.0"
+ *                     language: "zh-CN"
+ *                     is_active: true
+ *                     download_count: 100
+ *                 total_files: 1
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         description: 资源不存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const getResourceFilesList = async (req, res) => {
+  try {
+    const { resourceId } = req.params;
+
+    // 获取资源信息
+    const resource = await Resource.findById(parseInt(resourceId));
+    if (!resource) {
+      return res.status(404).json({
+        success: false,
+        message: '资源不存在'
+      });
+    }
+
+    // 检查资源是否发布
+    if (resource.status !== 'published') {
+      return res.status(403).json({
+        success: false,
+        message: '资源未发布'
+      });
+    }
+
+    // 获取资源的所有文件（包含禁用的文件）
+    const files = await ResourceFile.findByResourceId(parseInt(resourceId), {
+      includeInactive: true
+    });
+
+    // 格式化文件列表（不包含下载链接）
+    const formattedFiles = files.map(file => ({
+      id: file.id,
+      name: file.name,
+      file_size: file.file_size,
+      file_type: file.file_type,
+      file_extension: file.file_extension,
+      quality: file.quality,
+      version: file.version,
+      language: file.language,
+      is_active: file.is_active,
+      sort_order: file.sort_order,
+      download_count: file.download_count
+    }));
+
+    res.json({
+      success: true,
+      message: '文件列表获取成功',
+      data: {
+        resource: {
+          id: resource.id,
+          title: resource.title,
+          description: resource.description,
+          is_free: resource.is_free,
+          required_points: resource.required_points
+        },
+        files: formattedFiles,
+        total_files: formattedFiles.length
+      }
+    });
+
+  } catch (error) {
+    logger.error('获取文件列表失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取文件列表失败',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getUserDownloadStatistics,
   resetAllDailyDownloads,
-  downloadResourceFiles
+  downloadResourceFiles,
+  getResourceFilesList
 };
