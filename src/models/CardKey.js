@@ -242,14 +242,23 @@ class CardKey {
       paramCount++;
     }
 
-    const whereClause = whereConditions.length > 0 
+    const whereClause = whereConditions.length > 0
       ? 'WHERE ' + whereConditions.join(' AND ')
       : '';
 
-    values.push(limit, offset);
+    // 获取总数
+    const countQueryStr = `
+      SELECT COUNT(*) as total
+      FROM card_keys ck
+      ${whereClause}
+    `;
+    const countResult = await query(countQueryStr, values.slice(0, paramCount - 1));
+    const total = parseInt(countResult.rows[0].total);
 
+    // 获取分页数据
+    values.push(limit, offset);
     const queryStr = `
-      SELECT 
+      SELECT
         ck.*,
         u.username as used_by_username,
         c.username as created_by_username
@@ -262,7 +271,19 @@ class CardKey {
     `;
 
     const result = await query(queryStr, values);
-    return result.rows;
+
+    return {
+      data: result.rows,
+      pagination: {
+        total,
+        limit,
+        offset,
+        page: Math.floor(offset / limit) + 1,
+        totalPages: Math.ceil(total / limit),
+        hasNext: offset + limit < total,
+        hasPrev: offset > 0
+      }
+    };
   }
 
   /**
@@ -296,20 +317,31 @@ class CardKey {
    * 获取批次列表
    */
   static async getBatches(createdBy = null, limit = 20, offset = 0) {
-    let whereClause = '';
+    let whereClause = 'WHERE ck.batch_id IS NOT NULL';
     let values = [];
     let paramCount = 1;
 
     if (createdBy) {
-      whereClause = 'WHERE ck.created_by = $1';
+      whereClause += ' AND ck.created_by = $1';
       values.push(createdBy);
       paramCount = 2;
     }
 
+    // 获取批次总数
+    const countQueryStr = `
+      SELECT COUNT(DISTINCT ck.batch_id) as total
+      FROM card_keys ck
+      LEFT JOIN users c ON ck.created_by = c.id
+      ${whereClause}
+    `;
+    const countResult = await query(countQueryStr, values.slice(0, paramCount - 1));
+    const total = parseInt(countResult.rows[0].total);
+
+    // 获取分页数据
     values.push(limit, offset);
 
     const queryStr = `
-      SELECT 
+      SELECT
         ck.batch_id,
         ck.type,
         ck.vip_level,
@@ -329,7 +361,19 @@ class CardKey {
     `;
 
     const result = await query(queryStr, values);
-    return result.rows;
+
+    return {
+      data: result.rows,
+      pagination: {
+        total,
+        limit,
+        offset,
+        page: Math.floor(offset / limit) + 1,
+        totalPages: Math.ceil(total / limit),
+        hasNext: offset + limit < total,
+        hasPrev: offset > 0
+      }
+    };
   }
 
   /**

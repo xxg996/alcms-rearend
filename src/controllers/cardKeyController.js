@@ -178,7 +178,7 @@ const generateSingleCard = async (req, res) => {
  *               data:
  *                 batch_id: "BATCH_20250912_001"
  *                 count: 100
- *                 sample_codes: ["VIP2025091200001", "VIP2025091200002", "VIP2025091200003"]
+ *                 codes: ["VIP2025091200001", "VIP2025091200002", "VIP2025091200003", "...等所有生成的卡密"]
  *       400:
  *         description: 请求参数错误
  *         content:
@@ -241,7 +241,7 @@ const generateBatchCards = async (req, res) => {
       vip_days: parseInt(vip_days),
       points: parseInt(points),
       expire_at: expire_at ? new Date(expire_at) : null
-    }, parseInt(count), req.user.userId);
+    }, parseInt(count), req.user.id);
 
     res.status(201).json({
       success: true,
@@ -249,7 +249,7 @@ const generateBatchCards = async (req, res) => {
       data: {
         batch_id: result.batch_id,
         count: result.count,
-        sample_codes: result.card_keys.slice(0, 5).map(card => card.code) // 只返回前5个作为示例
+        codes: result.card_keys.map(card => card.code) // 返回所有生成的卡密代码
       }
     });
   } catch (error) {
@@ -595,18 +595,19 @@ const getCardsList = async (req, res) => {
       offset: parseInt(offset)
     };
 
-    // 非超级管理员只能查看自己创建的卡密
-    const isSuperAdmin = req.user.roles?.some(role => role.name === 'super_admin');
-    if (!isSuperAdmin) {
+    // 管理员可以查看所有卡密，普通权限用户只能查看自己创建的卡密
+    const isAdmin = req.user.roles?.some(role => ['super_admin', 'admin'].includes(role.name));
+    if (!isAdmin) {
       options.created_by = req.user.id;
     }
 
-    const cardKeys = await CardKey.getCardKeys(options);
+    const result = await CardKey.getCardKeys(options);
 
     res.json({
       success: true,
       message: '卡密列表获取成功',
-      data: cardKeys
+      data: result.data,
+      pagination: result.pagination
     });
   } catch (error) {
     logger.error('获取卡密列表失败:', error);
@@ -748,16 +749,17 @@ const getBatchesList = async (req, res) => {
   try {
     const { limit = 20, offset = 0 } = req.query;
 
-    // 非超级管理员只能查看自己创建的批次
-    const isSuperAdmin = req.user.roles?.some(role => role.name === 'super_admin');
-    const createdBy = isSuperAdmin ? null : req.user.id;
+    // 管理员可以查看所有批次，其他权限用户只能查看自己创建的批次
+    const isAdmin = req.user.roles?.some(role => ['super_admin', 'admin'].includes(role.name));
+    const createdBy = isAdmin ? null : req.user.id;
 
-    const batches = await CardKey.getBatches(createdBy, parseInt(limit), parseInt(offset));
+    const result = await CardKey.getBatches(createdBy, parseInt(limit), parseInt(offset));
 
     res.json({
       success: true,
       message: '批次列表获取成功',
-      data: batches
+      data: result.data,
+      pagination: result.pagination
     });
   } catch (error) {
     logger.error('获取批次列表失败:', error);
@@ -782,15 +784,15 @@ const getBatchDetails = async (req, res) => {
       offset: parseInt(offset)
     };
 
-    // 非超级管理员只能查看自己创建的批次
-    const isSuperAdmin = req.user.roles?.some(role => role.name === 'super_admin');
-    if (!isSuperAdmin) {
+    // 管理员可以查看所有批次，其他权限用户只能查看自己创建的批次
+    const isAdmin = req.user.roles?.some(role => ['super_admin', 'admin'].includes(role.name));
+    if (!isAdmin) {
       options.created_by = req.user.id;
     }
 
-    const cardKeys = await CardKey.getCardKeys(options);
+    const result = await CardKey.getCardKeys(options);
 
-    if (cardKeys.length === 0) {
+    if (result.data.length === 0) {
       return res.status(404).json({
         success: false,
         message: '批次不存在或无权访问'
@@ -802,8 +804,9 @@ const getBatchDetails = async (req, res) => {
       message: '批次详情获取成功',
       data: {
         batch_id: batchId,
-        card_keys: cardKeys
-      }
+        card_keys: result.data
+      },
+      pagination: result.pagination
     });
   } catch (error) {
     logger.error('获取批次详情失败:', error);
