@@ -62,6 +62,7 @@ class ResourceFile {
       includeInactive = false,
       fileType,
       quality,
+      isActive,
       limit,
       offset = 0
     } = options;
@@ -75,8 +76,13 @@ class ResourceFile {
       const values = [resourceId];
       let paramCount = 1;
 
-      // 添加活跃状态筛选
-      if (!includeInactive) {
+      // 新增明确的 is_active 筛选功能
+      if (isActive !== undefined) {
+        paramCount++;
+        queryStr += ` AND is_active = $${paramCount}`;
+        values.push(isActive);
+      } else if (!includeInactive) {
+        // 向后兼容：如果没有明确指定 isActive，则使用 includeInactive 逻辑
         queryStr += ` AND is_active = TRUE`;
       }
 
@@ -340,6 +346,123 @@ class ResourceFile {
 
     } catch (error) {
       logger.error('获取热门文件失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取所有文件列表（管理员功能）
+   * @param {Object} options - 查询选项
+   * @returns {Promise<Object>} 分页文件列表
+   */
+  static async findAll(options = {}) {
+    const {
+      page = 1,
+      limit = 20,
+      isActive,
+      fileType,
+      quality,
+      resourceId,
+      search,
+      sortBy = 'created_at',
+      sortOrder = 'DESC'
+    } = options;
+
+    try {
+      const offset = (page - 1) * limit;
+
+      // 构建基础查询 - 简化版本先测试
+      let whereConditions = ['rf.deleted_at IS NULL'];
+      let values = [];
+      let paramCount = 0;
+
+      // 添加筛选条件
+      if (isActive !== undefined) {
+        paramCount++;
+        whereConditions.push(`rf.is_active = $${paramCount}`);
+        values.push(isActive);
+      }
+
+      if (fileType) {
+        paramCount++;
+        whereConditions.push(`rf.file_type = $${paramCount}`);
+        values.push(fileType);
+      }
+
+      if (quality) {
+        paramCount++;
+        whereConditions.push(`rf.quality = $${paramCount}`);
+        values.push(quality);
+      }
+
+      if (resourceId) {
+        paramCount++;
+        whereConditions.push(`rf.resource_id = $${paramCount}`);
+        values.push(resourceId);
+      }
+
+      if (search) {
+        paramCount++;
+        whereConditions.push(`(rf.name ILIKE $${paramCount} OR r.title ILIKE $${paramCount})`);
+        values.push(`%${search}%`);
+      }
+
+      const whereClause = whereConditions.join(' AND ');
+
+      // 验证排序字段
+      const allowedSortFields = ['created_at', 'name', 'file_size', 'download_count', 'sort_order'];
+      const safeSortBy = allowedSortFields.includes(sortBy) ? `rf.${sortBy}` : 'rf.created_at';
+      const safeSortOrder = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+      // 使用模板字符串正确方式
+      const listQuery = `
+        SELECT
+          rf.*,
+          r.title as resource_title,
+          r.author_id as resource_author_id,
+          u.username as resource_author_username
+        FROM resource_files rf
+        LEFT JOIN resources r ON rf.resource_id = r.id
+        LEFT JOIN users u ON r.author_id = u.id
+        WHERE ${whereClause}
+        ORDER BY ${safeSortBy} ${safeSortOrder}
+        LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+      `;
+
+      // 查询总数
+      const countQuery = `
+        SELECT COUNT(*)
+        FROM resource_files rf
+        LEFT JOIN resources r ON rf.resource_id = r.id
+        WHERE ${whereClause}
+      `;
+
+      // 添加 limit 和 offset 参数
+      const listValues = [...values, limit, offset];
+      const countValues = values;
+
+      const [listResult, countResult] = await Promise.all([
+        query(listQuery, listValues),
+        query(countQuery, countValues)
+      ]);
+
+      const total = parseInt(countResult.rows[0].count);
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        files: listResult.rows,
+        pagination: {
+          current_page: page,
+          per_page: limit,
+          total_items: total,
+          total_pages: totalPages,
+          has_next: page < totalPages,
+          has_prev: page > 1
+        }
+      };
+
+    } catch (error) {
+      logger.error('获取所有文件列表失败:', error);
       throw error;
     }
   }

@@ -40,10 +40,17 @@ router.put('/resource-files/:fileId',
 );
 
 // 删除资源文件
-router.delete('/resource-files/:fileId',
+router.post('/resource-files/:fileId/delete',
   authenticateToken,
   requirePermission('resource.delete'),
   resourceFileController.deleteResourceFile
+);
+
+// 获取所有资源文件列表（管理员功能）
+router.get('/resource-files',
+  authenticateToken,
+  requirePermission('resource.read'),
+  resourceFileController.getAllResourceFiles
 );
 
 // 获取文件统计信息
@@ -51,6 +58,20 @@ router.get('/resource-files/statistics',
   authenticateToken,
   requirePermission('resource.read'),
   resourceFileController.getFileStatistics
+);
+
+// 批量删除资源文件
+router.post('/resource-files/batch-delete',
+  authenticateToken,
+  requirePermission('resource.delete'),
+  resourceFileController.batchDeleteResourceFiles
+);
+
+// 批量更新资源文件
+router.post('/resource-files/batch-update',
+  authenticateToken,
+  requirePermission('resource.update'),
+  resourceFileController.batchUpdateResourceFiles
 );
 
 module.exports = router;

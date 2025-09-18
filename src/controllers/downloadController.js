@@ -11,7 +11,7 @@ const { logger } = require('../utils/logger');
 
 /**
  * @swagger
- * /api/user/download-stats:
+ * /api/download-stats:
  *   get:
  *     tags: [Download]
  *     summary: 获取用户下载统计
@@ -128,7 +128,7 @@ const resetAllDailyDownloads = async (req, res) => {
 
 /**
  * @swagger
- * /api/user/file/{resourceId}:
+ * /api/file/{resourceId}:
  *   get:
  *     tags: [Download]
  *     summary: 下载资源文件
@@ -386,7 +386,7 @@ const downloadResourceFiles = async (req, res) => {
 
 /**
  * @swagger
- * /api/user/files/{resourceId}:
+ * /api/files/{resourceId}:
  *   get:
  *     tags: [Download]
  *     summary: 获取资源文件列表（公开接口）

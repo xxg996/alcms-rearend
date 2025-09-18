@@ -109,7 +109,7 @@ app.use('/api/vip', vipRoutes);
 app.use('/api/card-keys', cardKeyRoutes);
 app.use('/api/points', pointsRoutes);
 app.use('/api/checkin', checkinRoutes);
-app.use('/api/user', require('./routes/download'));
+app.use('/api', require('./routes/download'));
 
 // 管理员功能API路由注册 - 角色权限管理
 app.use('/api/admin/roles', rolePermissionRoutes);
@@ -121,6 +121,9 @@ app.use('/api/admin/card-keys', require('./routes/admin/cardKeys'));
 app.use('/api/admin/checkin', require('./routes/admin/checkin'));
 app.use('/api/admin/download', require('./routes/admin/download'));
 app.use('/api/admin', require('./routes/admin/resourceFiles'));
+
+// 资源文件管理路由（支持作者权限，去除/admin前缀）
+app.use('/api', require('./routes/resourceFiles'));
 
 // 文件管理路由注册 (删除等操作)
 app.use('/api/upload', uploadRoutes);
