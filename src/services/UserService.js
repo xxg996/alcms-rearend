@@ -258,9 +258,30 @@ class UserService extends BaseService {
     if (!user) return null;
 
     const sanitized = { ...user };
+
+    // 删除敏感和内部字段
     delete sanitized.password;
     delete sanitized.password_updated_at;
-    
+
+    // 删除冗余的下载相关字段，统一到download_stats中
+    delete sanitized.daily_download_limit;
+    delete sanitized.daily_downloads_used;
+    delete sanitized.last_download_reset_date;
+    delete sanitized.actual_daily_limit;
+    delete sanitized.today_consumed;
+
+    // 计算今日剩余下载次数
+    if (user.actual_daily_limit !== undefined && user.today_consumed !== undefined) {
+      const actualLimit = parseInt(user.actual_daily_limit) || 10;
+      const todayConsumed = parseInt(user.today_consumed) || 0;
+
+      sanitized.download_stats = {
+        daily_limit: actualLimit,
+        today_consumed: todayConsumed,
+        remaining_downloads: Math.max(0, actualLimit - todayConsumed)
+      };
+    }
+
     return sanitized;
   }
 

@@ -503,7 +503,19 @@ class User {
              u.bio, u.status, u.created_at, u.updated_at,
              u.is_vip, u.vip_level, u.vip_expire_at, u.vip_activated_at,
              u.points, u.total_points,
+             u.daily_download_limit, u.daily_downloads_used, u.last_download_reset_date,
              vl.name as vip_level_name, vl.display_name as vip_level_display_name,
+             COALESCE(vl.daily_download_limit, u.daily_download_limit, 10) as actual_daily_limit,
+             COALESCE(
+               (SELECT COUNT(*) FROM daily_purchases dp
+                WHERE dp.user_id = u.id
+                  AND dp.purchase_date = CURRENT_DATE
+                  AND dp.points_cost = 0),
+               CASE
+                 WHEN u.last_download_reset_date::date < CURRENT_DATE THEN 0
+                 ELSE u.daily_downloads_used
+               END
+             ) as today_consumed,
              array_agg(DISTINCT r.name) as roles
       FROM users u
       LEFT JOIN user_roles ur ON u.id = ur.user_id
@@ -565,7 +577,8 @@ class User {
                u.bio, u.status, u.created_at, u.updated_at,
                u.is_vip, u.vip_level, u.vip_expire_at, u.vip_activated_at,
                u.points, u.total_points,
-               vl.name, vl.display_name
+               u.daily_download_limit, u.daily_downloads_used, u.last_download_reset_date,
+               vl.name, vl.display_name, vl.daily_download_limit
       ORDER BY u.created_at DESC
     `;
 
