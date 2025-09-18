@@ -77,4 +77,19 @@ router.get('/statistics',
   checkinController.getCheckinStatistics
 );
 
+// 角色管理
+// 为配置添加角色绑定
+router.post('/configs/:configId/roles',
+  authenticateToken,
+  requirePermission('checkin.config.update'),
+  checkinController.addConfigRole
+);
+
+// 删除配置的角色绑定
+router.post('/configs/:configId/roles/:roleName/delete',
+  authenticateToken,
+  requirePermission('checkin.config.update'),
+  checkinController.removeConfigRole
+);
+
 module.exports = router;

@@ -856,7 +856,65 @@ const updateCardStatus = async (req, res) => {
 };
 
 /**
- * 删除卡密（管理员功能）
+ * @swagger
+ * /api/admin/card-keys/{cardId}/delete:
+ *   post:
+ *     tags: [卡密管理]
+ *     summary: 删除单个卡密
+ *     description: 管理员功能，删除指定的卡密。只能删除状态为"未使用"的卡密，已使用的卡密无法删除以保护数据完整性。
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: cardId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 卡密ID
+ *         example: 12345
+ *     responses:
+ *       200:
+ *         description: 卡密删除成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/CardKey'
+ *             example:
+ *               success: true
+ *               message: "卡密删除成功"
+ *               data:
+ *                 id: 12345
+ *                 code: "VIP2025091200001"
+ *                 type: "vip"
+ *                 vip_level: 1
+ *                 vip_days: 30
+ *                 points: 0
+ *                 status: "unused"
+ *                 batch_id: "BATCH_20250912_001"
+ *                 expire_at: "2025-12-31T23:59:59.000Z"
+ *                 created_by: 1
+ *                 created_at: "2025-09-12T08:00:00.000Z"
+ *                 updated_at: "2025-09-12T08:00:00.000Z"
+ *       404:
+ *         description: 卡密不存在或无法删除
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "卡密不存在或无法删除（只能删除未使用的卡密）"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 const deleteCard = async (req, res) => {
   try {
@@ -885,7 +943,55 @@ const deleteCard = async (req, res) => {
 };
 
 /**
- * 删除整个批次（管理员功能）
+ * @swagger
+ * /api/admin/card-keys/batches/{batchId}/delete:
+ *   post:
+ *     tags: [卡密管理]
+ *     summary: 删除整个批次
+ *     description: 管理员功能，删除指定批次中的所有卡密。只会删除状态为"未使用"的卡密，已使用的卡密会被保留以保护数据完整性。
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 批次ID
+ *         example: "BATCH_20250912_001"
+ *     responses:
+ *       200:
+ *         description: 批次删除成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         batch_id:
+ *                           type: string
+ *                           description: 批次ID
+ *                           example: "BATCH_20250912_001"
+ *                         deleted_count:
+ *                           type: integer
+ *                           description: 删除的卡密数量
+ *                           example: 85
+ *             example:
+ *               success: true
+ *               message: "批次删除成功，删除了85个未使用的卡密"
+ *               data:
+ *                 batch_id: "BATCH_20250912_001"
+ *                 deleted_count: 85
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 const deleteBatch = async (req, res) => {
   try {

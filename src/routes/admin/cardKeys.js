@@ -62,14 +62,14 @@ router.put('/:cardId/status',
 );
 
 // 删除卡密
-router.delete('/:cardId',
+router.post('/:cardId/delete',
   authenticateToken,
   requirePermission('card_key.delete'),
   cardKeyController.deleteCard
 );
 
 // 删除整个批次
-router.delete('/batches/:batchId',
+router.post('/batches/:batchId/delete',
   authenticateToken,
   requirePermission('card_key.delete'),
   cardKeyController.deleteBatch

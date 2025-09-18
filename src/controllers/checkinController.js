@@ -64,7 +64,8 @@ const { logger } = require('../utils/logger');
 const performCheckin = async (req, res) => {
   try {
     const userId = req.user.id;
-    const result = await Checkin.performCheckin(userId);
+    const userRoles = req.user.roles ? req.user.roles.map(role => role.name) : ['user'];
+    const result = await Checkin.performCheckin(userId, userRoles);
     
     let message = `签到成功！获得${result.total_points}积分`;
     if (result.is_bonus) {
@@ -86,10 +87,12 @@ const performCheckin = async (req, res) => {
       });
     }
 
-    if (error.message === '签到功能未配置') {
+    if (error.message === '签到功能未配置' || error.message === '签到功能未配置或您没有权限使用') {
       return res.status(503).json({
         success: false,
-        message: '签到功能暂时不可用'
+        message: error.message === '签到功能未配置或您没有权限使用'
+          ? '您没有权限使用签到功能或功能未配置'
+          : '签到功能暂时不可用'
       });
     }
     
@@ -556,7 +559,8 @@ const createConfig = async (req, res) => {
       description,
       daily_points = 10,
       consecutive_bonus = {},
-      monthly_reset = true
+      monthly_reset = true,
+      roles = []
     } = req.body;
 
     // 详细的输入验证
@@ -595,13 +599,21 @@ const createConfig = async (req, res) => {
       });
     }
 
+    if (roles !== undefined && !Array.isArray(roles)) {
+      return res.status(400).json({
+        success: false,
+        message: '角色列表必须为数组格式'
+      });
+    }
+
     const createdBy = req.user.id;
     const config = await Checkin.createConfig({
       name,
       description,
       daily_points,
       consecutive_bonus,
-      monthly_reset
+      monthly_reset,
+      roles
     }, createdBy);
     
     res.status(201).json({
@@ -1341,9 +1353,9 @@ const resetUserCheckins = async (req, res) => {
 const getCheckinStatistics = async (req, res) => {
   try {
     const { date_from, date_to } = req.query;
-    
+
     const statistics = await Checkin.getCheckinStatistics(date_from, date_to);
-    
+
     res.json({
       success: true,
       message: '签到统计获取成功',
@@ -1354,6 +1366,202 @@ const getCheckinStatistics = async (req, res) => {
     res.status(500).json({
       success: false,
       message: '获取签到统计失败'
+    });
+  }
+};
+
+
+/**
+ * @swagger
+ * /api/admin/checkin/configs/{configId}/roles:
+ *   post:
+ *     tags: [签到管理]
+ *     summary: 为签到配置添加角色绑定
+ *     description: 管理员功能，为指定的签到配置添加角色绑定，绑定后只有该角色的用户才能使用此配置进行签到
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: configId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 签到配置ID
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/AddConfigRoleRequest'
+ *           example:
+ *             role_name: "vip"
+ *     responses:
+ *       200:
+ *         description: 角色绑定成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/CheckinConfigRole'
+ *             example:
+ *               success: true
+ *               message: "角色绑定成功"
+ *               data:
+ *                 id: 3
+ *                 checkin_config_id: 1
+ *                 role_name: "vip"
+ *                 created_by: 1
+ *                 created_at: "2025-09-18T10:00:00.000Z"
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "角色名称不能为空"
+ *       409:
+ *         description: 角色已存在
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "该角色已经绑定到此配置"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const addConfigRole = async (req, res) => {
+  try {
+    const { configId } = req.params;
+    const { role_name } = req.body;
+
+    if (!role_name) {
+      return res.status(400).json({
+        success: false,
+        message: '角色名称不能为空'
+      });
+    }
+
+    const createdBy = req.user.id;
+    const role = await Checkin.addConfigRole(parseInt(configId), role_name, createdBy);
+
+    if (!role) {
+      return res.status(409).json({
+        success: false,
+        message: '该角色已经绑定到此配置'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: '角色绑定成功',
+      data: role
+    });
+  } catch (error) {
+    logger.error('添加配置角色失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '添加配置角色失败'
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /api/admin/checkin/configs/{configId}/roles/{roleName}/delete:
+ *   post:
+ *     tags: [签到管理]
+ *     summary: 删除签到配置的角色绑定
+ *     description: 管理员功能，删除指定签到配置与特定角色的绑定关系，删除后该角色用户将无法使用此配置进行签到
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: configId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 签到配置ID
+ *         example: 1
+ *       - in: path
+ *         name: roleName
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 角色名称
+ *         example: "vip"
+ *     responses:
+ *       200:
+ *         description: 角色绑定删除成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/CheckinConfigRole'
+ *             example:
+ *               success: true
+ *               message: "角色绑定删除成功"
+ *               data:
+ *                 id: 1
+ *                 checkin_config_id: 1
+ *                 role_name: "vip"
+ *                 created_by: 1
+ *                 created_at: "2025-09-18T10:00:00.000Z"
+ *       404:
+ *         description: 角色绑定不存在
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "角色绑定不存在"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const removeConfigRole = async (req, res) => {
+  try {
+    const { configId, roleName } = req.params;
+
+    const result = await Checkin.removeConfigRole(parseInt(configId), roleName);
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: '角色绑定不存在'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: '角色绑定删除成功',
+      data: result
+    });
+  } catch (error) {
+    logger.error('删除配置角色失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '删除配置角色失败'
     });
   }
 };
@@ -1371,5 +1579,7 @@ module.exports = {
   getUserCheckinHistory,
   makeupCheckin,
   resetUserCheckins,
-  getCheckinStatistics
+  getCheckinStatistics,
+  addConfigRole,
+  removeConfigRole
 };

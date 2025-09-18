@@ -22,23 +22,38 @@ class Checkin {
   }
 
   /**
-   * 获取所有签到配置
+   * 获取所有签到配置（包含角色信息）
    */
   static async getAllConfigs() {
-    const queryStr = `
-      SELECT 
+    // 先获取基本配置信息
+    const configsQueryStr = `
+      SELECT
         cc.*,
         u.username as created_by_username
       FROM checkin_configs cc
       LEFT JOIN users u ON cc.created_by = u.id
       ORDER BY cc.created_at DESC
     `;
-    const result = await query(queryStr);
-    return result.rows;
+    const configsResult = await query(configsQueryStr);
+    const configs = configsResult.rows;
+
+    // 然后为每个配置获取角色信息
+    for (const config of configs) {
+      const rolesQueryStr = `
+        SELECT role_name
+        FROM checkin_config_roles
+        WHERE checkin_config_id = $1
+        ORDER BY created_at
+      `;
+      const rolesResult = await query(rolesQueryStr, [config.id]);
+      config.roles = rolesResult.rows.map(row => row.role_name);
+    }
+
+    return configs;
   }
 
   /**
-   * 创建签到配置
+   * 创建签到配置（支持角色绑定）
    */
   static async createConfig(configData, createdBy = null) {
     const {
@@ -46,49 +61,234 @@ class Checkin {
       description,
       daily_points = 10,
       consecutive_bonus = {},
-      monthly_reset = true
+      monthly_reset = true,
+      roles = []
     } = configData;
 
-    const queryStr = `
-      INSERT INTO checkin_configs 
-      (name, description, daily_points, consecutive_bonus, monthly_reset, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *
+    const client = await getClient();
+
+    try {
+      await client.query('BEGIN');
+
+      // 创建签到配置
+      const configQueryStr = `
+        INSERT INTO checkin_configs
+        (name, description, daily_points, consecutive_bonus, monthly_reset, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *
+      `;
+      const configValues = [name, description, daily_points, consecutive_bonus, monthly_reset, createdBy];
+      const configResult = await client.query(configQueryStr, configValues);
+      const config = configResult.rows[0];
+
+      // 添加角色绑定
+      if (roles && roles.length > 0) {
+        for (const role of roles) {
+          const roleQueryStr = `
+            INSERT INTO checkin_config_roles (checkin_config_id, role_name, created_by)
+            VALUES ($1, $2, $3)
+          `;
+          await client.query(roleQueryStr, [config.id, role, createdBy]);
+        }
+      }
+
+      await client.query('COMMIT');
+
+      // 返回包含角色信息的配置
+      return { ...config, roles };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * 更新签到配置（支持角色绑定）
+   */
+  static async updateConfig(configId, updateData) {
+    const client = await getClient();
+
+    try {
+      await client.query('BEGIN');
+
+      const { roles, ...configData } = updateData;
+
+      // 更新配置基本信息
+      if (Object.keys(configData).length > 0) {
+        const fields = [];
+        const values = [];
+        let paramCount = 1;
+
+        Object.keys(configData).forEach(key => {
+          if (configData[key] !== undefined) {
+            fields.push(`${key} = $${paramCount}`);
+            values.push(configData[key]);
+            paramCount++;
+          }
+        });
+
+        values.push(configId);
+        const queryStr = `
+          UPDATE checkin_configs
+          SET ${fields.join(', ')}
+          WHERE id = $${paramCount}
+          RETURNING *
+        `;
+        await client.query(queryStr, values);
+      }
+
+      // 更新角色绑定
+      if (roles !== undefined) {
+        // 删除现有角色绑定
+        await client.query(
+          'DELETE FROM checkin_config_roles WHERE checkin_config_id = $1',
+          [configId]
+        );
+
+        // 添加新的角色绑定
+        if (roles && roles.length > 0) {
+          for (const role of roles) {
+            await client.query(
+              'INSERT INTO checkin_config_roles (checkin_config_id, role_name) VALUES ($1, $2)',
+              [configId, role]
+            );
+          }
+        }
+      }
+
+      await client.query('COMMIT');
+
+      // 返回更新后的配置信息
+      const result = await this.getConfigById(configId);
+      return result;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * 根据ID获取单个签到配置（包含角色信息）
+   */
+  static async getConfigById(configId) {
+    // 先获取基本配置信息
+    const configQueryStr = `
+      SELECT
+        cc.*,
+        u.username as created_by_username
+      FROM checkin_configs cc
+      LEFT JOIN users u ON cc.created_by = u.id
+      WHERE cc.id = $1
     `;
-    const values = [name, description, daily_points, consecutive_bonus, monthly_reset, createdBy];
-    const result = await query(queryStr, values);
+    const configResult = await query(configQueryStr, [configId]);
+    const config = configResult.rows[0];
+
+    if (config) {
+      // 获取角色信息
+      const rolesQueryStr = `
+        SELECT role_name
+        FROM checkin_config_roles
+        WHERE checkin_config_id = $1
+        ORDER BY created_at
+      `;
+      const rolesResult = await query(rolesQueryStr, [configId]);
+      config.roles = rolesResult.rows.map(row => row.role_name);
+    }
+
+    return config;
+  }
+
+  /**
+   * 获取用户可用的签到配置（根据用户角色过滤）
+   */
+  static async getAvailableConfigForUser(userRoles = ['user']) {
+    // 确保userRoles是数组
+    if (!Array.isArray(userRoles)) {
+      userRoles = [userRoles];
+    }
+
+    // 构建角色匹配条件
+    const rolePlaceholders = userRoles.map((_, index) => `$${index + 1}`).join(', ');
+
+    // 使用子查询避免DISTINCT在JSON字段上的问题
+    const queryStr = `
+      SELECT
+        cc.*,
+        u.username as created_by_username
+      FROM checkin_configs cc
+      LEFT JOIN users u ON cc.created_by = u.id
+      WHERE cc.is_active = true
+        AND cc.id IN (
+          SELECT DISTINCT config_id FROM (
+            SELECT cc2.id as config_id
+            FROM checkin_configs cc2
+            WHERE cc2.is_active = true
+              AND NOT EXISTS (
+                SELECT 1 FROM checkin_config_roles
+                WHERE checkin_config_id = cc2.id
+              )
+            UNION
+            SELECT ccr.checkin_config_id as config_id
+            FROM checkin_config_roles ccr
+            JOIN checkin_configs cc3 ON ccr.checkin_config_id = cc3.id
+            WHERE cc3.is_active = true
+              AND ccr.role_name IN (${rolePlaceholders})
+          ) as available_configs
+        )
+      ORDER BY cc.created_at DESC
+      LIMIT 1
+    `;
+
+    const queryParams = userRoles;
+    const result = await query(queryStr, queryParams);
     return result.rows[0];
   }
 
   /**
-   * 更新签到配置
+   * 获取配置绑定的角色列表
    */
-  static async updateConfig(configId, updateData) {
-    const fields = [];
-    const values = [];
-    let paramCount = 1;
-
-    Object.keys(updateData).forEach(key => {
-      if (updateData[key] !== undefined) {
-        fields.push(`${key} = $${paramCount}`);
-        values.push(updateData[key]);
-        paramCount++;
-      }
-    });
-
-    if (fields.length === 0) {
-      throw new Error('没有提供更新数据');
-    }
-
-    values.push(configId);
+  static async getConfigRoles(configId) {
     const queryStr = `
-      UPDATE checkin_configs 
-      SET ${fields.join(', ')}
-      WHERE id = $${paramCount}
+      SELECT
+        ccr.*,
+        u.username as created_by_username
+      FROM checkin_config_roles ccr
+      LEFT JOIN users u ON ccr.created_by = u.id
+      WHERE ccr.checkin_config_id = $1
+      ORDER BY ccr.created_at
+    `;
+    const result = await query(queryStr, [configId]);
+    return result.rows;
+  }
+
+  /**
+   * 为配置添加角色绑定
+   */
+  static async addConfigRole(configId, roleName, createdBy = null) {
+    const queryStr = `
+      INSERT INTO checkin_config_roles (checkin_config_id, role_name, created_by)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (checkin_config_id, role_name) DO NOTHING
       RETURNING *
     `;
+    const result = await query(queryStr, [configId, roleName, createdBy]);
+    return result.rows[0];
+  }
 
-    const result = await query(queryStr, values);
+  /**
+   * 删除配置的角色绑定
+   */
+  static async removeConfigRole(configId, roleName) {
+    const queryStr = `
+      DELETE FROM checkin_config_roles
+      WHERE checkin_config_id = $1 AND role_name = $2
+      RETURNING *
+    `;
+    const result = await query(queryStr, [configId, roleName]);
     return result.rows[0];
   }
 
@@ -187,11 +387,11 @@ class Checkin {
   }
 
   /**
-   * 执行用户签到
+   * 执行用户签到（支持角色绑定配置）
    */
-  static async performCheckin(userId) {
+  static async performCheckin(userId, userRoles = ['user']) {
     const client = await getClient();
-    
+
     try {
       await client.query('BEGIN');
 
@@ -201,10 +401,10 @@ class Checkin {
         throw new Error('今日已签到');
       }
 
-      // 获取签到配置
-      const config = await this.getActiveConfig();
+      // 获取用户可用的签到配置
+      const config = await this.getAvailableConfigForUser(userRoles);
       if (!config) {
-        throw new Error('签到功能未配置');
+        throw new Error('签到功能未配置或您没有权限使用');
       }
 
       // 获取连续签到天数

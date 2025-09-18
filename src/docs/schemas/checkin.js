@@ -145,7 +145,44 @@
  *           format: date-time
  *           description: 更新时间
  *           example: "2025-09-01T00:00:00.000Z"
- * 
+ *         roles:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: 绑定的角色列表
+ *           example: ["vip", "admin"]
+ *
+ *     CheckinConfigRole:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: 角色绑定ID
+ *           example: 1
+ *         checkin_config_id:
+ *           type: integer
+ *           description: 签到配置ID
+ *           example: 1
+ *         role_name:
+ *           type: string
+ *           description: 角色名称
+ *           example: "vip"
+ *         created_by:
+ *           type: integer
+ *           nullable: true
+ *           description: 创建者ID
+ *           example: 1
+ *         created_by_username:
+ *           type: string
+ *           nullable: true
+ *           description: 创建者用户名
+ *           example: "admin"
+ *         created_at:
+ *           type: string
+ *           format: date-time
+ *           description: 创建时间
+ *           example: "2025-09-18T10:00:00.000Z"
+ *
  *     CreateCheckinConfigRequest:
  *       type: object
  *       required:
@@ -179,7 +216,13 @@
  *           default: true
  *           description: 是否月度重置连续天数
  *           example: false
- * 
+ *         roles:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: 绑定的角色列表
+ *           example: ["vip", "admin"]
+ *
  *     UpdateCheckinConfigRequest:
  *       type: object
  *       properties:
@@ -213,7 +256,23 @@
  *           type: boolean
  *           description: 是否启用
  *           example: true
- * 
+ *         roles:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: 绑定的角色列表
+ *           example: ["vip", "admin", "moderator"]
+ *
+ *     AddConfigRoleRequest:
+ *       type: object
+ *       required:
+ *         - role_name
+ *       properties:
+ *         role_name:
+ *           type: string
+ *           description: 角色名称
+ *           example: "vip"
+ *
  *     MakeupCheckinRequest:
  *       type: object
  *       required:
