@@ -36,18 +36,42 @@ async function checkAndResetDailyDownloads(userId) {
 
     // 如果是新的一天，重置下载次数
     if (lastResetDate !== today) {
-      await query(`
-        UPDATE users
-        SET
-          daily_downloads_used = 0,
-          last_download_reset_date = CURRENT_DATE
-        WHERE id = $1
-      `, [userId]);
+      // 开始事务处理
+      const { getClient } = require('../config/database');
+      const client = await getClient();
 
-      user.daily_downloads_used = 0;
-      user.last_download_reset_date = new Date();
+      try {
+        await client.query('BEGIN');
 
-      logger.info(`用户 ${userId} 的每日下载次数已重置`);
+        // 1. 重置用户每日下载次数
+        await client.query(`
+          UPDATE users
+          SET
+            daily_downloads_used = 0,
+            last_download_reset_date = CURRENT_DATE
+          WHERE id = $1
+        `, [userId]);
+
+        // 2. 清理该用户过期的购买记录
+        const cleanupResult = await client.query(`
+          DELETE FROM daily_purchases
+          WHERE user_id = $1 AND purchase_date < CURRENT_DATE
+        `, [userId]);
+
+        await client.query('COMMIT');
+
+        const cleanupCount = cleanupResult.rowCount || 0;
+        user.daily_downloads_used = 0;
+        user.last_download_reset_date = new Date();
+
+        logger.info(`用户 ${userId} 的每日下载次数已重置，清理了 ${cleanupCount} 条过期购买记录`);
+      } catch (error) {
+        await client.query('ROLLBACK');
+        logger.error(`用户 ${userId} 重置失败:`, error);
+        throw error;
+      } finally {
+        client.release();
+      }
     }
 
     // 获取用户实际的下载限制（VIP用户可能有更高限制）
@@ -198,6 +222,29 @@ async function getTodayDownloadCount(userId) {
 }
 
 /**
+ * 获取用户今日消耗的下载配额次数（只统计通过下载次数购买的资源）
+ * @param {number} userId - 用户ID
+ * @returns {Promise<number>} 今日消耗的下载配额次数
+ */
+async function getTodayConsumedDownloads(userId) {
+  try {
+    const result = await query(`
+      SELECT COUNT(*) as consumed_count
+      FROM daily_purchases
+      WHERE user_id = $1
+        AND purchase_date = CURRENT_DATE
+        AND points_cost = 0
+    `, [userId]);
+
+    return parseInt(result.rows[0].consumed_count) || 0;
+
+  } catch (error) {
+    logger.error('获取今日消耗下载配额失败:', error);
+    return 0;
+  }
+}
+
+/**
  * 批量重置所有用户的每日下载次数并清理过期购买记录（定时任务使用）
  * @returns {Promise<number>} 重置的用户数量
  */
@@ -242,6 +289,7 @@ async function getUserDownloadStats(userId) {
   try {
     const downloadStatus = await checkAndResetDailyDownloads(userId);
     const todayCount = await getTodayDownloadCount(userId);
+    const todayConsumed = await getTodayConsumedDownloads(userId);
 
     // 获取本周下载次数
     const weekResult = await query(`
@@ -271,9 +319,9 @@ async function getUserDownloadStats(userId) {
     return {
       daily: {
         limit: downloadStatus.dailyLimit,
-        used: downloadStatus.dailyUsed,
-        remaining: downloadStatus.remainingDownloads,
-        canDownload: downloadStatus.canDownload
+        used: todayConsumed, // 使用实际消耗的下载配额次数
+        remaining: Math.max(0, downloadStatus.dailyLimit - todayConsumed), // 基于实际消耗计算剩余
+        canDownload: todayConsumed < downloadStatus.dailyLimit
       },
       statistics: {
         today: todayCount,
@@ -295,6 +343,7 @@ module.exports = {
   consumeDownload,
   recordDownload,
   getTodayDownloadCount,
+  getTodayConsumedDownloads,
   resetAllUsersDailyDownloads,
   getUserDownloadStats
 };

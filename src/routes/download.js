@@ -25,4 +25,16 @@ router.get('/file/:resourceId',
   downloadController.downloadResourceFiles
 );
 
+// 下载资源文件
+router.get('/download/:resourceId',
+  authenticateToken,
+  downloadController.downloadResource
+);
+
+// 获取当前用户文件统计
+router.get('/user-filestats',
+  authenticateToken,
+  downloadController.getCurrentUserStats
+);
+
 module.exports = router;
