@@ -216,6 +216,9 @@ const processResourceDownload = async (resource, userId, files) => {
     ResourceFile.incrementDownloadCount(file.id)
   ));
 
+  // 增加资源的下载次数
+  await Resource.incrementDownloadCount(resource.id);
+
   // 如果没有设置 finalDownloadStatus，说明是免费资源，获取当前状态
   if (!finalDownloadStatus) {
     finalDownloadStatus = await checkAndResetDailyDownloads(userId);
