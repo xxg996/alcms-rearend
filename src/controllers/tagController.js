@@ -369,7 +369,63 @@ class TagController {
   }
 
   /**
-   * 删除标签
+   * @swagger
+   * /api/tags/delete/{id}:
+   *   post:
+   *     tags: [Tags]
+   *     summary: 删除标签
+   *     description: 根据标签ID删除标签，需要管理员权限
+   *     security:
+   *       - BearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 标签ID
+   *         example: 1
+   *     responses:
+   *       200:
+   *         description: 标签删除成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/SuccessResponse'
+   *             example:
+   *               success: true
+   *               message: "标签删除成功"
+   *       400:
+   *         description: 标签有关联资源，无法删除
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "标签有关联资源，无法删除"
+   *       401:
+   *         $ref: '#/components/responses/Unauthorized'
+   *       403:
+   *         description: 无权删除标签
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "无权删除标签"
+   *       404:
+   *         description: 标签不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "标签不存在"
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async deleteTag(req, res) {
     try {

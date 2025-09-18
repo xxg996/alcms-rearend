@@ -39,12 +39,6 @@ router.put('/:id',
   TagController.updateTag
 );
 
-// 删除标签
-router.delete('/:id', 
-  authenticateToken,
-  requirePermission('tag:delete'),
-  TagController.deleteTag
-);
 
 // 批量创建标签
 router.post('/batch-create',
@@ -53,5 +47,11 @@ router.post('/batch-create',
   TagController.createTags
 );
 
+// 删除标签（POST方法）
+router.post('/delete/:id',
+  authenticateToken,
+  requirePermission('tag:delete'),
+  TagController.deleteTag
+);
 
 module.exports = router;

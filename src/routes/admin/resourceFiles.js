@@ -39,12 +39,6 @@ router.put('/resource-files/:fileId',
   resourceFileController.updateResourceFile
 );
 
-// 删除资源文件
-router.post('/resource-files/:fileId/delete',
-  authenticateToken,
-  requirePermission('resource.delete'),
-  resourceFileController.deleteResourceFile
-);
 
 // 获取所有资源文件列表（管理员功能）
 router.get('/resource-files',

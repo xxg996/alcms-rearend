@@ -12,7 +12,7 @@ const { logger } = require('../utils/logger');
  *   get:
  *     tags: [ResourceFiles]
  *     summary: 获取资源的所有文件
- *     description: 管理员获取指定资源的所有下载文件
+ *     description: 获取指定资源的所有下载文件。资源作者可以获取自己资源的文件，管理员可以获取任何资源的文件
  *     security:
  *       - BearerAuth: []
  *     parameters:
@@ -105,7 +105,7 @@ const getResourceFiles = async (req, res) => {
  *   post:
  *     tags: [ResourceFiles]
  *     summary: 添加资源文件
- *     description: 管理员为指定资源添加下载文件
+ *     description: 为指定资源添加下载文件。资源作者可以为自己的资源添加文件，管理员可以为任何资源添加文件
  *     security:
  *       - BearerAuth: []
  *     parameters:
@@ -211,7 +211,7 @@ const createResourceFile = async (req, res) => {
  *   put:
  *     tags: [ResourceFiles]
  *     summary: 更新资源文件
- *     description: 管理员更新指定的资源文件信息
+ *     description: 更新指定的资源文件信息。资源作者可以更新自己资源的文件，管理员可以更新任何资源的文件
  *     security:
  *       - BearerAuth: []
  *     parameters:
@@ -304,8 +304,8 @@ const updateResourceFile = async (req, res) => {
  * /api/resource-files/{fileId}/delete:
  *   post:
  *     tags: [ResourceFiles]
- *     summary: 删除资源文件（作者）
- *     description: 资源作者删除自己资源的文件（软删除）
+ *     summary: 删除资源文件
+ *     description: 删除指定的资源文件（软删除）。资源作者可以删除自己资源的文件，管理员可以删除任何文件
  *     security:
  *       - BearerAuth: []
  *     parameters:
@@ -323,43 +323,29 @@ const updateResourceFile = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
+ *             example:
+ *               success: true
+ *               message: "资源文件删除成功"
  *       404:
  *         description: 文件不存在
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       403:
- *         $ref: '#/components/responses/Forbidden'
- *       500:
- *         $ref: '#/components/responses/ServerError'
- *
- * /api/admin/resource-files/{fileId}/delete:
- *   post:
- *     tags: [ResourceFiles]
- *     summary: 删除资源文件（管理员）
- *     description: 管理员删除指定的资源文件（软删除）
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: fileId
- *         required: true
- *         schema:
- *           type: integer
- *         description: 文件ID
- *         example: 1
- *     responses:
- *       200:
- *         description: 文件删除成功
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/SuccessResponse'
- *       404:
- *         description: 文件不存在
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "文件不存在"
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
- *         $ref: '#/components/responses/Forbidden'
+ *         description: 没有权限操作此文件
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "没有权限操作此文件"
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
@@ -391,11 +377,11 @@ const deleteResourceFile = async (req, res) => {
 
 /**
  * @swagger
- * /api/admin/resources/{resourceId}/files/sort:
+ * /api/resources/{resourceId}/files/sort:
  *   put:
  *     tags: [ResourceFiles]
  *     summary: 更新文件排序
- *     description: 管理员更新资源文件的排序顺序
+ *     description: 更新资源文件的排序顺序。资源作者可以更新自己资源的文件排序，管理员可以更新任何资源的文件排序
  *     security:
  *       - BearerAuth: []
  *     parameters:
