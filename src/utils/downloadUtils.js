@@ -110,165 +110,9 @@ async function validateDownloadPermission(userId, resource) {
   }
 }
 
-/**
- * 生成签名下载链接
- * @param {Object} resource - 资源对象
- * @param {number} userId - 用户ID
- * @param {Object} options - 选项
- * @returns {Promise<Object>} 下载信息
- */
-async function generateSignedUrl(resource, userId, options = {}) {
-  const {
-    ipAddress,
-    userAgent,
-    expiresIn = 3600 // 默认1小时过期
-  } = options;
 
-  try {
-    // 确定实际下载URL
-    let actualDownloadUrl = resource.file_url || resource.download_url || resource.external_url;
-    
-    if (!actualDownloadUrl) {
-      throw new Error('无有效下载地址');
-    }
 
-    // 如果是外部链接，直接返回
-    if (resource.external_url && !resource.file_url) {
-      return {
-        downloadUrl: resource.external_url,
-        isExternal: true,
-        expiresAt: null
-      };
-    }
 
-    // 生成过期时间
-    const expiresAt = new Date(Date.now() + expiresIn * 1000);
-
-    // 生成签名
-    const signature = generateDownloadSignature({
-      resourceId: resource.id,
-      userId,
-      expiresAt: expiresAt.getTime(),
-      ipAddress
-    });
-
-    // 构建签名链接
-    const signedUrl = buildSignedUrl(actualDownloadUrl, {
-      resourceId: resource.id,
-      userId,
-      expires: Math.floor(expiresAt.getTime() / 1000),
-      signature
-    });
-
-    // 如果需要扣除积分，记录积分变更
-    const permissionCheck = await validateDownloadPermission(userId, resource);
-    if (permissionCheck.pointsToDeduct > 0) {
-      await deductUserPoints(userId, permissionCheck.pointsToDeduct, resource.id);
-    }
-
-    // 消耗一次下载次数（如果是登录用户）
-    if (userId) {
-      await consumeDownload(userId);
-    }
-
-    // 记录下载行为
-    if (userId) {
-      await recordDownload({
-        userId,
-        resourceId: resource.id,
-        ipAddress,
-        userAgent,
-        downloadUrl: actualDownloadUrl,
-        expiresAt,
-        isSuccessful: true
-      });
-    }
-
-    return {
-      signedUrl,
-      downloadUrl: actualDownloadUrl,
-      expiresAt,
-      isExternal: false,
-      fileSize: resource.file_size,
-      fileName: extractFileName(actualDownloadUrl, resource.title),
-      mimeType: resource.file_mime_type
-    };
-
-  } catch (error) {
-    logger.error('生成签名链接失败:', error);
-    throw error;
-  }
-}
-
-/**
- * 验证下载签名
- * @param {Object} params - 参数对象
- * @returns {boolean} 签名是否有效
- */
-function validateDownloadSignature(params) {
-  const { resourceId, userId, expires, signature, ipAddress } = params;
-
-  try {
-    // 检查过期时间
-    if (Date.now() > expires * 1000) {
-      return false;
-    }
-
-    // 生成期望的签名
-    const expectedSignature = generateDownloadSignature({
-      resourceId,
-      userId,
-      expiresAt: expires * 1000,
-      ipAddress
-    });
-
-    // 比较签名
-    return crypto.timingSafeEqual(
-      Buffer.from(signature, 'hex'),
-      Buffer.from(expectedSignature, 'hex')
-    );
-
-  } catch (error) {
-    logger.error('签名验证失败:', error);
-    return false;
-  }
-}
-
-/**
- * 生成下载签名
- * @param {Object} data - 签名数据
- * @returns {string} 签名
- */
-function generateDownloadSignature(data) {
-  const { resourceId, userId, expiresAt, ipAddress } = data;
-  
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET must be defined in environment variables');
-  }
-  const payload = `${resourceId}:${userId}:${expiresAt}:${ipAddress}`;
-  
-  return crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex');
-}
-
-/**
- * 构建签名URL
- * @param {string} baseUrl - 基础URL
- * @param {Object} params - 参数
- * @returns {string} 签名URL
- */
-function buildSignedUrl(baseUrl, params) {
-  const url = new URL(baseUrl, 'http://localhost'); // 使用临时base URL进行解析
-  
-  Object.entries(params).forEach(([key, value]) => {
-    url.searchParams.set(key, value);
-  });
-
-  return baseUrl.includes('://') ? url.toString() : url.pathname + url.search;
-}
 
 /**
  * 提取文件名
@@ -297,75 +141,6 @@ function extractFileName(url, fallbackTitle) {
   return cleanTitle || 'download';
 }
 
-/**
- * 加密混淆URL
- * @param {string} url - 原始URL
- * @param {number} resourceId - 资源ID
- * @returns {string} 混淆后的字符串
- */
-function obfuscateUrl(url, resourceId) {
-  if (!url) return null;
-  
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET must be defined in environment variables');
-  }
-  const data = JSON.stringify({ url, resourceId, timestamp: Date.now() });
-  
-  // 使用现代加密方法
-  const algorithm = 'aes-256-cbc';
-  const key = crypto.createHash('sha256').update(secret).digest();
-  const iv = crypto.randomBytes(16);
-  
-  const cipher = crypto.createCipheriv(algorithm, key, iv);
-  let encrypted = cipher.update(data, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  
-  // 组合IV和加密数据
-  const combined = iv.toString('hex') + ':' + encrypted;
-  
-  // 添加随机前缀和后缀混淆
-  const prefix = crypto.randomBytes(8).toString('hex');
-  const suffix = crypto.randomBytes(8).toString('hex');
-  
-  return `${prefix}_${Buffer.from(combined).toString('base64')}_${suffix}`;
-}
-
-/**
- * 解密混淆URL
- * @param {string} obfuscatedUrl - 混淆的字符串
- * @returns {Object|null} 解密后的数据
- */
-function deobfuscateUrl(obfuscatedUrl) {
-  try {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new Error('JWT_SECRET must be defined in environment variables');
-    }
-    
-    // 移除前缀和后缀
-    const parts = obfuscatedUrl.split('_');
-    if (parts.length !== 3) return null;
-    
-    const combined = Buffer.from(parts[1], 'base64').toString('utf8');
-    const [ivHex, encrypted] = combined.split(':');
-    
-    if (!ivHex || !encrypted) return null;
-    
-    const algorithm = 'aes-256-cbc';
-    const key = crypto.createHash('sha256').update(secret).digest();
-    const iv = Buffer.from(ivHex, 'hex');
-    
-    const decipher = crypto.createDecipheriv(algorithm, key, iv);
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    
-    return JSON.parse(decrypted);
-  } catch (error) {
-    logger.error('URL解密失败:', error);
-    return null;
-  }
-}
 
 /**
  * 生成安全的资源展示信息
@@ -433,7 +208,7 @@ async function generateDownloadInfoArray(resource, userId = null) {
       downloadInfo.push({
         type: 'downloadUrl',
         name: '下载文件',
-        encrypted_url: permissionCheck.allowed ? obfuscateUrl(resource.download_url, resource.id) : null,
+        encrypted_url: null, // URL混淆功能已移除
         has_permission: permissionCheck.allowed,
         permission_reason: permissionCheck.allowed ? '允许下载' : permissionCheck.reason,
         file_size: resource.file_size,
@@ -447,7 +222,7 @@ async function generateDownloadInfoArray(resource, userId = null) {
       downloadInfo.push({
         type: 'mp4Url',
         name: 'MP4视频',
-        encrypted_url: permissionCheck.allowed ? obfuscateUrl(resource.file_url, resource.id) : null,
+        encrypted_url: null, // URL混淆功能已移除
         has_permission: permissionCheck.allowed,
         permission_reason: permissionCheck.allowed ? '允许播放' : permissionCheck.reason,
         file_size: resource.file_size,
@@ -461,7 +236,7 @@ async function generateDownloadInfoArray(resource, userId = null) {
       downloadInfo.push({
         type: 'mp3Url',
         name: 'MP3音频',
-        encrypted_url: permissionCheck.allowed ? obfuscateUrl(resource.file_url, resource.id) : null,
+        encrypted_url: null, // URL混淆功能已移除
         has_permission: permissionCheck.allowed,
         permission_reason: permissionCheck.allowed ? '允许播放' : permissionCheck.reason,
         file_size: resource.file_size,
@@ -580,12 +355,6 @@ async function getUserResourceDownloadCount(userId, resourceId) {
 
 module.exports = {
   validateDownloadPermission,
-  generateSignedUrl,
-  validateDownloadSignature,
-  generateDownloadSignature,
-  buildSignedUrl,
-  obfuscateUrl,
-  deobfuscateUrl,
   generateSecureResourceInfo,
   generateDownloadInfoArray
 };

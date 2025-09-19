@@ -155,7 +155,7 @@ function generateDownloadInfoForResource(resource, permissionCheck, userId) {
       requiresPermission: true
     });
   } else {
-    // 有权限下载 - 生成混淆URL
+    // 有权限下载 - 使用直接链接
     const urls = [
       resource.file_url,
       resource.download_url,
@@ -164,11 +164,10 @@ function generateDownloadInfoForResource(resource, permissionCheck, userId) {
 
     urls.forEach(url => {
       const isExternal = url === resource.external_url;
-      const obfuscatedUrl = generateObfuscatedUrl(resource.id, url);
-      
+
       downloadInfo.push({
         type: isExternal ? 'external' : 'internal',
-        url: obfuscatedUrl,
+        url: null, // 直接URL混淆功能已移除，请使用ResourceFile系统
         available: true,
         reason: '允许下载',
         isExternal,
@@ -182,46 +181,6 @@ function generateDownloadInfoForResource(resource, permissionCheck, userId) {
   return downloadInfo;
 }
 
-/**
- * 生成混淆URL
- * @param {number} resourceId - 资源ID
- * @param {string} url - 原始URL
- * @returns {string} 混淆后的URL
- */
-function generateObfuscatedUrl(resourceId, url) {
-  try {
-    const crypto = require('crypto');
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new Error('JWT_SECRET must be defined in environment variables');
-    }
-    
-    const data = {
-      resourceId: resourceId,
-      url: url,
-      timestamp: Date.now(),
-      expires: Date.now() + (3600 * 1000) // 1小时过期
-    };
-
-    const algorithm = 'aes-256-cbc';
-    const key = crypto.createHash('sha256').update(secret).digest();
-    const iv = crypto.randomBytes(16);
-    
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
-    let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    
-    // 返回格式: prefix_ivhex_encryptedhex_suffix
-    const prefix = crypto.randomBytes(4).toString('hex');
-    const suffix = crypto.randomBytes(4).toString('hex');
-    
-    return `${prefix}_${iv.toString('hex')}_${encrypted}_${suffix}`;
-
-  } catch (error) {
-    logger.error('生成混淆URL失败:', error);
-    return null;
-  }
-}
 
 /**
  * 批量加载用户信息（用于社区模块）

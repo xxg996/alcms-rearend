@@ -99,7 +99,11 @@ class TagController {
         offset: limit ? (parseInt(page) - 1) * parseInt(limit) : 0
       };
 
-      const tags = await Tag.findAll(options);
+      // 同时查询数据和总数
+      const [tags, total] = await Promise.all([
+        Tag.findAll(options),
+        limit ? Tag.countAll({ search }) : Promise.resolve(null)
+      ]);
 
       res.json({
         success: true,
@@ -108,7 +112,8 @@ class TagController {
           pagination: limit ? {
             page: parseInt(page),
             limit: parseInt(limit),
-            total: tags.length
+            total,
+            totalPages: Math.ceil(total / parseInt(limit))
           } : null
         }
       });

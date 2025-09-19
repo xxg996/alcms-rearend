@@ -51,6 +51,34 @@ class Tag {
   }
 
   /**
+   * 获取标签总数
+   * @param {Object} options - 查询选项
+   * @returns {Promise<number>} 标签总数
+   */
+  static async countAll(options = {}) {
+    const { search } = options;
+
+    const conditions = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (search) {
+      conditions.push(`(name ILIKE $${paramIndex} OR display_name ILIKE $${paramIndex})`);
+      values.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const result = await query(
+      `SELECT COUNT(*) as total FROM tags ${whereClause}`,
+      values
+    );
+
+    return parseInt(result.rows[0].total) || 0;
+  }
+
+  /**
    * 获取所有标签
    * @param {Object} options - 查询选项
    * @returns {Promise<Array>} 标签列表

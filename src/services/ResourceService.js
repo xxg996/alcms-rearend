@@ -7,7 +7,7 @@ const BaseService = require('./BaseService');
 const Resource = require('../models/Resource');
 const Category = require('../models/Category');
 const Tag = require('../models/Tag');
-const { generateSignedUrl, validateDownloadPermission, generateSecureResourceInfo } = require('../utils/downloadUtils');
+const { generateSecureResourceInfo } = require('../utils/downloadUtils');
 const { generateSecureResourceInfoBatch } = require('../utils/downloadUtilsBatch');
 
 class ResourceService extends BaseService {
@@ -273,48 +273,8 @@ class ResourceService extends BaseService {
     });
   }
 
-  /**
-   * 处理资源下载
-   */
-  async handleResourceDownload(resourceId, user) {
-    return this.withPerformanceMonitoring('handleResourceDownload', async () => {
-      try {
-        this.validateRequired({ resourceId }, ['resourceId']);
-
-        const resource = await Resource.findById(resourceId);
-        if (!resource) {
-          throw new Error('资源不存在');
-        }
-
-        // 验证下载权限
-        const hasPermission = await validateDownloadPermission(resource, user);
-        if (!hasPermission.allowed) {
-          throw new Error(hasPermission.reason);
-        }
-
-        // 生成下载链接
-        const downloadInfo = await generateSignedUrl(resource, user);
-
-        // 增加下载次数（异步执行）
-        this.incrementDownloadCount(resourceId).catch(err =>
-          this.log('warn', '更新下载次数失败', { resourceId, error: err.message })
-        );
-
-        this.log('info', '资源下载请求成功', { 
-          resourceId, 
-          userId: user?.id 
-        });
-
-        return this.formatSuccessResponse(
-          downloadInfo,
-          '获取下载链接成功'
-        );
-
-      } catch (error) {
-        this.handleError(error, 'handleResourceDownload');
-      }
-    });
-  }
+  // 注意：下载功能已迁移到 ResourceFile 系统和 downloadController
+  // 请使用 /api/download/* 相关接口进行文件下载
 
   /**
    * 标准化资源过滤参数

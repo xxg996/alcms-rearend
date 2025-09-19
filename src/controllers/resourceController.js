@@ -11,7 +11,7 @@
 const Resource = require('../models/Resource');
 const Category = require('../models/Category');
 const Tag = require('../models/Tag');
-const { generateSignedUrl, validateDownloadPermission, generateSecureResourceInfo, deobfuscateUrl } = require('../utils/downloadUtils');
+const { generateSecureResourceInfo } = require('../utils/downloadUtils');
 const { generateSecureResourceInfoBatch } = require('../utils/downloadUtilsBatch');
 const { checkAndResetDailyDownloads } = require('../utils/downloadLimitUtils');
 const { query } = require('../config/database');
