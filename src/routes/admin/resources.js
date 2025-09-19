@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const ResourceController = require('../../controllers/resourceController');
 const { authenticateToken, requirePermission } = require('../../middleware/auth');
+const { clearResourceCache } = require('../../middleware/cacheMiddleware');
 const { logger } = require('../../utils/logger');
 
 // 获取所有资源（包括私有和草稿）
@@ -21,54 +22,58 @@ router.get('/all',
   ResourceController.getResources
 );
 
+// 批量更新资源状态处理器
+async function batchUpdateResources(req, res) {
+  try {
+    const { resourceIds, updateData } = req.body;
+
+    if (!Array.isArray(resourceIds) || resourceIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: '资源ID列表不能为空'
+      });
+    }
+
+    const Resource = require('../../models/Resource');
+    const results = [];
+    const errors = [];
+
+    for (const id of resourceIds) {
+      try {
+        const updatedResource = await Resource.update(parseInt(id), updateData);
+        results.push(updatedResource);
+      } catch (error) {
+        errors.push({
+          resourceId: id,
+          error: error.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `成功更新 ${results.length} 个资源`,
+      data: {
+        updated: results,
+        errors: errors.length > 0 ? errors : undefined
+      }
+    });
+  } catch (error) {
+    logger.error('批量更新资源失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '批量更新失败',
+      error: error.message
+    });
+  }
+}
+
 // 批量更新资源状态
 router.patch('/batch-update',
   authenticateToken,
   requirePermission('resource:update'),
-  async (req, res) => {
-    try {
-      const { resourceIds, updateData } = req.body;
-
-      if (!Array.isArray(resourceIds) || resourceIds.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: '资源ID列表不能为空'
-        });
-      }
-
-      const Resource = require('../../models/Resource');
-      const results = [];
-      const errors = [];
-
-      for (const id of resourceIds) {
-        try {
-          const updatedResource = await Resource.update(parseInt(id), updateData);
-          results.push(updatedResource);
-        } catch (error) {
-          errors.push({
-            resourceId: id,
-            error: error.message
-          });
-        }
-      }
-
-      res.json({
-        success: true,
-        message: `成功更新 ${results.length} 个资源`,
-        data: {
-          updated: results,
-          errors: errors.length > 0 ? errors : undefined
-        }
-      });
-    } catch (error) {
-      logger.error('批量更新资源失败:', error);
-      res.status(500).json({
-        success: false,
-        message: '批量更新失败',
-        error: error.message
-      });
-    }
-  }
+  clearResourceCache, // 成功响应后清理资源缓存（列表/详情）
+  batchUpdateResources
 );
 
 // 获取详细统计信息

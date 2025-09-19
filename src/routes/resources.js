@@ -27,25 +27,25 @@ router.get('/stats/overview', statsCache, ResourceController.getResourceStats);
 // 需要认证的路由
 
 // 创建资源（需要登录和创建权限）
-router.post('/', 
-  authenticateToken, 
+router.post('/',
+  authenticateToken,
   requirePermission('resource:create'),
-  ResourceController.createResource,
-  clearResourceCache // 创建后清除缓存
+  clearResourceCache, // 创建时清除缓存
+  ResourceController.createResource
 );
 
 // 更新资源（需要登录，权限在控制器中检查）
-router.put('/:id', 
+router.put('/:id',
   authenticateToken,
-  ResourceController.updateResource,
-  clearResourceCache // 更新后清除缓存
+  clearResourceCache, // 更新时清除缓存
+  ResourceController.updateResource
 );
 
 // 删除资源（需要登录，权限在控制器中检查）
-router.delete('/:id', 
+router.delete('/:id',
   authenticateToken,
-  ResourceController.deleteResource,
-  clearResourceCache // 删除后清除缓存
+  clearResourceCache, // 删除时清除缓存
+  ResourceController.deleteResource
 );
 
 // 注意：下载功能已迁移到 /api/admin/resources/:id/files 和 /api/user/download/:fileId

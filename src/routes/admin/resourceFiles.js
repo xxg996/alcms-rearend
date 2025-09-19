@@ -10,6 +10,7 @@ const {
   authenticateToken,
   requirePermission
 } = require('../../middleware/auth');
+const { clearResourceCache } = require('../../middleware/cacheMiddleware');
 
 // 获取资源的所有文件
 router.get('/resources/:resourceId/files',
@@ -22,21 +23,24 @@ router.get('/resources/:resourceId/files',
 router.post('/resources/:resourceId/files',
   authenticateToken,
   requirePermission('resource.create'),
-  resourceFileController.createResourceFile
+  resourceFileController.createResourceFile,
+  clearResourceCache // 添加文件后清除缓存
 );
 
 // 更新文件排序
 router.put('/resources/:resourceId/files/sort',
   authenticateToken,
   requirePermission('resource.update'),
-  resourceFileController.updateFileSort
+  resourceFileController.updateFileSort,
+  clearResourceCache // 排序后清除缓存
 );
 
 // 更新资源文件
 router.put('/resource-files/:fileId',
   authenticateToken,
   requirePermission('resource.update'),
-  resourceFileController.updateResourceFile
+  resourceFileController.updateResourceFile,
+  clearResourceCache // 更新文件后清除缓存
 );
 
 
@@ -58,14 +62,16 @@ router.get('/resource-files/statistics',
 router.post('/resource-files/batch-delete',
   authenticateToken,
   requirePermission('resource.delete'),
-  resourceFileController.batchDeleteResourceFiles
+  resourceFileController.batchDeleteResourceFiles,
+  clearResourceCache // 删除文件后清除缓存
 );
 
 // 批量更新资源文件
 router.post('/resource-files/batch-update',
   authenticateToken,
   requirePermission('resource.update'),
-  resourceFileController.batchUpdateResourceFiles
+  resourceFileController.batchUpdateResourceFiles,
+  clearResourceCache // 批量更新后清除缓存
 );
 
 module.exports = router;

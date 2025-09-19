@@ -107,7 +107,7 @@ class Resource {
       LEFT JOIN categories c ON r.category_id = c.id
       LEFT JOIN users u ON r.author_id = u.id
       LEFT JOIN user_favorites f ON r.id = f.resource_id AND f.user_id = $2
-      WHERE r.id = $1`,
+      WHERE r.id = $1 AND r.deleted_at IS NULL`,
       [id, userId]
     );
 
@@ -156,6 +156,9 @@ class Resource {
     let paramIndex = 1;
 
     // 构建查询条件
+    // 默认过滤软删除的记录
+    conditions.push('r.deleted_at IS NULL');
+
     if (status) {
       conditions.push(`r.status = $${paramIndex}`);
       values.push(status);
@@ -299,8 +302,8 @@ class Resource {
 
     values.push(id);
     const result = await query(
-      `UPDATE resources SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $${paramIndex} 
+      `UPDATE resources SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $${paramIndex} AND deleted_at IS NULL
        RETURNING *`,
       values
     );
@@ -449,7 +452,7 @@ class Resource {
    * @returns {Promise<void>}
    */
   static async incrementViewCount(id) {
-    await query('UPDATE resources SET view_count = view_count + 1 WHERE id = $1', [id]);
+    await query('UPDATE resources SET view_count = view_count + 1 WHERE id = $1 AND deleted_at IS NULL', [id]);
   }
 
   /**
@@ -458,7 +461,7 @@ class Resource {
    * @returns {Promise<void>}
    */
   static async incrementDownloadCount(id) {
-    await query('UPDATE resources SET download_count = download_count + 1 WHERE id = $1', [id]);
+    await query('UPDATE resources SET download_count = download_count + 1 WHERE id = $1 AND deleted_at IS NULL', [id]);
   }
 
   /**
@@ -505,7 +508,7 @@ class Resource {
       LEFT JOIN users u ON r.author_id = u.id,
       to_tsquery('english', $1) query
       WHERE to_tsvector('english', r.title || ' ' || COALESCE(r.description, '') || ' ' || COALESCE(r.content, '')) @@ query
-      AND r.status = 'published' AND r.is_public = true
+      AND r.status = 'published' AND r.is_public = true AND r.deleted_at IS NULL
       ORDER BY rank DESC, r.created_at DESC
       LIMIT $2 OFFSET $3`,
       [searchTerm.replace(/\s+/g, ' & '), limit, offset]

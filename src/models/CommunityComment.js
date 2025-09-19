@@ -43,7 +43,7 @@ class CommunityComment {
         FROM community_comments cc
         JOIN users u ON cc.author_id = u.id
         LEFT JOIN users ru ON cc.reply_to_user_id = ru.id
-        WHERE cc.post_id = $1 AND cc.parent_id IS NULL AND cc.is_deleted = false
+        WHERE cc.post_id = $1 AND cc.parent_id IS NULL AND cc.deleted_at IS NULL
         
         UNION ALL
         
@@ -65,7 +65,7 @@ class CommunityComment {
         JOIN comment_tree parent ON child.parent_id = parent.id
         JOIN users cu ON child.author_id = cu.id
         LEFT JOIN users cru ON child.reply_to_user_id = cru.id
-        WHERE child.is_deleted = false
+        WHERE child.deleted_at IS NULL
       )
       SELECT * FROM comment_tree
     `;
@@ -91,7 +91,7 @@ class CommunityComment {
     const countSql = `
       SELECT COUNT(*) as total
       FROM community_comments 
-      WHERE post_id = $1 AND is_deleted = false
+      WHERE post_id = $1 AND deleted_at IS NULL
     `;
 
     const [dataResult, countResult] = await Promise.all([
@@ -142,7 +142,7 @@ class CommunityComment {
       JOIN users u ON cc.author_id = u.id
       LEFT JOIN users ru ON cc.reply_to_user_id = ru.id
       JOIN community_posts cp ON cc.post_id = cp.id
-      WHERE cc.id = $1 AND cc.is_deleted = false
+      WHERE cc.id = $1 AND cc.deleted_at IS NULL
     `;
 
     const params = userId ? [id, userId] : [id];
@@ -262,7 +262,7 @@ class CommunityComment {
     const sql = `
       UPDATE community_comments 
       SET ${updates.join(', ')}
-      WHERE id = $${paramIndex} AND is_deleted = false
+      WHERE id = $${paramIndex} AND deleted_at IS NULL
       RETURNING *
     `;
 
@@ -298,10 +298,8 @@ class CommunityComment {
       // 软删除评论
       await client.query(`
         UPDATE community_comments 
-        SET is_deleted = true, 
-            deleted_reason = $1, 
-            deleted_by = $2, 
-            deleted_at = CURRENT_TIMESTAMP
+        SET deleted_at = CURRENT_TIMESTAMP,
+            deleted_by = $2
         WHERE id = $3
       `, [reason, deletedBy, id]);
 
@@ -314,16 +312,14 @@ class CommunityComment {
           JOIN child_comments ch ON cc.parent_id = ch.id
         )
         UPDATE community_comments 
-        SET is_deleted = true, 
-            deleted_reason = $2, 
-            deleted_by = $3, 
-            deleted_at = CURRENT_TIMESTAMP
+        SET deleted_at = CURRENT_TIMESTAMP,
+            deleted_by = $3
         WHERE id IN (SELECT id FROM child_comments)
       `, [id, reason, deletedBy]);
 
       // 更新帖子回复数
       const replyCountResult = await client.query(
-        'SELECT COUNT(*) as count FROM community_comments WHERE post_id = $1 AND is_deleted = false',
+        'SELECT COUNT(*) as count FROM community_comments WHERE post_id = $1 AND deleted_at IS NULL',
         [post_id]
       );
 
@@ -362,7 +358,7 @@ class CommunityComment {
       FROM community_comments cc
       JOIN community_posts cp ON cc.post_id = cp.id
       JOIN community_boards cb ON cp.board_id = cb.id
-      WHERE cc.author_id = $1 AND cc.is_deleted = false
+      WHERE cc.author_id = $1 AND cc.deleted_at IS NULL
       ORDER BY cc.created_at DESC
       LIMIT $2 OFFSET $3
     `;
@@ -371,7 +367,7 @@ class CommunityComment {
       SELECT COUNT(*) as total
       FROM community_comments cc
       JOIN community_posts cp ON cc.post_id = cp.id
-      WHERE cc.author_id = $1 AND cc.is_deleted = false
+      WHERE cc.author_id = $1 AND cc.deleted_at IS NULL
     `;
 
     const [dataResult, countResult] = await Promise.all([
@@ -403,11 +399,11 @@ class CommunityComment {
   static async getChildrenCount(commentId) {
     const sql = `
       WITH RECURSIVE child_comments AS (
-        SELECT id FROM community_comments WHERE parent_id = $1 AND is_deleted = false
+        SELECT id FROM community_comments WHERE parent_id = $1 AND deleted_at IS NULL
         UNION ALL
         SELECT cc.id FROM community_comments cc
         JOIN child_comments ch ON cc.parent_id = ch.id
-        WHERE cc.is_deleted = false
+        WHERE cc.deleted_at IS NULL
       )
       SELECT COUNT(*) as count FROM child_comments
     `;
@@ -461,7 +457,7 @@ class CommunityComment {
         u.avatar_url as author_avatar
       FROM community_comments cc
       JOIN users u ON cc.author_id = u.id
-      WHERE cc.post_id = $1 AND cc.is_deleted = false AND cc.parent_id IS NULL
+      WHERE cc.post_id = $1 AND cc.deleted_at IS NULL AND cc.parent_id IS NULL
       ORDER BY cc.like_count DESC, cc.created_at DESC
       LIMIT $2
     `;
@@ -483,7 +479,7 @@ class CommunityComment {
         MAX(created_at) as latest_comment_time,
         COUNT(DISTINCT post_id) as commented_posts
       FROM community_comments 
-      WHERE author_id = $1 AND is_deleted = false
+      WHERE author_id = $1 AND deleted_at IS NULL
     `;
 
     const result = await query(sql, [userId]);

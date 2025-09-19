@@ -24,6 +24,12 @@ function cacheMiddleware(options = {}) {
   } = options;
 
   return async (req, res, next) => {
+    // 检查是否在开发模式下禁用缓存
+    if (process.env.DISABLE_CACHE === 'true') {
+      logger.debug('缓存已禁用 (DISABLE_CACHE=true)', { path: req.path });
+      return next();
+    }
+
     // 检查是否应该使用缓存
     if (skipCache || !methods.includes(req.method) || !condition(req)) {
       return next();
@@ -198,6 +204,12 @@ const statsCache = cacheMiddleware({
  */
 function clearCacheMiddleware(patterns) {
   return async (req, res, next) => {
+    // 检查是否在开发模式下禁用缓存
+    if (process.env.DISABLE_CACHE === 'true') {
+      logger.debug('缓存清理已禁用 (DISABLE_CACHE=true)', { path: req.path });
+      return next();
+    }
+
     // 拦截响应
     const originalJson = res.json;
     res.json = async function(data) {
@@ -205,10 +217,10 @@ function clearCacheMiddleware(patterns) {
       if (res.statusCode >= 200 && res.statusCode < 300) {
         for (const pattern of patterns) {
           try {
-            const cachePattern = typeof pattern === 'function' 
-              ? pattern(req, data) 
+            const cachePattern = typeof pattern === 'function'
+              ? pattern(req, data)
               : pattern;
-            
+
             if (cachePattern) {
               await cache.delByPattern(cachePattern);
               logger.debug('缓存已清除', { pattern: cachePattern });
@@ -272,8 +284,14 @@ const clearPostCache = clearCacheMiddleware([
  * 在应用启动时预加载热门数据
  */
 async function warmupCache() {
+  // 检查是否在开发模式下禁用缓存
+  if (process.env.DISABLE_CACHE === 'true') {
+    logger.info('缓存预热已跳过 (DISABLE_CACHE=true)');
+    return;
+  }
+
   logger.info('开始预热缓存...');
-  
+
   try {
     const warmupTasks = [
       // 预热分类列表
@@ -285,7 +303,7 @@ async function warmupCache() {
         },
         ttl: TTL.VERY_LONG
       },
-      
+
       // 预热热门资源
       {
         key: cache.generateKey('resources', 'list', 'anonymous', '1', '20', '', 'published', '', '', 'view_count', 'desc'),
