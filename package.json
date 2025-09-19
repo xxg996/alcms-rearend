@@ -9,7 +9,6 @@
     "install:full": "node database/install-full.js",
     "db:check:dynamic": "node database/check-tables-dynamic.js",
     "create-admin": "node scripts/create-admin.js",
-    "test-api": "node test-api.js",
     "pm2:dev": "pm2 start ecosystem.config.js --only alcms-backend-dev",
     "pm2:prod": "pm2 start ecosystem.config.js --only alcms-backend --env production",
     "pm2:stop": "pm2 stop all",
