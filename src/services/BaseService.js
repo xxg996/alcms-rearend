@@ -132,7 +132,12 @@ class BaseService {
    */
   async clearCache(pattern) {
     try {
-      await cache.delete(pattern);
+      // 根据是否包含通配符选择批量或单键删除
+      if (typeof pattern === 'string' && pattern.includes('*')) {
+        await cache.delByPattern(pattern);
+      } else {
+        await cache.del(pattern);
+      }
       logger.debug(`缓存已清除: ${pattern}`, { service: this.serviceName });
     } catch (error) {
       logger.warn(`清除缓存失败: ${pattern}`, error.message);

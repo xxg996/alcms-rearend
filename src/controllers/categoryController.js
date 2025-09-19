@@ -9,6 +9,7 @@
  */
 
 const Category = require('../models/Category');
+const CategoryService = require('../services/CategoryService');
 const { logger } = require('../utils/logger');
 
 class CategoryController {
@@ -76,15 +77,17 @@ class CategoryController {
       let categories;
       
       if (tree === 'true' && parentId === undefined) {
-        // 返回树形结构
-        categories = await Category.findAllTree(includeInactive === 'true');
+        // 通过服务层获取树形结构（带缓存）
+        const result = await CategoryService.getCategoryTree({ includeInactive: includeInactive === 'true' });
+        categories = result.data;
       } else {
-        // 返回扁平列表
-        const options = {
+        // 返回扁平列表（服务层封装）
+        const filters = {
           includeInactive: includeInactive === 'true',
-          parentId: parentId === 'null' ? null : (parentId ? parseInt(parentId) : undefined)
+          parent_id: parentId === 'null' ? null : (parentId ? parseInt(parentId) : undefined)
         };
-        categories = await Category.findAll(options);
+        const result = await CategoryService.getCategoryList(filters);
+        categories = result.data;
       }
 
       res.json({
@@ -162,26 +165,13 @@ class CategoryController {
   static async getCategory(req, res) {
     try {
       const { id } = req.params;
+      const result = await CategoryService.getCategoryById(parseInt(id));
 
-      const category = await Category.findById(parseInt(id));
-
-      if (!category) {
-        return res.status(404).json({
-          success: false,
-          message: '分类不存在'
-        });
+      if (!result || !result.data) {
+        return res.status(404).json({ success: false, message: '分类不存在' });
       }
 
-      // 获取分类路径（面包屑）
-      const categoryPath = await Category.getCategoryPath(parseInt(id));
-
-      res.json({
-        success: true,
-        data: {
-          ...category,
-          path: categoryPath
-        }
-      });
+      res.json({ success: true, data: result.data });
     } catch (error) {
       logger.error('获取分类详情失败:', error);
       res.status(500).json({
@@ -198,7 +188,7 @@ class CategoryController {
    *   post:
    *     tags: [Categories]
    *     summary: 创建新分类
-   *     description: 创建一个新的分类，需要管理员权限
+   *     description: 创建一个新的分类，需要管理员权限。层级限制：分类最多支持3级（根=1，子=2，孙=3），当 parentId 指向的父级已处于第3级或更深，将返回 400 错误。
    *     security:
    *       - BearerAuth: []
    *     requestBody:
@@ -244,6 +234,10 @@ class CategoryController {
    *                 value:
    *                   success: false
    *                   message: "分类名称已存在"
+   *               depth_limit:
+   *                 value:
+   *                   success: false
+   *                   message: "分类层级不能超过3级"
    *       401:
    *         $ref: '#/components/responses/Unauthorized'
    *       403:
@@ -288,17 +282,17 @@ class CategoryController {
         iconUrl
       };
 
-      const category = await Category.create(categoryData);
+      const result = await CategoryService.createCategory(categoryData, req.user.id);
 
       res.status(201).json({
         success: true,
         message: '分类创建成功',
-        data: category
+        data: result.data
       });
     } catch (error) {
       logger.error('创建分类失败:', error);
       
-      if (error.message === '分类名称已存在') {
+      if (error.message === '分类名称已存在' || error.message.includes('分类层级不能超过')) {
         return res.status(400).json({
           success: false,
           message: error.message
@@ -319,7 +313,7 @@ class CategoryController {
    *   put:
    *     tags: [Categories]
    *     summary: 更新分类
-   *     description: 更新指定ID的分类，需要管理员权限
+   *     description: 更新指定ID的分类，需要管理员权限。层级限制：当变更 parentId 导致层级超过3级，或形成循环引用，将返回 400 错误。
    *     security:
    *       - BearerAuth: []
    *     parameters:
@@ -402,40 +396,14 @@ class CategoryController {
         });
       }
 
-      const category = await Category.findById(parseInt(id));
+      // 通过服务层更新（内含循环检测与3级限制）
+      const result = await CategoryService.updateCategory(parseInt(id), updateData, req.user.id);
 
-      if (!category) {
-        return res.status(404).json({
-          success: false,
-          message: '分类不存在'
-        });
-      }
-
-      // 数据预处理
-      if (updateData.name) {
-        updateData.name = updateData.name.toLowerCase().trim();
-      }
-      if (updateData.displayName) {
-        updateData.displayName = updateData.displayName.trim();
-      }
-      if (updateData.parentId !== undefined) {
-        updateData.parentId = updateData.parentId ? parseInt(updateData.parentId) : null;
-      }
-      if (updateData.sortOrder !== undefined) {
-        updateData.sortOrder = parseInt(updateData.sortOrder);
-      }
-
-      const updatedCategory = await Category.update(parseInt(id), updateData);
-
-      res.json({
-        success: true,
-        message: '分类更新成功',
-        data: updatedCategory
-      });
+      res.json({ success: true, message: '分类更新成功', data: result.data });
     } catch (error) {
       logger.error('更新分类失败:', error);
       
-      if (error.message.includes('循环引用') || error.message.includes('不能将分类设置为')) {
+      if (error.message.includes('循环引用') || error.message.includes('不能将分类设置为') || error.message.includes('分类层级不能超过')) {
         return res.status(400).json({
           success: false,
           message: error.message
@@ -456,7 +424,7 @@ class CategoryController {
    *   delete:
    *     tags: [Categories]
    *     summary: 删除分类
-   *     description: 删除指定ID的分类，需要管理员权限。不能删除有子分类或关联资源的分类
+   *     description: 删除指定ID的分类，需要管理员权限。不能删除有子分类或关联资源的分类。说明：数据库外键为 ON DELETE CASCADE，但应用层会在存在子分类时阻止删除，避免级联删除。
    *     security:
    *       - BearerAuth: []
    *     parameters:
@@ -530,16 +498,12 @@ class CategoryController {
         });
       }
 
-      const category = await Category.findById(parseInt(id));
-
-      if (!category) {
-        return res.status(404).json({
-          success: false,
-          message: '分类不存在'
-        });
+      const existing = await Category.findById(parseInt(id));
+      if (!existing) {
+        return res.status(404).json({ success: false, message: '分类不存在' });
       }
 
-      await Category.delete(parseInt(id));
+      const result = await CategoryService.deleteCategory(parseInt(id), req.user.id);
 
       res.json({
         success: true,

@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken, requirePermission } = require('../../middleware/auth');
 const { logger } = require('../../utils/logger');
+const CategoryService = require('../../services/CategoryService');
 
 // 批量创建分类
 router.post('/batch-create',
@@ -23,7 +24,6 @@ router.post('/batch-create',
         });
       }
 
-      const Category = require('../../models/Category');
       const results = [];
       const errors = [];
 
@@ -48,8 +48,8 @@ router.post('/batch-create',
             iconUrl
           };
 
-          const category = await Category.create(processedCategoryData);
-          results.push(category);
+          const result = await CategoryService.createCategory(processedCategoryData, req.user.id);
+          results.push(result.data);
         } catch (error) {
           errors.push({
             category: categoryData,
@@ -92,24 +92,13 @@ router.patch('/batch-sort',
         });
       }
 
-      const Category = require('../../models/Category');
-      const results = [];
-
-      for (const { id, sortOrder } of categories) {
-        try {
-          const updatedCategory = await Category.update(parseInt(id), {
-            sortOrder: parseInt(sortOrder)
-          });
-          results.push(updatedCategory);
-        } catch (error) {
-          logger.error(`更新分类 ${id} 排序失败:`, error);
-        }
-      }
+      // 通过服务层批量更新排序（内部处理事务与缓存刷新）
+      const sortData = categories.map(({ id, sortOrder }) => ({ id: parseInt(id), sort_order: parseInt(sortOrder) }));
+      await CategoryService.updateCategorySortOrder(sortData, req.user.id);
 
       res.json({
         success: true,
-        message: `成功更新 ${results.length} 个分类排序`,
-        data: results
+        message: `成功更新 ${categories.length} 个分类排序`
       });
     } catch (error) {
       logger.error('批量更新分类排序失败:', error);

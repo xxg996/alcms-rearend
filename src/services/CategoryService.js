@@ -17,18 +17,12 @@ class CategoryService extends BaseService {
   async getCategoryTree(options = {}) {
     return this.withPerformanceMonitoring('getCategoryTree', async () => {
       try {
-        const { include_disabled = false } = options;
-        const cacheKey = `categories:tree:${include_disabled}`;
+        const { includeInactive = false } = options;
+        const cacheKey = `categories:tree:${includeInactive}`;
 
         return await this.getCached(cacheKey, async () => {
-          const categories = await Category.findAll({
-            status: include_disabled ? undefined : 'active',
-            order_by: 'sort_order',
-            order_direction: 'ASC'
-          });
-
-          const categoryTree = this.buildCategoryTree(categories);
-          
+          // 直接使用模型提供的树结构查询
+          const categoryTree = await Category.findAllTree(includeInactive);
           return this.formatSuccessResponse(categoryTree, '获取分类列表成功');
         }, 600); // 缓存10分钟
 
@@ -44,23 +38,15 @@ class CategoryService extends BaseService {
   async getCategoryList(filters = {}, pagination = {}) {
     return this.withPerformanceMonitoring('getCategoryList', async () => {
       try {
-        const { page, limit, offset } = this.normalizePaginationParams(
-          pagination.page,
-          pagination.limit
-        );
-
         const normalizedFilters = this.normalizeCategoryFilters(filters);
 
-        const [categories, totalCount] = await Promise.all([
-          Category.findByFilters({ ...normalizedFilters, limit, offset }),
-          Category.countByFilters(normalizedFilters)
-        ]);
+        // 模型不支持通用过滤/分页统计，这里返回扁平列表
+        const categories = await Category.findAll({
+          includeInactive: normalizedFilters.status === 'inactive' ? true : (normalizedFilters.status === 'active' ? false : (normalizedFilters.includeInactive ?? false)),
+          parentId: normalizedFilters.parent_id
+        });
 
-        return this.formatPaginatedResponse(
-          categories,
-          { page, limit },
-          totalCount
-        );
+        return this.formatSuccessResponse(categories, '获取分类列表成功');
 
       } catch (error) {
         this.handleError(error, 'getCategoryList');
@@ -85,8 +71,8 @@ class CategoryService extends BaseService {
             throw new Error('分类不存在');
           }
 
-          // 获取子分类
-          const children = await Category.findByParentId(categoryId);
+          // 模型 findById 已带 children 字段；为兼容保留 children 变量
+          const children = category.children || [];
           
           // 获取父分类路径
           const path = await this.getCategoryPath(categoryId);
@@ -113,50 +99,46 @@ class CategoryService extends BaseService {
     return this.withPerformanceMonitoring('createCategory', async () => {
       try {
         this.validateRequired({ userId }, ['userId']);
-        this.validateRequired(categoryData, ['name', 'slug']);
+        this.validateRequired(categoryData, ['name', 'displayName']);
 
-        const { name, slug, description, parent_id, icon, sort_order = 0 } = categoryData;
+        // 统一输入字段（驼峰 -> 模型所需）
+        const name = String(categoryData.name).toLowerCase().trim();
+        const displayName = String(categoryData.displayName).trim();
+        const description = categoryData.description ?? null;
+        const parentId = categoryData.parentId ? parseInt(categoryData.parentId) : null;
+        const sortOrder = categoryData.sortOrder ? parseInt(categoryData.sortOrder) : 0;
+        const iconUrl = categoryData.iconUrl ?? null;
 
-        // 验证slug唯一性
-        const existingCategory = await Category.findBySlug(slug);
-        if (existingCategory) {
-          throw new Error('分类标识已存在');
-        }
-
-        // 验证父分类
-        if (parent_id) {
-          const parentCategory = await Category.findById(parent_id);
+        // 验证父分类并检查层级深度（最多三级）
+        if (parentId) {
+          const parentCategory = await Category.findById(parentId);
           if (!parentCategory) {
             throw new Error('父分类不存在');
           }
-          
-          // 检查层级深度
-          const depth = await this.getCategoryDepth(parent_id);
+
+          const depth = await this.getCategoryDepth(parentId);
           if (depth >= 3) {
             throw new Error('分类层级不能超过3级');
           }
         }
 
+        // 创建分类
         const newCategory = await Category.create({
           name,
-          slug,
+          displayName,
           description,
-          parent_id,
-          icon,
-          sort_order,
-          status: 'active',
-          created_by: userId,
-          created_at: new Date(),
-          updated_at: new Date()
+          parentId,
+          sortOrder,
+          iconUrl
         });
 
         // 清除相关缓存
         await this.clearCategoryCache();
 
         this.log('info', '分类创建成功', { 
-          categoryId: newCategory.id, 
-          name, 
-          userId 
+          categoryId: newCategory.id,
+          name,
+          userId
         });
 
         return this.formatSuccessResponse(newCategory, '分类创建成功');
@@ -180,21 +162,20 @@ class CategoryService extends BaseService {
           throw new Error('分类不存在');
         }
 
-        const { name, slug, description, parent_id, icon, sort_order, status } = updateData;
+        // 规范化输入
+        const update = {};
+        if (updateData.name !== undefined) update.name = String(updateData.name).toLowerCase().trim();
+        if (updateData.displayName !== undefined) update.display_name = String(updateData.displayName).trim();
+        if (updateData.description !== undefined) update.description = updateData.description;
+        if (updateData.sortOrder !== undefined) update.sort_order = parseInt(updateData.sortOrder);
+        if (updateData.iconUrl !== undefined) update.icon_url = updateData.iconUrl;
+        if (updateData.isActive !== undefined) update.is_active = !!updateData.isActive;
 
-        // 验证slug唯一性（排除当前分类）
-        if (slug && slug !== existingCategory.slug) {
-          const duplicateCategory = await Category.findBySlug(slug);
-          if (duplicateCategory && duplicateCategory.id !== categoryId) {
-            throw new Error('分类标识已存在');
-          }
-        }
-
-        // 验证父分类变更
-        if (parent_id !== undefined && parent_id !== existingCategory.parent_id) {
+        // 处理父分类变更与校验（最多三级 + 防循环）
+        if (updateData.parentId !== undefined) {
+          const parent_id = updateData.parentId ? parseInt(updateData.parentId) : null;
           if (parent_id) {
-            // 不能将分类设为自己的子分类
-            if (parent_id === categoryId) {
+            if (parent_id === parseInt(categoryId)) {
               throw new Error('不能将分类设为自己的父分类');
             }
 
@@ -208,19 +189,17 @@ class CategoryService extends BaseService {
             if (isDescendant) {
               throw new Error('不能将分类设为自己子分类的父分类，这会形成循环引用');
             }
+
+            // 检查层级深度：父级深度>=3 时，设置将超过3级
+            const depth = await this.getCategoryDepth(parent_id);
+            if (depth >= 3) {
+              throw new Error('分类层级不能超过3级');
+            }
           }
+          update.parent_id = parent_id;
         }
 
-        const updatedCategory = await Category.updateById(categoryId, {
-          ...(name !== undefined && { name }),
-          ...(slug !== undefined && { slug }),
-          ...(description !== undefined && { description }),
-          ...(parent_id !== undefined && { parent_id }),
-          ...(icon !== undefined && { icon }),
-          ...(sort_order !== undefined && { sort_order }),
-          ...(status !== undefined && { status }),
-          updated_at: new Date()
-        });
+        const updatedCategory = await Category.update(parseInt(categoryId), update);
 
         // 清除相关缓存
         await this.clearCategoryCache();
@@ -248,19 +227,8 @@ class CategoryService extends BaseService {
           throw new Error('分类不存在');
         }
 
-        // 检查是否有子分类
-        const children = await Category.findByParentId(categoryId);
-        if (children.length > 0) {
-          throw new Error('该分类下还有子分类，无法删除');
-        }
-
-        // 检查是否有关联资源
-        const resourceCount = await this.getResourceCountByCategory(categoryId);
-        if (resourceCount > 0) {
-          throw new Error(`该分类下还有 ${resourceCount} 个资源，无法删除`);
-        }
-
-        await Category.deleteById(categoryId);
+        // 直接使用模型删除，模型内部已检查子分类与资源关联
+        await Category.delete(parseInt(categoryId));
 
         // 清除相关缓存
         await this.clearCategoryCache();
@@ -290,7 +258,7 @@ class CategoryService extends BaseService {
         await this.executeInTransaction(async (client) => {
           for (const item of sortData) {
             const { id, sort_order } = item;
-            await Category.updateById(id, { sort_order }, client);
+            await Category.update(parseInt(id), { sort_order: parseInt(sort_order) });
           }
         });
 
@@ -407,7 +375,7 @@ class CategoryService extends BaseService {
    */
   async getAllDescendants(categoryId) {
     const descendants = [];
-    const children = await Category.findByParentId(categoryId);
+    const children = await Category.findAll({ includeInactive: true, parentId: categoryId });
 
     for (const child of children) {
       descendants.push(child);
@@ -435,14 +403,16 @@ class CategoryService extends BaseService {
       parent_id,
       status,
       search,
-      created_by
+      created_by,
+      includeInactive
     } = filters;
 
     return {
       parent_id: parent_id ? parseInt(parent_id) : undefined,
       status,
       search,
-      created_by: created_by ? parseInt(created_by) : undefined
+      created_by: created_by ? parseInt(created_by) : undefined,
+      includeInactive: includeInactive === true
     };
   }
 
