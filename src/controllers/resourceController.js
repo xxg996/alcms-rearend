@@ -726,7 +726,7 @@ class ResourceController {
         });
       }
 
-      await Resource.delete(parseInt(id));
+      await Resource.delete(parseInt(id), userId);
 
       res.json({
         success: true,
