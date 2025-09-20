@@ -35,49 +35,49 @@ router.get('/boards/:id/stats', CommunityBoardController.getBoardStats);
 // 创建板块 (需要管理员权限)
 router.post('/boards', 
   authenticateToken, 
-  requirePermission('community.board.manage'), 
+  requirePermission('community:board:manage'), 
   CommunityBoardController.createBoard
 );
 
 // 更新板块 (需要管理员权限)
 router.put('/boards/:id', 
   authenticateToken, 
-  requirePermission('community.board.manage'), 
+  requirePermission('community:board:manage'), 
   CommunityBoardController.updateBoard
 );
 
 // 删除板块 (需要管理员权限)
 router.delete('/boards/:id', 
   authenticateToken, 
-  requirePermission('community.board.manage'), 
+  requirePermission('community:board:manage'), 
   CommunityBoardController.deleteBoard
 );
 
 // 批量更新板块排序 (需要管理员权限)
 router.patch('/boards/batch/sort', 
   authenticateToken, 
-  requirePermission('community.board.manage'), 
+  requirePermission('community:board:manage'), 
   CommunityBoardController.batchUpdateSort
 );
 
 // 批量创建板块 (需要管理员权限)
 router.post('/boards/batch/create', 
   authenticateToken, 
-  requirePermission('community.board.manage'), 
+  requirePermission('community:board:manage'), 
   CommunityBoardController.batchCreateBoards
 );
 
 // 添加版主 (需要管理员权限)
 router.post('/boards/:id/moderators', 
   authenticateToken, 
-  requirePermission('community.board.manage'), 
+  requirePermission('community:board:manage'), 
   CommunityBoardController.addModerator
 );
 
 // 移除版主 (需要管理员权限)
 router.delete('/boards/:id/moderators', 
   authenticateToken, 
-  requirePermission('community.board.manage'), 
+  requirePermission('community:board:manage'), 
   CommunityBoardController.removeModerator
 );
 
@@ -106,7 +106,7 @@ router.get('/posts/user/:userId/stats', CommunityPostController.getUserPostStats
 // 创建帖子 (需要登录)
 router.post('/posts',
   authenticateToken,
-  requirePermission('community.post.create'),
+  requirePermission('community:post:create'),
   clearPostCache, // 创建时清除缓存
   CommunityPostController.createPost
 );
@@ -114,7 +114,7 @@ router.post('/posts',
 // 更新帖子 (需要登录)
 router.put('/posts/:id',
   authenticateToken,
-  requirePermission('community.post.edit_own'),
+  requirePermission('community:post:edit_own'),
   clearPostCache, // 更新时清除缓存
   CommunityPostController.updatePost
 );
@@ -122,7 +122,7 @@ router.put('/posts/:id',
 // 删除帖子 (需要登录)
 router.delete('/posts/:id',
   authenticateToken,
-  requirePermission('community.post.delete_own'),
+  requirePermission('community:post:delete_own'),
   clearPostCache, // 删除时清除缓存
   CommunityPostController.deletePost
 );
@@ -130,28 +130,28 @@ router.delete('/posts/:id',
 // 置顶帖子 (需要版主或管理员权限)
 router.patch('/posts/:id/pin', 
   authenticateToken, 
-  requirePermission('community.post.pin'), 
+  requirePermission('community:post:pin'), 
   CommunityPostController.pinPost
 );
 
 // 设置精华帖 (需要版主或管理员权限)
 router.patch('/posts/:id/feature', 
   authenticateToken, 
-  requirePermission('community.post.feature'), 
+  requirePermission('community:post:feature'), 
   CommunityPostController.featurePost
 );
 
 // 锁定帖子 (需要版主或管理员权限)
 router.patch('/posts/:id/lock', 
   authenticateToken, 
-  requirePermission('community.post.lock'), 
+  requirePermission('community:post:lock'), 
   CommunityPostController.lockPost
 );
 
 // 批量更新帖子 (需要管理员权限)
 router.patch('/posts/batch/update', 
   authenticateToken, 
-  requirePermission('community.moderate'), 
+  requirePermission('community:moderate'), 
   CommunityPostController.batchUpdatePosts
 );
 
@@ -180,7 +180,7 @@ router.get('/comments/:id/children/count', CommunityCommentController.getChildre
 // 创建评论 (需要登录)
 router.post('/comments',
   authenticateToken,
-  requirePermission('community.comment.create'),
+  requirePermission('community:comment:create'),
   clearPostCache, // 评论会影响帖子列表
   CommunityCommentController.createComment
 );
@@ -188,7 +188,7 @@ router.post('/comments',
 // 更新评论 (需要登录)
 router.put('/comments/:id',
   authenticateToken,
-  requirePermission('community.comment.edit_own'),
+  requirePermission('community:comment:edit_own'),
   clearPostCache, // 评论会影响帖子列表
   CommunityCommentController.updateComment
 );
@@ -196,7 +196,7 @@ router.put('/comments/:id',
 // 删除评论 (需要登录)
 router.delete('/comments/:id',
   authenticateToken,
-  requirePermission('community.comment.delete_own'),
+  requirePermission('community:comment:delete_own'),
   clearPostCache, // 评论会影响帖子列表
   CommunityCommentController.deleteComment
 );
@@ -204,7 +204,7 @@ router.delete('/comments/:id',
 // 批量删除评论 (需要管理员权限)
 router.delete('/comments/batch/delete', 
   authenticateToken, 
-  requirePermission('community.comment.delete_any'), 
+  requirePermission('community:comment:delete_any'), 
   CommunityCommentController.batchDeleteComments
 );
 
@@ -215,28 +215,28 @@ router.delete('/comments/batch/delete',
 // 点赞/取消点赞
 router.post('/interactions/like', 
   authenticateToken, 
-  requirePermission('community.like'), 
+  requirePermission('community:like'), 
   CommunityInteractionController.toggleLike
 );
 
 // 收藏/取消收藏
 router.post('/interactions/favorite', 
   authenticateToken, 
-  requirePermission('community.favorite'), 
+  requirePermission('community:favorite'), 
   CommunityInteractionController.toggleFavorite
 );
 
 // 分享帖子
 router.post('/interactions/share', 
   authenticateToken, 
-  requirePermission('community.share'), 
+  requirePermission('community:share'), 
   CommunityInteractionController.sharePost
 );
 
 // 举报内容
 router.post('/interactions/report', 
   authenticateToken, 
-  requirePermission('community.report'), 
+  requirePermission('community:report'), 
   CommunityInteractionController.reportContent
 );
 

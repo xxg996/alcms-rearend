@@ -43,6 +43,7 @@ router.get('/:id',
 router.post('/',
   authenticateToken,
   requireRole('admin'),
+  requirePermission('user:create'),
   createUserValidation,
   userController.createUser
 );
@@ -110,6 +111,7 @@ router.put('/:id',
 router.delete('/:id',
   authenticateToken,
   requireRole('admin'),
+  requirePermission('user:delete'),
   userController.deleteUser
 );
 

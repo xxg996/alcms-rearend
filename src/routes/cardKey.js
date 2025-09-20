@@ -12,14 +12,14 @@ const { authenticateToken, requireRole, requireAdmin, requirePermission } = requ
 // 兑换卡密（普通用户可用）
 router.post('/redeem',
   authenticateToken,
-  requirePermission('card_key.redeem'),
+  requirePermission('card_key:redeem'),
   cardKeyController.redeemCard
 );
 
 // 查询卡密信息（用户只能查看基本信息，管理员可查看详细信息）
 router.get('/info/:code',
   authenticateToken,
-  requirePermission('card_key.read'),
+  requirePermission('card_key:read'),
   cardKeyController.getCardInfo
 );
 

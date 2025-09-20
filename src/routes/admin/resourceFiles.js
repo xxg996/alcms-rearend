@@ -15,14 +15,14 @@ const { clearResourceCache } = require('../../middleware/cacheMiddleware');
 // 获取资源的所有文件
 router.get('/resources/:resourceId/files',
   authenticateToken,
-  requirePermission('resource.read'),
+  requirePermission('resource:read'),
   resourceFileController.getResourceFiles
 );
 
 // 为资源添加文件
 router.post('/resources/:resourceId/files',
   authenticateToken,
-  requirePermission('resource.create'),
+  requirePermission('resource:create'),
   resourceFileController.createResourceFile,
   clearResourceCache // 添加文件后清除缓存
 );
@@ -30,7 +30,7 @@ router.post('/resources/:resourceId/files',
 // 更新文件排序
 router.put('/resources/:resourceId/files/sort',
   authenticateToken,
-  requirePermission('resource.update'),
+  requirePermission('resource:update'),
   resourceFileController.updateFileSort,
   clearResourceCache // 排序后清除缓存
 );
@@ -38,7 +38,7 @@ router.put('/resources/:resourceId/files/sort',
 // 更新资源文件
 router.put('/resource-files/:fileId',
   authenticateToken,
-  requirePermission('resource.update'),
+  requirePermission('resource:update'),
   resourceFileController.updateResourceFile,
   clearResourceCache // 更新文件后清除缓存
 );
@@ -47,21 +47,21 @@ router.put('/resource-files/:fileId',
 // 获取所有资源文件列表（管理员功能）
 router.get('/resource-files',
   authenticateToken,
-  requirePermission('resource.read'),
+  requirePermission('resource:read'),
   resourceFileController.getAllResourceFiles
 );
 
 // 获取文件统计信息
 router.get('/resource-files/statistics',
   authenticateToken,
-  requirePermission('resource.read'),
+  requirePermission('resource:read'),
   resourceFileController.getFileStatistics
 );
 
 // 批量删除资源文件
 router.post('/resource-files/batch-delete',
   authenticateToken,
-  requirePermission('resource.delete'),
+  requirePermission('resource:delete'),
   resourceFileController.batchDeleteResourceFiles,
   clearResourceCache // 删除文件后清除缓存
 );
@@ -69,7 +69,7 @@ router.post('/resource-files/batch-delete',
 // 批量更新资源文件
 router.post('/resource-files/batch-update',
   authenticateToken,
-  requirePermission('resource.update'),
+  requirePermission('resource:update'),
   resourceFileController.batchUpdateResourceFiles,
   clearResourceCache // 批量更新后清除缓存
 );

@@ -123,8 +123,8 @@ CREATE TABLE permissions (
     name VARCHAR(100) NOT NULL UNIQUE,
     display_name VARCHAR(100) NOT NULL,
     description TEXT,
-    resource VARCHAR(50),
-    action VARCHAR(50),
+    resource VARCHAR(50) NOT NULL,
+    action VARCHAR(50) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -693,40 +693,122 @@ CREATE TRIGGER trigger_community_likes_stats
 INSERT INTO roles (name, display_name, description) VALUES
 ('admin', '管理员', '系统管理员，具有最高权限'),
 ('moderator', '版主', '版主用户，具有内容管理权限'),
+('vip', 'VIP用户', 'VIP用户，享有高级功能权限'),
 ('user', '普通用户', '系统普通用户，具有基本功能权限');
 
--- 插入默认权限
+-- 插入默认权限（覆盖应用所需全量项，含点号/冒号两种命名）
 INSERT INTO permissions (name, display_name, description, resource, action) VALUES
--- 系统管理权限
+-- 系统管理
 ('system:configure', '系统配置', '配置系统参数和设置', 'system', 'configure'),
 ('system:maintenance', '系统维护', '执行系统维护操作', 'system', 'maintenance'),
+('system:manage', '系统管理', '管理系统设置和重置操作', 'system', 'manage'),
 
--- 用户管理权限
+-- 用户与角色权限
 ('user:create', '创建用户', '创建新用户账户', 'user', 'create'),
 ('user:read', '查看用户', '查看用户信息', 'user', 'read'),
 ('user:update', '更新用户', '更新用户信息', 'user', 'update'),
 ('user:delete', '删除用户', '删除用户账户', 'user', 'delete'),
-('user:ban', '封禁用户', '封禁用户账户', 'user', 'ban'),
+('user:list', '查看用户列表', '查看所有用户信息', 'user', 'list'),
+('user:ban', '封禁用户', '封禁违规用户账号', 'user', 'ban'),
+('user:unban', '解封用户', '解除用户账号封禁', 'user', 'unban'),
+('user:freeze', '冻结用户', '临时冻结用户账号', 'user', 'freeze'),
+('user:unfreeze', '解冻用户', '解除用户账号冻结', 'user', 'unfreeze'),
+('user:warn', '警告用户', '对违规用户发出警告', 'user', 'warn'),
+('profile:update', '更新个人资料', '更新头像、昵称、简介等', 'profile', 'update'),
+('role:assign', '分配角色', '为用户分配或移除角色', 'role', 'assign'),
+('permission:manage', '权限管理', '管理系统权限配置', 'permission', 'manage'),
 
--- 资源管理权限
-('resource:create', '创建资源', '创建新资源', 'resource', 'create'),
-('resource:read', '查看资源', '查看资源内容', 'resource', 'read'),
-('resource:update', '更新资源', '更新资源信息', 'resource', 'update'),
-('resource:delete', '删除资源', '删除资源', 'resource', 'delete'),
+-- 资源权限（冒号与点号两套，以兼容代码使用）
+('resource:create', '创建资源', '创建和发布资源内容', 'resource', 'create'),
+('resource:read', '查看资源', '查看资源详情和列表', 'resource', 'read'),
+('resource:update', '编辑资源', '编辑资源内容和信息', 'resource', 'update'),
+('resource:delete', '删除资源', '删除资源内容', 'resource', 'delete'),
+('resource:publish', '发布资源', '发布和下架资源', 'resource', 'publish'),
 ('resource:download', '下载资源', '下载资源文件', 'resource', 'download'),
 
--- 分类管理权限
-('category:create', '创建分类', '创建资源分类', 'category', 'create'),
-('category:update', '更新分类', '更新分类信息', 'category', 'update'),
-('category:delete', '删除分类', '删除资源分类', 'category', 'delete'),
 
--- 社区管理权限
-('community:post:create', '发布帖子', '发布社区帖子', 'community', 'post_create'),
-('community:post:update', '编辑帖子', '编辑社区帖子', 'community', 'post_update'),
-('community:post:delete', '删除帖子', '删除社区帖子', 'community', 'post_delete'),
-('community:comment:create', '发表评论', '发表帖子评论', 'community', 'comment_create'),
-('community:comment:delete', '删除评论', '删除帖子评论', 'community', 'comment_delete'),
-('community:moderate', '社区管理', '管理社区内容', 'community', 'moderate');
+-- 分类与标签
+('category:create', '创建分类', '创建资源分类', 'category', 'create'),
+('category:read', '查看分类', '查看分类信息', 'category', 'read'),
+('category:update', '编辑分类', '编辑分类信息', 'category', 'update'),
+('category:delete', '删除分类', '删除资源分类', 'category', 'delete'),
+('tag:create', '创建标签', '创建资源标签', 'tag', 'create'),
+('tag:read', '查看标签', '查看标签信息', 'tag', 'read'),
+('tag:update', '编辑标签', '编辑标签信息', 'tag', 'update'),
+('tag:delete', '删除标签', '删除资源标签', 'tag', 'delete'),
+
+-- 社区权限（点号命名，覆盖发帖/评论/互动/管理）
+('community:post:create', '发布帖子', '在社区中发布新帖子', 'community_posts', 'create'),
+('community:post:edit_own', '编辑自己的帖子', '编辑自己发布的帖子', 'community_posts', 'edit'),
+('community:post:delete_own', '删除自己的帖子', '删除自己发布的帖子', 'community_posts', 'delete'),
+('community:post:edit_any', '编辑任意帖子', '编辑任意用户的帖子', 'community_posts', 'edit'),
+('community:post:delete_any', '删除任意帖子', '删除任意用户的帖子', 'community_posts', 'delete'),
+('community:post:pin', '置顶帖子', '设置帖子置顶', 'community_posts', 'manage'),
+('community:post:feature', '设置精华帖', '设置帖子为精华', 'community_posts', 'manage'),
+('community:post:lock', '锁定帖子', '锁定帖子禁止回复', 'community_posts', 'manage'),
+('community:comment:create', '发表评论', '在帖子下发表评论', 'community_comments', 'create'),
+('community:comment:edit_own', '编辑自己的评论', '编辑自己的评论', 'community_comments', 'edit'),
+('community:comment:delete_own', '删除自己的评论', '删除自己的评论', 'community_comments', 'delete'),
+('community:comment:delete_any', '删除任意评论', '删除任意用户的评论', 'community_comments', 'delete'),
+('community:like', '点赞功能', '对帖子和评论点赞', 'community_likes', 'create'),
+('community:favorite', '收藏功能', '收藏帖子', 'community_favorites', 'create'),
+('community:share', '分享功能', '分享帖子到外部平台', 'community_shares', 'create'),
+('community:report', '举报功能', '举报违规内容', 'community_reports', 'create'),
+('community:report:handle', '处理举报', '处理用户举报内容', 'community_reports', 'manage'),
+('community:moderate', '社区管理', '社区内容审核管理', 'community', 'manage'),
+('community:punish', '违规处罚', '对违规用户进行处罚', 'community_punishments', 'manage'),
+('community:board:manage', '板块管理', '管理社区板块', 'community_boards', 'manage'),
+('community:bypass_review', '免审核', '发布内容无需审核', 'community', 'special'),
+('community:admin', '社区管理员', '完整的社区管理权限', 'community', 'admin'),
+
+-- 举报/评价/下载
+('report:create', '提交举报', '举报不当内容', 'report', 'create'),
+('report:handle', '处理举报', '处理用户举报', 'report', 'handle'),
+('review:create', '发表评价', '对资源发表评价和评论', 'review', 'create'),
+('review:read', '查看评价', '查看资源评价和评论', 'review', 'read'),
+('review:moderate', '审核评价', '审核和管理用户评价', 'review', 'moderate'),
+('review:delete', '删除评价', '删除不当评价', 'review', 'delete'),
+('download:unlimited', '无限下载', '不受下载次数限制', 'download', 'unlimited'),
+('download:vip_content', 'VIP内容下载', '下载VIP专属内容', 'download', 'vip_content'),
+
+-- VIP/卡密/积分/签到 权限
+('vip:level:create', '创建VIP等级', '创建新的VIP等级配置', 'vip_level', 'create'),
+('vip:level:read', '查看VIP等级', '查看VIP等级配置信息', 'vip_level', 'read'),
+('vip:level:update', '更新VIP等级', '修改VIP等级配置', 'vip_level', 'update'),
+('vip:level:delete', '删除VIP等级', '删除VIP等级配置', 'vip_level', 'delete'),
+('vip:user:read', '查看用户VIP信息', '查看用户的VIP状态和信息', 'vip_user', 'read'),
+('vip:user:set', '设置用户VIP', '为用户设置VIP等级和时长', 'vip_user', 'set'),
+('vip:user:extend', '延长用户VIP', '延长用户VIP有效期', 'vip_user', 'extend'),
+('vip:user:cancel', '取消用户VIP', '取消用户的VIP状态', 'vip_user', 'cancel'),
+('vip:order:read', '查看VIP订单', '查看VIP购买和订单记录', 'vip_order', 'read'),
+('vip:order:update', '更新VIP订单', '更新VIP订单状态', 'vip_order', 'update'),
+('card_key:generate', '生成卡密', '生成单个或批量卡密', 'card_key', 'generate'),
+('card_key:read', '查看卡密', '查看卡密信息和列表', 'card_key', 'read'),
+('card_key:update', '更新卡密', '更新卡密状态', 'card_key', 'update'),
+('card_key:delete', '删除卡密', '删除卡密或批次', 'card_key', 'delete'),
+('card_key:redeem', '兑换卡密', '用户兑换卡密功能', 'card_key', 'redeem'),
+('card_key:statistics', '卡密统计', '查看卡密使用统计', 'card_key', 'statistics'),
+('points:read', '查看积分信息', '查看用户积分余额和记录', 'points', 'read'),
+('points:transfer', '积分转账', '向其他用户转账积分', 'points', 'transfer'),
+('points:adjust', '调整积分', '管理员调整用户积分', 'points', 'adjust'),
+('points:grant', '发放积分', '批量发放积分给用户', 'points', 'grant'),
+('points:statistics', '积分统计', '查看积分系统统计数据', 'points', 'statistics'),
+('points:manage', '积分管理', '管理用户积分系统', 'points', 'manage'),
+('points:view', '查看积分', '查看积分记录', 'points', 'view'),
+('checkin:check', '执行签到', '用户每日签到功能', 'checkin', 'check'),
+('checkin:read', '查看签到信息', '查看签到记录和统计', 'checkin', 'read'),
+('checkin:config:create', '创建签到配置', '创建签到奖励配置', 'checkin_config', 'create'),
+('checkin:config:read', '查看签到配置', '查看签到配置信息', 'checkin_config', 'read'),
+('checkin:config:update', '更新签到配置', '修改签到奖励配置', 'checkin_config', 'update'),
+('checkin:config:delete', '删除签到配置', '删除签到配置', 'checkin_config', 'delete'),
+('checkin:makeup', '补签功能', '管理员为用户补签', 'checkin', 'makeup'),
+('checkin:reset', '重置签到数据', '重置用户签到记录', 'checkin', 'reset'),
+('checkin:statistics', '签到统计', '查看签到系统统计数据', 'checkin', 'statistics'),
+
+-- 其它功能
+('content:create_advanced', '创建高级内容', 'VIP用户创建高级内容权限', 'content', 'create_advanced'),
+('content:moderate', '内容审核', '审核和管理用户发布的内容', 'content', 'moderate'),
+('feature:vip_access', '访问VIP功能', 'VIP专属功能访问权限', 'feature', 'vip_access');
 
 -- 分配角色权限
 INSERT INTO role_permissions (role_id, permission_id)
@@ -734,25 +816,52 @@ SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.name = 'admin'; -- 管理员拥有所有权限
 
+-- 版主权限（社区与内容管理、部分VIP/积分/签到/卡密只读）
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.name = 'moderator'
 AND p.name IN (
-    'user:read', 'user:ban',
-    'resource:read', 'resource:update', 'resource:delete',
-    'community:post:update', 'community:post:delete',
-    'community:comment:delete', 'community:moderate'
+    'user:read','user:list','user:ban','user:warn',
+    'resource:read','resource:update','resource:delete','resource:publish',
+    'category:read','tag:read','tag:update','tag:delete',
+    'review:read','review:moderate','review:delete','report:handle',
+    'community:post:edit_any','community:post:delete_any','community:post:pin','community:post:feature','community:post:lock',
+    'community:comment:delete_any','community:moderate','community:board:manage','community:report:handle',
+    'community:like','community:favorite','community:share',
+    'vip:level:read','vip:user:read','vip:order:read',
+    'card_key:read','card_key:statistics',
+    'points:read','points:statistics',
+    'checkin:read','checkin:config:read','checkin:statistics'
 );
 
+-- 普通用户权限（基础发帖/评论/互动/资源读写）
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.name = 'user'
 AND p.name IN (
-    'resource:create', 'resource:read', 'resource:download',
-    'community:post:create', 'community:post:update',
-    'community:comment:create'
+    'resource:create','resource:read','resource:download',
+    'category:read','tag:read',
+    'review:create','review:read','report:create',
+    'community:post:create','community:post:edit_own','community:post:delete_own',
+    'community:comment:create','community:comment:edit_own','community:comment:delete_own',
+    'community:like','community:favorite','community:share','community:report'
+);
+
+-- VIP用户权限（继承普通用户 + VIP特权）
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.name = 'vip'
+AND p.name IN (
+    'resource:create','resource:read','resource:download',
+    'category:read','tag:read','tag:create',
+    'review:create','review:read','report:create','points:view',
+    'download:vip_content','feature:vip_access','content:create_advanced',
+    'community:post:create','community:post:edit_own','community:post:delete_own',
+    'community:comment:create','community:comment:edit_own','community:comment:delete_own',
+    'community:like','community:favorite','community:share','community:report'
 );
 
 -- 插入默认资源类型

@@ -14,7 +14,7 @@ const {
 // 重置所有用户每日下载次数
 router.post('/reset-daily-limits',
   authenticateToken,
-  requirePermission('system.manage'),
+  requirePermission('system:maintenance'),
   downloadController.resetAllDailyDownloads
 );
 

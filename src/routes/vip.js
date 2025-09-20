@@ -19,21 +19,21 @@ router.get('/levels/:level', vipController.getLevelById);
 // 获取当前用户VIP信息
 router.get('/my-info',
   authenticateToken,
-  requirePermission('vip.user.read'),
+  requirePermission('vip:user:read'),
   vipController.getMyVIPInfo
 );
 
 // 获取当前用户订单历史
 router.get('/my-orders',
   authenticateToken,
-  requirePermission('vip.order.read'),
+  requirePermission('vip:order:read'),
   vipController.getMyOrders
 );
 
 // 获取订单详情
 router.get('/orders/:orderId',
   authenticateToken,
-  requirePermission('vip.order.read'),
+  requirePermission('vip:order:read'),
   vipController.getOrderById
 );
 

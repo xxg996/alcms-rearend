@@ -12,21 +12,21 @@ const { authenticateToken, requireRole, requireAdmin, requirePermission } = requ
 // 执行签到
 router.post('/check',
   authenticateToken,
-  requirePermission('checkin.check'),
+  requirePermission('checkin:check'),
   checkinController.performCheckin
 );
 
 // 获取当前用户签到状态
 router.get('/my-status',
   authenticateToken,
-  requirePermission('checkin.read'),
+  requirePermission('checkin:read'),
   checkinController.getMyCheckinStatus
 );
 
 // 获取当前用户签到历史
 router.get('/my-history',
   authenticateToken,
-  requirePermission('checkin.read'),
+  requirePermission('checkin:read'),
   checkinController.getMyCheckinHistory
 );
 

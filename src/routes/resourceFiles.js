@@ -143,21 +143,21 @@ router.post('/resource-files/:fileId/delete',
 // 管理员专属功能：获取文件统计信息
 router.get('/resource-files/statistics',
   authenticateToken,
-  requirePermission('resource.read'),
+  requirePermission('resource:read'),
   resourceFileController.getFileStatistics
 );
 
 // 管理员专属功能：批量删除资源文件
 router.post('/resource-files/batch-delete',
   authenticateToken,
-  requirePermission('resource.delete'),
+  requirePermission('resource:delete'),
   resourceFileController.batchDeleteResourceFiles
 );
 
 // 管理员专属功能：批量更新资源文件
 router.post('/resource-files/batch-update',
   authenticateToken,
-  requirePermission('resource.update'),
+  requirePermission('resource:update'),
   resourceFileController.batchUpdateResourceFiles
 );
 
