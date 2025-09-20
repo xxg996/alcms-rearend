@@ -86,7 +86,7 @@ CREATE TABLE users (
     nickname VARCHAR(100),
     avatar_url VARCHAR(500),
     bio TEXT,
-    status VARCHAR(20) DEFAULT 'normal' CHECK (status IN ('normal', 'banned', 'suspended')),
+    status VARCHAR(20) DEFAULT 'normal' CHECK (status IN ('normal', 'banned', 'frozen')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -204,14 +204,14 @@ CREATE TABLE resources (
     is_public BOOLEAN DEFAULT TRUE,
     is_free BOOLEAN DEFAULT TRUE,
     required_points INTEGER DEFAULT 0,
-    status VARCHAR(20) DEFAULT 'published' CHECK (status IN ('draft', 'published', 'archived')),
+    status VARCHAR(20) DEFAULT 'published' CHECK (status IN ('draft', 'published', 'archived', 'banned')),
     view_count INTEGER DEFAULT 0,
     download_count INTEGER DEFAULT 0,
     like_count INTEGER DEFAULT 0,
     author_id INTEGER NOT NULL REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    published_at TIMESTAMP
 );
 
 -- 资源文件表 (保留软删除)
@@ -228,6 +228,8 @@ CREATE TABLE resource_files (
     language VARCHAR(10),
     is_active BOOLEAN DEFAULT TRUE,
     sort_order INTEGER DEFAULT 0,
+    download_count BIGINT DEFAULT 0,
+    last_downloaded_at TIMESTAMP,
     deleted_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -249,9 +251,9 @@ CREATE TABLE resource_reports (
     reporter_id INTEGER NOT NULL REFERENCES users(id),
     reason VARCHAR(100) NOT NULL,
     description TEXT,
-    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved', 'dismissed')),
-    reviewed_by INTEGER REFERENCES users(id),
-    reviewed_at TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'pending',
+    handled_by INTEGER REFERENCES users(id),
+    handled_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -262,6 +264,7 @@ CREATE TABLE resource_reviews (
     user_id INTEGER NOT NULL REFERENCES users(id),
     rating INTEGER CHECK (rating >= 1 AND rating <= 5),
     comment TEXT,
+    is_approved BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(resource_id, user_id)
@@ -284,7 +287,7 @@ CREATE TABLE community_boards (
     post_count INTEGER DEFAULT 0,
     last_post_id INTEGER,
     last_post_time TIMESTAMPTZ,
-    moderator_ids INTEGER[],
+    moderator_ids INTEGER[] DEFAULT '{}'::integer[],
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -294,11 +297,11 @@ CREATE TABLE community_posts (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
-    content_type VARCHAR(20) DEFAULT 'markdown' CHECK (content_type IN ('markdown', 'html', 'text')),
+    content_type VARCHAR(20) DEFAULT 'markdown',
     summary VARCHAR(500),
     author_id INTEGER NOT NULL REFERENCES users(id),
     board_id INTEGER NOT NULL REFERENCES community_boards(id),
-    status VARCHAR(20) DEFAULT 'published' CHECK (status IN ('draft', 'published', 'hidden', 'deleted')),
+    status VARCHAR(20) DEFAULT 'published',
     is_pinned BOOLEAN DEFAULT FALSE,
     is_featured BOOLEAN DEFAULT FALSE,
     is_locked BOOLEAN DEFAULT FALSE,
@@ -310,7 +313,7 @@ CREATE TABLE community_posts (
     last_reply_id INTEGER,
     last_reply_time TIMESTAMPTZ,
     last_reply_user_id INTEGER REFERENCES users(id),
-    published_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    published_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -320,7 +323,7 @@ CREATE TABLE community_post_tags (
     id SERIAL PRIMARY KEY,
     post_id INTEGER NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
     tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(post_id, tag_id)
 );
 
@@ -366,7 +369,7 @@ CREATE TABLE community_shares (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id),
     post_id INTEGER NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
-    platform VARCHAR(50),
+    share_platform VARCHAR(50),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -374,27 +377,31 @@ CREATE TABLE community_shares (
 CREATE TABLE community_reports (
     id SERIAL PRIMARY KEY,
     reporter_id INTEGER NOT NULL REFERENCES users(id),
-    target_type VARCHAR(20) NOT NULL CHECK (target_type IN ('post', 'comment', 'user')),
+    target_type VARCHAR(50) NOT NULL,
     target_id INTEGER NOT NULL,
     reason VARCHAR(100) NOT NULL,
     description TEXT,
-    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved', 'dismissed')),
-    reviewed_by INTEGER REFERENCES users(id),
-    reviewed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    handler_id INTEGER,
+    handler_note TEXT,
+    handled_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 社区处罚表
 CREATE TABLE community_punishments (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id),
-    type VARCHAR(20) NOT NULL CHECK (type IN ('warning', 'mute', 'ban', 'suspension')),
-    reason TEXT NOT NULL,
+    punishment_type VARCHAR(50) NOT NULL,
+    reason VARCHAR(255) NOT NULL,
+    description TEXT,
     duration_hours INTEGER,
-    issued_by INTEGER NOT NULL REFERENCES users(id),
-    expires_at TIMESTAMPTZ,
+    operator_id INTEGER NOT NULL REFERENCES users(id),
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 社区通知表
@@ -404,7 +411,9 @@ CREATE TABLE community_notifications (
     type VARCHAR(50) NOT NULL,
     title VARCHAR(255) NOT NULL,
     content TEXT,
-    data JSONB,
+    related_type VARCHAR(50),
+    related_id INTEGER,
+    sender_id INTEGER,
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -413,12 +422,16 @@ CREATE TABLE community_notifications (
 CREATE TABLE community_user_stats (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    posts_count INTEGER DEFAULT 0,
-    comments_count INTEGER DEFAULT 0,
-    likes_received INTEGER DEFAULT 0,
-    likes_given INTEGER DEFAULT 0,
-    last_active_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    post_count INTEGER DEFAULT 0,
+    comment_count INTEGER DEFAULT 0,
+    like_given_count INTEGER DEFAULT 0,
+    like_received_count INTEGER DEFAULT 0,
+    favorite_count INTEGER DEFAULT 0,
+    follower_count INTEGER DEFAULT 0,
+    following_count INTEGER DEFAULT 0,
     reputation_score INTEGER DEFAULT 0,
+    last_post_time TIMESTAMPTZ,
+    last_comment_time TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id)
@@ -447,7 +460,8 @@ CREATE TABLE download_records (
     user_agent TEXT,
     download_url VARCHAR(500),
     expires_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    is_successful BOOLEAN DEFAULT FALSE,
+    downloaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 每日购买记录表
@@ -479,43 +493,50 @@ CREATE TABLE vip_levels (
     id SERIAL PRIMARY KEY,
     level INTEGER NOT NULL UNIQUE,
     name VARCHAR(50) NOT NULL,
-    price DECIMAL(10,2) NOT NULL,
-    duration_days INTEGER NOT NULL,
-    daily_download_limit INTEGER DEFAULT 100,
-    benefits JSONB,
+    display_name VARCHAR(100) NOT NULL,
     description TEXT,
+    benefits JSON DEFAULT '{}'::json,
+    price NUMERIC DEFAULT 0.00,
+    duration_days INTEGER DEFAULT 30,
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    daily_download_limit INTEGER DEFAULT 50
 );
 
 -- VIP订单表
 CREATE TABLE vip_orders (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id),
-    vip_level INTEGER NOT NULL REFERENCES vip_levels(level),
-    amount DECIMAL(10,2) NOT NULL,
-    payment_method VARCHAR(50),
-    transaction_id VARCHAR(255),
-    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'expired', 'cancelled')),
+    vip_level INTEGER NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    duration_days INTEGER NOT NULL,
     expire_at TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'cancelled', 'expired')),
+    payment_method VARCHAR(50),
+    order_no VARCHAR(100) NOT NULL,
+    card_key_code VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(order_no)
 );
 
 -- 卡密表
 CREATE TABLE card_keys (
     id SERIAL PRIMARY KEY,
     code VARCHAR(50) NOT NULL UNIQUE,
-    type VARCHAR(20) NOT NULL CHECK (type IN ('vip', 'points')),
-    value INTEGER NOT NULL,
-    vip_level INTEGER REFERENCES vip_levels(level),
-    duration_days INTEGER,
-    status VARCHAR(20) DEFAULT 'unused' CHECK (status IN ('unused', 'used', 'expired')),
+    type VARCHAR(20) DEFAULT 'vip' CHECK (type IN ('vip', 'points', 'days')),
+    vip_level INTEGER DEFAULT 1,
+    vip_days INTEGER DEFAULT 30,
+    points INTEGER DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'unused' CHECK (status IN ('unused', 'used', 'expired', 'disabled')),
     used_by INTEGER REFERENCES users(id),
     used_at TIMESTAMP,
     expire_at TIMESTAMP,
+    batch_id VARCHAR(100),
     created_by INTEGER REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 积分商品表
@@ -523,11 +544,13 @@ CREATE TABLE points_products (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    price INTEGER NOT NULL,
-    type VARCHAR(50) NOT NULL CHECK (type IN ('vip_days', 'download_quota', 'points')),
-    value INTEGER NOT NULL,
+    type VARCHAR(50) DEFAULT 'virtual',
+    points_cost INTEGER NOT NULL,
     stock INTEGER DEFAULT -1,
     is_active BOOLEAN DEFAULT TRUE,
+    image_url VARCHAR(255),
+    details JSON DEFAULT '{}'::json,
+    created_by INTEGER REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -535,22 +558,30 @@ CREATE TABLE points_products (
 -- 积分兑换记录表
 CREATE TABLE points_exchanges (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    product_id INTEGER NOT NULL REFERENCES points_products(id),
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    product_id INTEGER NOT NULL REFERENCES points_products(id) ON DELETE CASCADE,
     points_cost INTEGER NOT NULL,
-    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'cancelled', 'failed')),
+    quantity INTEGER DEFAULT 1,
+    total_points INTEGER NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    exchange_data JSON DEFAULT '{}'::json,
+    processed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    processed_at TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 积分记录表
 CREATE TABLE points_records (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id),
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type VARCHAR(50) NOT NULL,
-    points INTEGER NOT NULL,
+    amount INTEGER NOT NULL,
+    source VARCHAR(50) NOT NULL,
     description TEXT,
     related_id INTEGER,
+    related_type VARCHAR(50),
+    balance_before INTEGER NOT NULL,
+    balance_after INTEGER NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -561,23 +592,25 @@ CREATE TABLE points_records (
 -- 签到配置表
 CREATE TABLE checkin_configs (
     id SERIAL PRIMARY KEY,
-    day INTEGER NOT NULL UNIQUE CHECK (day >= 1 AND day <= 30),
-    points_reward INTEGER NOT NULL DEFAULT 0,
-    extra_reward_type VARCHAR(50),
-    extra_reward_value INTEGER DEFAULT 0,
+    name VARCHAR(100) NOT NULL,
     description TEXT,
+    daily_points INTEGER DEFAULT 10,
+    consecutive_bonus JSON DEFAULT '{}'::json,
+    monthly_reset BOOLEAN DEFAULT TRUE,
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 签到配置角色表
 CREATE TABLE checkin_config_roles (
     id SERIAL PRIMARY KEY,
     checkin_config_id INTEGER NOT NULL REFERENCES checkin_configs(id) ON DELETE CASCADE,
-    role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-    points_multiplier DECIMAL(3,2) DEFAULT 1.00,
+    role_name VARCHAR(50) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(checkin_config_id, role_id)
+    created_by INTEGER REFERENCES users(id),
+    UNIQUE(checkin_config_id, role_name)
 );
 
 -- 用户签到记录表
@@ -587,7 +620,9 @@ CREATE TABLE user_checkins (
     checkin_date DATE NOT NULL DEFAULT CURRENT_DATE,
     consecutive_days INTEGER DEFAULT 1,
     points_earned INTEGER DEFAULT 0,
-    extra_reward TEXT,
+    is_bonus BOOLEAN DEFAULT FALSE,
+    bonus_points INTEGER DEFAULT 0,
+    config_id INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, checkin_date)
 );
@@ -600,17 +635,18 @@ CREATE TABLE user_checkins (
 CREATE TABLE refresh_tokens (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token VARCHAR(255) NOT NULL UNIQUE,
+    token_hash VARCHAR(255) NOT NULL,
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_used_at TIMESTAMP
+    is_revoked BOOLEAN DEFAULT FALSE
 );
 
 -- 数据库迁移记录表
 CREATE TABLE schema_migrations (
-    version VARCHAR(255) NOT NULL PRIMARY KEY,
-    description TEXT,
-    executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id SERIAL PRIMARY KEY,
+    version VARCHAR(50) NOT NULL UNIQUE,
+    executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    description TEXT
 );
 
 -- ============================================================================
@@ -637,6 +673,28 @@ CREATE INDEX idx_resources_download_count ON resources(download_count);
 CREATE INDEX idx_categories_parent_id ON categories(parent_id);
 CREATE INDEX idx_categories_is_active ON categories(is_active);
 
+-- 角色/用户附加索引
+CREATE INDEX idx_roles_is_active ON roles(is_active);
+CREATE INDEX idx_users_vip_level ON users(vip_level);
+CREATE INDEX idx_users_vip_expire_at ON users(vip_expire_at);
+CREATE INDEX idx_users_points ON users(points);
+CREATE INDEX idx_users_total_points ON users(total_points);
+CREATE INDEX idx_users_download_reset_date ON users(last_download_reset_date);
+
+-- 角色/权限关联索引
+CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
+CREATE INDEX idx_user_roles_role_id ON user_roles(role_id);
+CREATE INDEX idx_role_permissions_role_id ON role_permissions(role_id);
+
+-- 刷新令牌索引
+CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
+
+-- VIP订单索引
+CREATE INDEX idx_vip_orders_user_id ON vip_orders(user_id);
+CREATE INDEX idx_vip_orders_status ON vip_orders(status);
+CREATE INDEX idx_vip_orders_order_no ON vip_orders(order_no);
+
 -- 社区相关索引
 CREATE INDEX idx_community_posts_board_id ON community_posts(board_id);
 CREATE INDEX idx_community_posts_author_id ON community_posts(author_id);
@@ -656,6 +714,19 @@ CREATE INDEX idx_download_records_created_at ON download_records(created_at);
 CREATE INDEX idx_user_points_user_id ON user_points(user_id);
 CREATE INDEX idx_user_points_resource_id ON user_points(resource_id);
 CREATE INDEX idx_user_points_created_at ON user_points(created_at);
+
+-- 积分产品/记录/兑换 索引
+CREATE INDEX idx_points_products_active ON points_products(is_active);
+CREATE INDEX idx_points_products_type ON points_products(type);
+CREATE INDEX idx_points_products_cost ON points_products(points_cost);
+CREATE INDEX idx_points_records_user_id ON points_records(user_id);
+CREATE INDEX idx_points_records_type ON points_records(type);
+CREATE INDEX idx_points_records_source ON points_records(source);
+CREATE INDEX idx_points_records_created_at ON points_records(created_at);
+CREATE INDEX idx_points_records_related ON points_records(related_type, related_id);
+CREATE INDEX idx_points_exchanges_user_id ON points_exchanges(user_id);
+CREATE INDEX idx_points_exchanges_product_id ON points_exchanges(product_id);
+CREATE INDEX idx_points_exchanges_status ON points_exchanges(status);
 
 -- ============================================================================
 -- 触发器创建
