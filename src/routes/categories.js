@@ -12,8 +12,8 @@ const { logger } = require('../utils/logger');
 
 // 公开路由（无需认证）
 
-// 获取分类列表（添加缓存）
-router.get('/', categoryListCache, CategoryController.getCategories);
+// 获取分类列表（服务层已处理缓存）
+router.get('/', CategoryController.getCategories);
 
 // 获取热门分类 - 必须放在 /:id 之前
 router.get('/popular', CategoryController.getPopularCategories);

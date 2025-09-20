@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken, requirePermission } = require('../../middleware/auth');
+const { clearCategoryCache } = require('../../middleware/cacheMiddleware');
 const { logger } = require('../../utils/logger');
 const CategoryService = require('../../services/CategoryService');
 
@@ -13,6 +14,7 @@ const CategoryService = require('../../services/CategoryService');
 router.post('/batch-create',
   authenticateToken,
   requirePermission('category:create'),
+  clearCategoryCache, // 创建时清除缓存
   async (req, res) => {
     try {
       const { categories } = req.body;
@@ -81,6 +83,7 @@ router.post('/batch-create',
 router.patch('/batch-sort',
   authenticateToken,
   requirePermission('category:update'),
+  clearCategoryCache, // 更新时清除缓存
   async (req, res) => {
     try {
       const { categories } = req.body;

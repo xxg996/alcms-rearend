@@ -40,13 +40,18 @@ class CategoryService extends BaseService {
       try {
         const normalizedFilters = this.normalizeCategoryFilters(filters);
 
-        // 模型不支持通用过滤/分页统计，这里返回扁平列表
-        const categories = await Category.findAll({
-          includeInactive: normalizedFilters.status === 'inactive' ? true : (normalizedFilters.status === 'active' ? false : (normalizedFilters.includeInactive ?? false)),
-          parentId: normalizedFilters.parent_id
-        });
+        // 生成缓存键，包含所有影响结果的参数
+        const cacheKey = `categories:list:${normalizedFilters.includeInactive}:${normalizedFilters.parent_id || 'all'}`;
 
-        return this.formatSuccessResponse(categories, '获取分类列表成功');
+        return await this.getCached(cacheKey, async () => {
+          // 模型不支持通用过滤/分页统计，这里返回扁平列表
+          const categories = await Category.findAll({
+            includeInactive: normalizedFilters.status === 'inactive' ? true : (normalizedFilters.status === 'active' ? false : (normalizedFilters.includeInactive ?? false)),
+            parentId: normalizedFilters.parent_id
+          });
+
+          return this.formatSuccessResponse(categories, '获取分类列表成功');
+        }, 600); // 缓存10分钟，与getCategoryTree保持一致
 
       } catch (error) {
         this.handleError(error, 'getCategoryList');

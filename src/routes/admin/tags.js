@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken, requirePermission } = require('../../middleware/auth');
+const { clearTagCache } = require('../../middleware/cacheMiddleware');
 const { logger } = require('../../utils/logger');
 
 // 获取标签统计信息
@@ -96,6 +97,7 @@ router.get('/stats',
 router.delete('/cleanup',
   authenticateToken,
   requirePermission('tag:delete'),
+  clearTagCache, // 清理时清除缓存
   async (req, res) => {
     try {
       const { query } = require('../../config/database');
@@ -148,6 +150,7 @@ router.delete('/cleanup',
 router.post('/recalculate-usage',
   authenticateToken,
   requirePermission('tag:update'),
+  clearTagCache, // 更新时清除缓存
   async (req, res) => {
     try {
       const { query } = require('../../config/database');

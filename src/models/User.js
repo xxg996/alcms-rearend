@@ -396,7 +396,7 @@ class User {
    */
   static async deleteUser(userId) {
     const client = await getClient();
-    
+
     try {
       await client.query('BEGIN');
 
@@ -413,23 +413,103 @@ class User {
       const user = userResult.rows[0];
 
       // 删除用户相关的数据（级联删除）
-      // 1. 删除刷新令牌
+      // 按照依赖关系的顺序删除，先删除子表数据，再删除主表数据
+
+      // 1. 删除用户相关的活动数据
+      await client.query('DELETE FROM user_checkins WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM user_points WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM points_records WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM points_exchanges WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM daily_purchases WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM download_records WHERE user_id = $1', [userId]);
+
+      // 2. 删除用户收藏和互动数据
+      await client.query('DELETE FROM user_favorites WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM resource_reviews WHERE user_id = $1', [userId]);
+
+      // 3. 删除VIP相关数据
+      await client.query('DELETE FROM vip_orders WHERE user_id = $1', [userId]);
+
+      // 4. 删除社区相关数据
+      await client.query('DELETE FROM community_favorites WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM community_likes WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM community_shares WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM community_user_stats WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM community_punishments WHERE user_id = $1', [userId]);
+
+      // 5. 删除通知数据
+      await client.query('DELETE FROM community_notifications WHERE user_id = $1 OR sender_id = $1', [userId]);
+
+      // 6. 删除举报数据（作为举报者）
+      await client.query('DELETE FROM resource_reports WHERE reporter_id = $1', [userId]);
+      await client.query('DELETE FROM community_reports WHERE reporter_id = $1', [userId]);
+
+      // 7. 处理用户创建的内容
+      // 对于用户创建的帖子和评论，将其标记为已删除用户创建，而不是直接删除
+      await client.query(`
+        UPDATE community_posts
+        SET author_id = NULL,
+            content = '[用户已删除]',
+            title = CASE WHEN title IS NOT NULL THEN '[已删除用户的帖子]' ELSE title END
+        WHERE author_id = $1
+      `, [userId]);
+
+      await client.query(`
+        UPDATE community_comments
+        SET author_id = NULL,
+            content = '[用户已删除]'
+        WHERE author_id = $1
+      `, [userId]);
+
+      // 8. 处理用户创建的资源（保留资源但标记为已删除用户创建）
+      await client.query(`
+        UPDATE resources
+        SET author_id = NULL
+        WHERE author_id = $1
+      `, [userId]);
+
+      // 9. 处理引用用户作为操作者的记录
+      // 将created_by, assigned_by等字段设置为NULL
+      await client.query('UPDATE user_roles SET assigned_by = NULL WHERE assigned_by = $1', [userId]);
+      await client.query('UPDATE checkin_configs SET created_by = NULL WHERE created_by = $1', [userId]);
+      await client.query('UPDATE checkin_config_roles SET created_by = NULL WHERE created_by = $1', [userId]);
+      await client.query('UPDATE points_products SET created_by = NULL WHERE created_by = $1', [userId]);
+      await client.query('UPDATE card_keys SET created_by = NULL WHERE created_by = $1', [userId]);
+
+      // 10. 处理已使用的卡密
+      await client.query('UPDATE card_keys SET used_by = NULL WHERE used_by = $1', [userId]);
+
+      // 11. 处理举报处理记录
+      await client.query('UPDATE resource_reports SET handled_by = NULL WHERE handled_by = $1', [userId]);
+      await client.query('UPDATE community_reports SET handler_id = NULL WHERE handler_id = $1', [userId]);
+      await client.query('UPDATE community_punishments SET operator_id = NULL WHERE operator_id = $1', [userId]);
+
+      // 12. 处理评论回复关系
+      await client.query('UPDATE community_comments SET reply_to_user_id = NULL WHERE reply_to_user_id = $1', [userId]);
+
+      // 13. 处理帖子最后回复者
+      await client.query('UPDATE community_posts SET last_reply_user_id = NULL WHERE last_reply_user_id = $1', [userId]);
+
+      // 14. 处理资源删除记录
+      await client.query('UPDATE resources SET deleted_by = NULL WHERE deleted_by = $1', [userId]);
+      await client.query('UPDATE community_comments SET deleted_by = NULL WHERE deleted_by = $1', [userId]);
+
+      // 15. 删除认证和角色数据
       await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
-      
-      // 2. 删除用户角色关联
       await client.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
-      
-      // 3. 删除用户创建的资源（如果有的话）
-      // 这里可以根据业务需求决定是否保留资源但标记为已删除用户创建
-      
-      // 4. 删除用户本身
+
+      // 16. 最后删除用户本身
       await client.query('DELETE FROM users WHERE id = $1', [userId]);
 
       await client.query('COMMIT');
+
+      console.log(`✅ 成功删除用户 ${user.username}(ID:${userId}) 及其所有相关数据`);
+
       return user;
 
     } catch (error) {
       await client.query('ROLLBACK');
+      console.error(`❌ 删除用户失败:`, error.message);
       throw error;
     } finally {
       client.release();

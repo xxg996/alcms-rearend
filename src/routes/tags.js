@@ -28,16 +28,16 @@ router.get('/popular/list', TagController.getPopularTags);
 router.post('/',
   authenticateToken,
   requirePermission('tag:create'),
-  TagController.createTag,
-  clearTagCache // 创建后清除缓存
+  clearTagCache, // 创建时清除缓存
+  TagController.createTag
 );
 
 // 更新标签
 router.put('/:id',
   authenticateToken,
   requirePermission('tag:update'),
-  TagController.updateTag,
-  clearTagCache // 更新后清除缓存
+  clearTagCache, // 更新时清除缓存
+  TagController.updateTag
 );
 
 
@@ -45,16 +45,16 @@ router.put('/:id',
 router.post('/batch-create',
   authenticateToken,
   requirePermission('tag:create'),
-  TagController.createTags,
-  clearTagCache // 批量创建后清除缓存
+  clearTagCache, // 批量创建时清除缓存
+  TagController.createTags
 );
 
 // 删除标签（POST方法）
 router.post('/delete/:id',
   authenticateToken,
   requirePermission('tag:delete'),
-  TagController.deleteTag,
-  clearTagCache // 删除后清除缓存
+  clearTagCache, // 删除时清除缓存
+  TagController.deleteTag
 );
 
 module.exports = router;

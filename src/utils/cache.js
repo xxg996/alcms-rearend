@@ -204,24 +204,44 @@ class CacheManager {
    */
   async delByPattern(pattern) {
     try {
+      let deletedCount = 0;
+
       if (this.isConnected && this.client) {
         const keys = await this.client.keys(pattern);
         if (keys.length > 0) {
-          await this.client.del(keys);
+          deletedCount = await this.client.del(keys);
+          logger.debug(`Redis缓存删除成功`, { pattern, deletedCount, keys: keys.slice(0, 5) });
+        } else {
+          logger.debug(`Redis缓存模式未匹配到键`, { pattern });
         }
       } else if (this.memoryCache) {
         // 内存缓存中匹配模式删除
-        const regex = new RegExp(pattern.replace('*', '.*'));
+        // 转换Redis模式为JavaScript正则表达式
+        const regexPattern = pattern
+          .replace(/\*/g, '.*')           // * 转换为 .*
+          .replace(/\?/g, '.')           // ? 转换为 .
+          .replace(/\[([^\]]+)\]/g, '[$1]'); // 保持字符集不变
+
+        const regex = new RegExp(`^${regexPattern}$`);
+
         for (const key of this.memoryCache.keys()) {
           if (regex.test(key)) {
             this.memoryCache.delete(key);
             this.memoryTTL.delete(key);
+            deletedCount++;
           }
         }
+
+        if (deletedCount > 0) {
+          logger.debug(`内存缓存删除成功`, { pattern, deletedCount });
+        } else {
+          logger.debug(`内存缓存模式未匹配到键`, { pattern });
+        }
       }
-      return true;
+
+      return deletedCount > 0;
     } catch (error) {
-      logger.error('批量删除缓存失败:', error);
+      logger.error('批量删除缓存失败:', error, { pattern });
       return false;
     }
   }

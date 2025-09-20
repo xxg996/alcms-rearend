@@ -210,28 +210,55 @@ function clearCacheMiddleware(patterns) {
       return next();
     }
 
-    // 拦截响应
+    // 拦截响应，同时保存原始方法
     const originalJson = res.json;
-    res.json = async function(data) {
+    const originalSend = res.send;
+    const originalEnd = res.end;
+
+    // 清理缓存的通用方法
+    const clearCaches = async () => {
       // 只在成功响应后清除缓存
       if (res.statusCode >= 200 && res.statusCode < 300) {
         for (const pattern of patterns) {
           try {
             const cachePattern = typeof pattern === 'function'
-              ? pattern(req, data)
+              ? pattern(req, res.locals.responseData)
               : pattern;
 
             if (cachePattern) {
-              await cache.delByPattern(cachePattern);
-              logger.debug('缓存已清除', { pattern: cachePattern });
+              const deleted = await cache.delByPattern(cachePattern);
+              if (deleted) {
+                logger.debug('缓存已清除', { pattern: cachePattern, path: req.path });
+              } else {
+                logger.warn('缓存清除失败', { pattern: cachePattern, path: req.path });
+              }
             }
           } catch (error) {
-            logger.error('清除缓存失败:', error);
+            logger.error('清除缓存失败:', error, { pattern, path: req.path });
           }
         }
       }
+    };
 
+    // 重写json方法
+    res.json = async function(data) {
+      res.locals.responseData = data;
+      await clearCaches();
       return originalJson.call(this, data);
+    };
+
+    // 重写send方法
+    res.send = async function(data) {
+      res.locals.responseData = data;
+      await clearCaches();
+      return originalSend.call(this, data);
+    };
+
+    // 重写end方法
+    res.end = async function(data) {
+      if (data) res.locals.responseData = data;
+      await clearCaches();
+      return originalEnd.call(this, data);
     };
 
     next();
@@ -242,7 +269,8 @@ function clearCacheMiddleware(patterns) {
  * 资源相关缓存清除模式
  */
 const clearResourceCache = clearCacheMiddleware([
-  'api:resources:*',
+  'resources:*',
+  'api:*resources*',
   'resource:*',
   'stats:*'
 ]);
@@ -251,7 +279,8 @@ const clearResourceCache = clearCacheMiddleware([
  * 用户相关缓存清除模式
  */
 const clearUserCache = clearCacheMiddleware([
-  (req) => `user:profile:${req.user?.id || req.params.id}`,
+  (req) => `user:*:${req.user?.id || req.params.id || '*'}`,
+  (req) => `api:*user*`,
   'stats:*'
 ]);
 
@@ -259,8 +288,11 @@ const clearUserCache = clearCacheMiddleware([
  * 分类相关缓存清除模式
  */
 const clearCategoryCache = clearCacheMiddleware([
-  'categories:*',
-  'api:resources:*'
+  'categories:*',    // 包括 categories:tree:*, categories:list:*
+  'category:*',      // 单个分类详情缓存
+  'api:*categories*', // API层缓存
+  'resources:*',     // 分类变更会影响资源列表
+  'stats:*'          // 统计数据缓存
 ]);
 
 /**
@@ -268,7 +300,10 @@ const clearCategoryCache = clearCacheMiddleware([
  */
 const clearTagCache = clearCacheMiddleware([
   'tags:*',
-  'api:resources:*'
+  'tag:*',
+  'api:*tags*',
+  'resources:*',  // 标签变更会影响资源列表
+  'stats:*'
 ]);
 
 /**
@@ -276,6 +311,8 @@ const clearTagCache = clearCacheMiddleware([
  */
 const clearPostCache = clearCacheMiddleware([
   'posts:*',
+  'post:*',
+  'api:*posts*',
   'stats:*'
 ]);
 

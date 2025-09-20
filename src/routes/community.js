@@ -14,6 +14,7 @@ const CommunityInteractionController = require('../controllers/communityInteract
 
 // 导入中间件
 const { authenticateToken, requirePermission } = require('../middleware/auth');
+const { postListCache, clearPostCache } = require('../middleware/cacheMiddleware');
 
 // ================================
 // 板块管理路由
@@ -84,8 +85,8 @@ router.delete('/boards/:id/moderators',
 // 帖子管理路由
 // ================================
 
-// 获取帖子列表
-router.get('/posts', CommunityPostController.getPosts);
+// 获取帖子列表（添加缓存）
+router.get('/posts', postListCache, CommunityPostController.getPosts);
 
 // 获取帖子详情
 router.get('/posts/:id', CommunityPostController.getPostById);
@@ -103,23 +104,26 @@ router.get('/posts/user/:userId', CommunityPostController.getUserPosts);
 router.get('/posts/user/:userId/stats', CommunityPostController.getUserPostStats);
 
 // 创建帖子 (需要登录)
-router.post('/posts', 
-  authenticateToken, 
-  requirePermission('community.post.create'), 
+router.post('/posts',
+  authenticateToken,
+  requirePermission('community.post.create'),
+  clearPostCache, // 创建时清除缓存
   CommunityPostController.createPost
 );
 
 // 更新帖子 (需要登录)
-router.put('/posts/:id', 
-  authenticateToken, 
-  requirePermission('community.post.edit_own'), 
+router.put('/posts/:id',
+  authenticateToken,
+  requirePermission('community.post.edit_own'),
+  clearPostCache, // 更新时清除缓存
   CommunityPostController.updatePost
 );
 
 // 删除帖子 (需要登录)
-router.delete('/posts/:id', 
-  authenticateToken, 
-  requirePermission('community.post.delete_own'), 
+router.delete('/posts/:id',
+  authenticateToken,
+  requirePermission('community.post.delete_own'),
+  clearPostCache, // 删除时清除缓存
   CommunityPostController.deletePost
 );
 
@@ -174,23 +178,26 @@ router.get('/comments/user/:userId/stats', CommunityCommentController.getUserCom
 router.get('/comments/:id/children/count', CommunityCommentController.getChildrenCount);
 
 // 创建评论 (需要登录)
-router.post('/comments', 
-  authenticateToken, 
-  requirePermission('community.comment.create'), 
+router.post('/comments',
+  authenticateToken,
+  requirePermission('community.comment.create'),
+  clearPostCache, // 评论会影响帖子列表
   CommunityCommentController.createComment
 );
 
 // 更新评论 (需要登录)
-router.put('/comments/:id', 
-  authenticateToken, 
-  requirePermission('community.comment.edit_own'), 
+router.put('/comments/:id',
+  authenticateToken,
+  requirePermission('community.comment.edit_own'),
+  clearPostCache, // 评论会影响帖子列表
   CommunityCommentController.updateComment
 );
 
 // 删除评论 (需要登录)
-router.delete('/comments/:id', 
-  authenticateToken, 
-  requirePermission('community.comment.delete_own'), 
+router.delete('/comments/:id',
+  authenticateToken,
+  requirePermission('community.comment.delete_own'),
+  clearPostCache, // 评论会影响帖子列表
   CommunityCommentController.deleteComment
 );
 
