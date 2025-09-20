@@ -107,7 +107,7 @@ class Resource {
       LEFT JOIN categories c ON r.category_id = c.id
       LEFT JOIN users u ON r.author_id = u.id
       LEFT JOIN user_favorites f ON r.id = f.resource_id AND f.user_id = $2
-      WHERE r.id = $1 AND r.deleted_at IS NULL`,
+      WHERE r.id = $1`,
       [id, userId]
     );
 
@@ -156,8 +156,6 @@ class Resource {
     let paramIndex = 1;
 
     // 构建查询条件
-    // 默认过滤软删除的记录
-    conditions.push('r.deleted_at IS NULL');
 
     if (status) {
       conditions.push(`r.status = $${paramIndex}`);
@@ -303,7 +301,7 @@ class Resource {
     values.push(id);
     const result = await query(
       `UPDATE resources SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $${paramIndex} AND deleted_at IS NULL
+       WHERE id = $${paramIndex}
        RETURNING *`,
       values
     );
@@ -315,86 +313,42 @@ class Resource {
     return result.rows[0];
   }
 
+
   /**
-   * 软删除资源（保留重要历史数据）
+   * 删除资源（保留历史数据）
    * @param {number} id - 资源ID
-   * @param {number} deletedBy - 执行删除的用户ID
    * @returns {Promise<boolean>} 删除是否成功
    */
-  static async delete(id, deletedBy = null) {
+  static async delete(id) {
     const client = await getClient();
 
     try {
       await client.query('BEGIN');
 
-      // 1. 检查资源是否存在且未被删除
+      // 检查资源是否存在
       const resourceResult = await client.query(
-        'SELECT id, title, deleted_at FROM resources WHERE id = $1',
+        'SELECT id, title FROM resources WHERE id = $1',
         [id]
       );
 
       if (resourceResult.rows.length === 0) {
         await client.query('ROLLBACK');
-        return false;
+        throw new Error('资源不存在');
       }
 
       const resource = resourceResult.rows[0];
 
-      if (resource.deleted_at) {
-        await client.query('ROLLBACK');
-        throw new Error('资源已被删除');
-      }
-
-      // 2. 获取相关数据统计（用于日志记录）
-      const stats = await Promise.all([
-        client.query('SELECT COUNT(*) as count FROM resource_tags WHERE resource_id = $1', [id]),
-        client.query('SELECT COUNT(*) as count FROM resource_files WHERE resource_id = $1 AND deleted_at IS NULL', [id]),
-        client.query('SELECT COUNT(*) as count FROM resource_reports WHERE resource_id = $1', [id]),
-        client.query('SELECT COUNT(*) as count FROM user_favorites WHERE resource_id = $1', [id]),
-        client.query('SELECT COUNT(*) as count FROM download_records WHERE resource_id = $1', [id]),
-        client.query('SELECT COUNT(*) as count FROM resource_reviews WHERE resource_id = $1', [id]),
-        client.query('SELECT COUNT(*) as count FROM daily_purchases WHERE resource_id = $1', [id]),
-        client.query('SELECT COUNT(*) as count FROM user_points WHERE resource_id = $1', [id])
-      ]);
-
-      // 3. 只删除不重要的关联数据
-      await Promise.all([
-        // 删除标签关联（无历史价值）
-        client.query('DELETE FROM resource_tags WHERE resource_id = $1', [id]),
-
-        // 软删除资源文件（设置deleted_at）
-        client.query('UPDATE resource_files SET deleted_at = CURRENT_TIMESTAMP WHERE resource_id = $1 AND deleted_at IS NULL', [id]),
-
-        // 删除资源举报（已删除资源的举报无意义）
-        client.query('DELETE FROM resource_reports WHERE resource_id = $1', [id])
-      ]);
-
-      // 4. 软删除资源主记录
-      const deleteResult = await client.query(
-        'UPDATE resources SET deleted_at = CURRENT_TIMESTAMP, deleted_by = $2 WHERE id = $1 AND deleted_at IS NULL',
-        [id, deletedBy]
-      );
+      // 直接删除资源
+      // 历史价值表(user_points, download_records, daily_purchases, user_favorites, resource_reviews)
+      // 会保留资源ID，其他表(resource_files, resource_reports, resource_tags)会级联删除
+      const deleteResult = await client.query('DELETE FROM resources WHERE id = $1', [id]);
 
       await client.query('COMMIT');
 
-      // 5. 记录删除日志
       const { logger } = require('../utils/logger');
-      logger.info('资源软删除成功', {
+      logger.info('资源删除成功，历史数据已保留', {
         resourceId: id,
-        resourceTitle: resource.title,
-        deletedBy,
-        preservedData: {
-          userFavorites: parseInt(stats[3].rows[0].count),
-          downloadRecords: parseInt(stats[4].rows[0].count),
-          resourceReviews: parseInt(stats[5].rows[0].count),
-          dailyPurchases: parseInt(stats[6].rows[0].count),
-          userPointsRecords: parseInt(stats[7].rows[0].count)
-        },
-        removedData: {
-          tags: parseInt(stats[0].rows[0].count),
-          softDeletedFiles: parseInt(stats[1].rows[0].count),
-          reports: parseInt(stats[2].rows[0].count)
-        }
+        resourceTitle: resource.title
       });
 
       return deleteResult.rowCount > 0;
@@ -402,7 +356,7 @@ class Resource {
     } catch (error) {
       await client.query('ROLLBACK');
       const { logger } = require('../utils/logger');
-      logger.error('资源软删除失败', { resourceId: id, deletedBy, error: error.message });
+      logger.error('资源删除失败', { resourceId: id, error: error.message });
       throw error;
     } finally {
       client.release();
@@ -410,40 +364,12 @@ class Resource {
   }
 
   /**
-   * 硬删除资源（完全删除，慎用）
+   * 通用删除方法（用于服务层调用）
    * @param {number} id - 资源ID
    * @returns {Promise<boolean>} 删除是否成功
    */
-  static async hardDelete(id) {
-    const client = await getClient();
-
-    try {
-      await client.query('BEGIN');
-
-      // 1. 清理所有user_points中的resource_id关联
-      await client.query(
-        'UPDATE user_points SET resource_id = NULL WHERE resource_id = $1',
-        [id]
-      );
-
-      // 2. 硬删除资源（会触发其他表的级联删除）
-      const deleteResult = await client.query('DELETE FROM resources WHERE id = $1', [id]);
-
-      await client.query('COMMIT');
-
-      const { logger } = require('../utils/logger');
-      logger.warn('资源硬删除成功', { resourceId: id });
-
-      return deleteResult.rowCount > 0;
-
-    } catch (error) {
-      await client.query('ROLLBACK');
-      const { logger } = require('../utils/logger');
-      logger.error('资源硬删除失败', { resourceId: id, error: error.message });
-      throw error;
-    } finally {
-      client.release();
-    }
+  static async deleteById(id) {
+    return this.delete(id);
   }
 
   /**
@@ -452,7 +378,7 @@ class Resource {
    * @returns {Promise<void>}
    */
   static async incrementViewCount(id) {
-    await query('UPDATE resources SET view_count = view_count + 1 WHERE id = $1 AND deleted_at IS NULL', [id]);
+    await query('UPDATE resources SET view_count = view_count + 1 WHERE id = $1', [id]);
   }
 
   /**
@@ -461,7 +387,7 @@ class Resource {
    * @returns {Promise<void>}
    */
   static async incrementDownloadCount(id) {
-    await query('UPDATE resources SET download_count = download_count + 1 WHERE id = $1 AND deleted_at IS NULL', [id]);
+    await query('UPDATE resources SET download_count = download_count + 1 WHERE id = $1', [id]);
   }
 
   /**
@@ -508,7 +434,7 @@ class Resource {
       LEFT JOIN users u ON r.author_id = u.id,
       to_tsquery('english', $1) query
       WHERE to_tsvector('english', r.title || ' ' || COALESCE(r.description, '') || ' ' || COALESCE(r.content, '')) @@ query
-      AND r.status = 'published' AND r.is_public = true AND r.deleted_at IS NULL
+      AND r.status = 'published' AND r.is_public = true
       ORDER BY rank DESC, r.created_at DESC
       LIMIT $2 OFFSET $3`,
       [searchTerm.replace(/\s+/g, ' & '), limit, offset]
