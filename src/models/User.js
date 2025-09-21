@@ -41,9 +41,34 @@ class User {
    */
   static async findById(id) {
     const result = await query(
-      'SELECT id, username, email, nickname, avatar_url, bio, status, created_at, updated_at FROM users WHERE id = $1',
+      `SELECT 
+        id, username, email, nickname, avatar_url, bio, status,
+        created_at, updated_at,
+        referral_code, inviter_id, invited_at,
+        commission_balance, total_commission_earned
+       FROM users WHERE id = $1`,
       [id]
     );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * 根据邀请码查找用户
+   */
+  static async findByReferralCode(code) {
+    if (!code) {
+      return null;
+    }
+
+    const result = await query(
+      `SELECT 
+        id, username, email, nickname, status,
+        referral_code, commission_balance, total_commission_earned
+       FROM users
+       WHERE referral_code = $1`,
+      [code]
+    );
+
     return result.rows[0] || null;
   }
 
@@ -98,9 +123,15 @@ class User {
 
     // 插入新用户
     const result = await query(
-      `INSERT INTO users (username, email, password_hash, nickname, status) 
+      `INSERT INTO users (
+        username, email, password_hash, nickname, status
+       ) 
        VALUES ($1, $2, $3, $4, 'normal') 
-       RETURNING id, username, email, nickname, status, created_at`,
+       RETURNING 
+         id, username, email, nickname, status,
+         referral_code, inviter_id, invited_at,
+         commission_balance, total_commission_earned,
+         created_at`,
       [username, email, passwordHash, nickname || username]
     );
 

@@ -34,6 +34,12 @@
  *           maxLength: 100
  *           description: 用户昵称
  *           example: "测试用户"
+ *         invite_code:
+ *           type: string
+ *           minLength: 6
+ *           maxLength: 16
+ *           description: 可选的邀请码，用于绑定邀请关系
+ *           example: "ABCD1234"
  * 
  *     LoginRequest:
  *       type: object

@@ -13,6 +13,7 @@ const ResourceService = require('./ResourceService');
 const CardKeyService = require('./CardKeyService');
 const CheckinService = require('./CheckinService');
 const VipService = require('./VipService');
+const ReferralService = require('./ReferralService');
 const CommunityService = require('./CommunityService');
 const CategoryService = require('./CategoryService');
 const TagService = require('./TagService');
@@ -36,6 +37,7 @@ module.exports = {
   CardKeyService,
   CheckinService,
   VipService,
+  ReferralService,
   CommunityService,
   CategoryService,
   TagService,
@@ -55,6 +57,7 @@ module.exports = {
     get cardKey() { return getService('CardKeyService'); },
     get checkin() { return getService('CheckinService'); },
     get vip() { return getService('VipService'); },
+    get referral() { return getService('ReferralService'); },
     get community() { return getService('CommunityService'); },
     get category() { return getService('CategoryService'); },
     get tag() { return getService('TagService'); },

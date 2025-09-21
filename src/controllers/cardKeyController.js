@@ -10,6 +10,7 @@
 
 const CardKey = require('../models/CardKey');
 const { logger } = require('../utils/logger');
+const { services } = require('../services');
 
 /**
  * @swagger
@@ -298,6 +299,7 @@ const generateBatchCards = async (req, res) => {
  *                     points: null
  *                     vip_result: {}
  *                     order: {}
+ *                     commission: null
  *               points_redeem:
  *                 summary: 积分卡密兑换成功
  *                 value:
@@ -310,6 +312,7 @@ const generateBatchCards = async (req, res) => {
  *                     points: 1000
  *                     vip_result: null
  *                     order: null
+ *                     commission: null
  *       400:
  *         description: 卡密错误
  *         content:
@@ -347,6 +350,19 @@ const redeemCard = async (req, res) => {
 
     const result = await CardKey.redeemCardKey(code.trim().toUpperCase(), req.user.id);
 
+    let commissionRecord = null;
+    if (result.cardKey && result.cardKey.type === 'vip' && result.order) {
+      try {
+        commissionRecord = await services.referral.handleVipCardCommission({
+          inviteeId: req.user.id,
+          order: result.order,
+          cardKey: result.cardKey
+        });
+      } catch (commissionError) {
+        logger.error('发放邀请佣金失败:', commissionError);
+      }
+    }
+
     let responseMessage = '卡密兑换成功';
     if (result.cardKey.type === 'vip') {
       if (result.cardKey.vip_days === 0) {
@@ -367,7 +383,8 @@ const redeemCard = async (req, res) => {
         vip_days: result.cardKey.vip_days,
         points: result.cardKey.points,
         vip_result: result.vipResult,
-        order: result.order
+        order: result.order,
+        commission: commissionRecord
       }
     });
   } catch (error) {

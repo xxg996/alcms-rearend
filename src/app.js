@@ -60,6 +60,7 @@ const vipRoutes = require('./routes/vip');
 const cardKeyRoutes = require('./routes/cardKey');
 const pointsRoutes = require('./routes/points');
 const checkinRoutes = require('./routes/checkin');
+const referralRoutes = require('./routes/referral');
 const rolePermissionRoutes = require('./routes/admin/rolePermissions');
 const permissionRoutes = require('./routes/admin/permissions');
 const uploadRoutes = require('./routes/upload');
@@ -109,6 +110,7 @@ app.use('/api/vip', vipRoutes);
 app.use('/api/card-keys', cardKeyRoutes);
 app.use('/api/points', pointsRoutes);
 app.use('/api/checkin', checkinRoutes);
+app.use('/api/referral', referralRoutes);
 app.use('/api', require('./routes/download'));
 
 // 管理员功能API路由注册 - 角色权限管理
@@ -120,6 +122,7 @@ app.use('/api/admin/points', require('./routes/admin/points'));
 app.use('/api/admin/card-keys', require('./routes/admin/cardKeys'));
 app.use('/api/admin/checkin', require('./routes/admin/checkin'));
 app.use('/api/admin/download', require('./routes/admin/download'));
+app.use('/api/admin/referral', require('./routes/admin/referral'));
 app.use('/api/admin', require('./routes/admin/resourceFiles'));
 
 // 资源文件管理路由（支持作者权限，去除/admin前缀）

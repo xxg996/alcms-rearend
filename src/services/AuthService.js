@@ -378,6 +378,11 @@ class AuthService extends BaseService {
     const sanitized = { ...user };
     delete sanitized.password;
     delete sanitized.password_updated_at;
+    delete sanitized.referral_code;
+    delete sanitized.inviter_id;
+    delete sanitized.invited_at;
+    delete sanitized.commission_balance;
+    delete sanitized.total_commission_earned;
     
     return sanitized;
   }

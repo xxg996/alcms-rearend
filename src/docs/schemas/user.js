@@ -114,6 +114,24 @@
  *           type: boolean
  *           description: 是否为永久VIP
  *           example: false
+ *         inviter:
+ *           type: object
+ *           nullable: true
+ *           description: 上级邀请人信息
+ *           properties:
+ *             id:
+ *               type: integer
+ *               description: 邀请人用户ID
+ *               example: 12
+ *             username:
+ *               type: string
+ *               description: 邀请人用户名
+ *               example: "mentor"
+ *             nickname:
+ *               type: string
+ *               nullable: true
+ *               description: 邀请人昵称
+ *               example: "导师"
  * 
  *     UserProfile:
  *       type: object

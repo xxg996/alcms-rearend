@@ -357,6 +357,23 @@ class VIP {
   }
 
   /**
+   * 计算卡密兑换的订单金额
+   */
+  static async calculateCardKeyPrice(cardKey) {
+    if (!cardKey || cardKey.type !== 'vip') {
+      return 0;
+    }
+
+    const vipLevel = await this.getLevelById(cardKey.vip_level);
+    if (!vipLevel || !vipLevel.price) {
+      return 0;
+    }
+
+    const basePrice = Number(vipLevel.price) || 0;
+    return basePrice > 0 ? Number(basePrice.toFixed(2)) : 0;
+  }
+
+  /**
    * 获取订单详情
    */
   static async getOrderById(orderId) {

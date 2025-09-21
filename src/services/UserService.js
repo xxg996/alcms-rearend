@@ -269,6 +269,11 @@ class UserService extends BaseService {
     delete sanitized.last_download_reset_date;
     delete sanitized.actual_daily_limit;
     delete sanitized.today_consumed;
+    delete sanitized.referral_code;
+    delete sanitized.inviter_id;
+    delete sanitized.invited_at;
+    delete sanitized.commission_balance;
+    delete sanitized.total_commission_earned;
 
     // 计算今日剩余下载次数
     if (user.actual_daily_limit !== undefined && user.today_consumed !== undefined) {

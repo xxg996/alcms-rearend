@@ -164,18 +164,20 @@ class CardKey {
           vip_activated_at: vipOperationResult.vip_activated_at
         };
 
+        const orderPrice = await VIP.calculateCardKeyPrice(cardKey);
+
         // 创建订单记录
         const orderData = {
           user_id: userId,
           vip_level: cardKey.vip_level,
-          price: 0, // 卡密兑换价格为0
+          price: orderPrice,
           duration_days: cardKey.vip_days,
           payment_method: 'card_key',
           order_no: 'CARD_' + Date.now() + '_' + userId,
           card_key_code: code
         };
-        result.order = await VIP.createOrder(orderData);
-        await VIP.updateOrderStatus(result.order.id, 'paid');
+        const createdOrder = await VIP.createOrder(orderData);
+        result.order = await VIP.updateOrderStatus(createdOrder.id, 'paid');
       }
 
       if (cardKey.type === 'points' && cardKey.points > 0) {

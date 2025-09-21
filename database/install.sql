@@ -100,6 +100,14 @@ CREATE TABLE users (
     points INTEGER DEFAULT 0,
     total_points INTEGER DEFAULT 0,
 
+    -- 邀请与佣金体系
+    referral_code VARCHAR(32) UNIQUE,
+    inviter_id INTEGER REFERENCES users(id),
+    invited_at TIMESTAMP,
+    commission_balance DECIMAL(12,2) DEFAULT 0,
+    total_commission_earned DECIMAL(12,2) DEFAULT 0,
+    commission_pending_balance DECIMAL(12,2) DEFAULT 0,
+
     -- 下载限制
     daily_download_limit INTEGER DEFAULT 10,
     daily_downloads_used INTEGER DEFAULT 0,
@@ -148,6 +156,31 @@ CREATE TABLE user_roles (
     assigned_by INTEGER REFERENCES users(id),
     UNIQUE(user_id, role_id)
 );
+
+-- 用户邀请关系表
+CREATE TABLE user_referrals (
+    id SERIAL PRIMARY KEY,
+    inviter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    invitee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    referral_code VARCHAR(32) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(invitee_id),
+    UNIQUE(inviter_id, invitee_id)
+);
+
+CREATE INDEX idx_user_referrals_inviter ON user_referrals(inviter_id);
+
+-- 系统设置表
+CREATE TABLE system_settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value JSONB NOT NULL,
+    description TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by INTEGER REFERENCES users(id)
+);
+
+INSERT INTO system_settings (key, value, description) VALUES
+('referral_commission', '{"enabled": true, "first_rate": 0.10, "renewal_rate": 0.00}', '邀请分佣配置');
 
 -- ============================================================================
 -- 资源管理模块
@@ -204,7 +237,7 @@ CREATE TABLE resources (
     is_public BOOLEAN DEFAULT TRUE,
     is_free BOOLEAN DEFAULT TRUE,
     required_points INTEGER DEFAULT 0,
-    status VARCHAR(20) DEFAULT 'published' CHECK (status IN ('draft', 'published', 'archived', 'banned')),
+    status VARCHAR(20) DEFAULT 'published' CHECK (status IN ('draft', 'published', 'archived', 'banned', 'deleted')),
     view_count INTEGER DEFAULT 0,
     download_count INTEGER DEFAULT 0,
     like_count INTEGER DEFAULT 0,
@@ -521,6 +554,60 @@ CREATE TABLE vip_orders (
     UNIQUE(order_no)
 );
 
+-- 邀请佣金记录表
+CREATE TABLE referral_commissions (
+    id SERIAL PRIMARY KEY,
+    inviter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    invitee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    order_id INTEGER NOT NULL REFERENCES vip_orders(id) ON DELETE CASCADE,
+    order_amount DECIMAL(12,2) NOT NULL,
+    commission_amount DECIMAL(12,2) NOT NULL,
+    commission_rate DECIMAL(6,4) NOT NULL,
+    event_type VARCHAR(20) NOT NULL CHECK (event_type IN ('first_recharge', 'renewal')),
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'no_include')),
+    review_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    settled_at TIMESTAMP,
+    UNIQUE(order_id)
+);
+
+CREATE INDEX idx_referral_commissions_inviter ON referral_commissions(inviter_id);
+CREATE INDEX idx_referral_commissions_invitee ON referral_commissions(invitee_id);
+CREATE INDEX idx_referral_commissions_order ON referral_commissions(order_id);
+
+CREATE TABLE referral_payout_settings (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    method VARCHAR(20) NOT NULL CHECK (method IN ('alipay', 'usdt')),
+    account VARCHAR(255) NOT NULL,
+    account_name VARCHAR(100),
+    extra JSONB DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by INTEGER REFERENCES users(id)
+);
+
+CREATE INDEX idx_referral_payout_settings_user ON referral_payout_settings(user_id);
+
+CREATE TABLE referral_payout_requests (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount DECIMAL(12,2) NOT NULL CHECK (amount > 0),
+    method VARCHAR(20) NOT NULL CHECK (method IN ('alipay', 'usdt')),
+    account VARCHAR(255) NOT NULL,
+    account_name VARCHAR(100),
+    extra JSONB DEFAULT '{}'::jsonb,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'paid')),
+    requested_notes TEXT,
+    review_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TIMESTAMP,
+    reviewed_by INTEGER REFERENCES users(id),
+    paid_at TIMESTAMP
+);
+
+CREATE INDEX idx_referral_payout_requests_user ON referral_payout_requests(user_id);
+CREATE INDEX idx_referral_payout_requests_status ON referral_payout_requests(status);
+
 -- 卡密表
 CREATE TABLE card_keys (
     id SERIAL PRIMARY KEY,
@@ -658,6 +745,7 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_status ON users(status);
 CREATE INDEX idx_users_is_vip ON users(is_vip);
+CREATE INDEX idx_users_inviter_id ON users(inviter_id);
 
 -- 资源相关索引
 CREATE INDEX idx_resources_author_id ON resources(author_id);
@@ -875,6 +963,8 @@ INSERT INTO permissions (name, display_name, description, resource, action) VALU
 ('checkin:makeup', '补签功能', '管理员为用户补签', 'checkin', 'makeup'),
 ('checkin:reset', '重置签到数据', '重置用户签到记录', 'checkin', 'reset'),
 ('checkin:statistics', '签到统计', '查看签到系统统计数据', 'checkin', 'statistics'),
+('referral:commission:read', '查看邀请佣金配置', '查看邀请佣金开关与比例', 'referral', 'read'),
+('referral:commission:update', '更新邀请佣金配置', '调整邀请佣金启用状态与比例', 'referral', 'update'),
 
 -- 其它功能
 ('content:create_advanced', '创建高级内容', 'VIP用户创建高级内容权限', 'content', 'create_advanced'),

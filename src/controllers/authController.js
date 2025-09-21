@@ -11,6 +11,7 @@ const User = require('../models/User');
 const { generateTokenPair, verifyRefreshToken } = require('../utils/jwt');
 const { checkPasswordStrength } = require('../utils/password');
 const { logger } = require('../utils/logger');
+const { services } = require('../services');
 
 /**
  * @swagger
@@ -33,6 +34,7 @@ const { logger } = require('../utils/logger');
  *                 email: "newuser@example.com"
  *                 password: "NewUser123"
  *                 nickname: "新用户"
+ *                 invite_code: "ABCD1234"
  *     responses:
  *       201:
  *         description: 注册成功
@@ -51,6 +53,10 @@ const { logger } = require('../utils/logger');
  *                   nickname: "新用户"
  *                   role: "user"
  *                   status: "active"
+ *                   inviter:
+ *                     id: 12
+ *                     username: "mentor"
+ *                     nickname: "导师"
  *                 tokens:
  *                   accessToken: "eyJhbGciOiJIUzI1NiIs..."
  *                   refreshToken: "eyJhbGciOiJIUzI1NiIs..."
@@ -83,7 +89,20 @@ const { logger } = require('../utils/logger');
  */
 const register = async (req, res) => {
   try {
-    const { username, email, password, nickname } = req.body;
+    const { username, email, password, nickname, invite_code } = req.body;
+
+    let inviterPreview = null;
+
+    if (invite_code) {
+      try {
+        inviterPreview = await services.referral.validateReferralCode(invite_code);
+      } catch (validationError) {
+        return res.status(400).json({
+          success: false,
+          message: validationError.message || '邀请码无效'
+        });
+      }
+    }
 
     // 基础验证
     if (!username || !email || !password) {
@@ -139,6 +158,19 @@ const register = async (req, res) => {
     // 获取用户角色信息
     const userRoles = await User.getUserRoles(newUser.id);
     
+    // 绑定邀请关系
+    if (invite_code) {
+      try {
+        await services.referral.bindInviterForNewUser(newUser.id, invite_code);
+      } catch (bindError) {
+        logger.error('绑定邀请关系失败:', bindError);
+        return res.status(500).json({
+          success: false,
+          message: bindError.message || '绑定邀请关系失败'
+        });
+      }
+    }
+
     // 生成令牌对
     const tokens = generateTokenPair(newUser, userRoles);
 
@@ -156,7 +188,12 @@ const register = async (req, res) => {
           username: newUser.username,
           email: newUser.email,
           nickname: newUser.nickname,
-          status: newUser.status
+          status: newUser.status,
+          inviter: invite_code && inviterPreview ? {
+            id: inviterPreview.id,
+            username: inviterPreview.username,
+            nickname: inviterPreview.nickname
+          } : null
         },
         tokens
       }
