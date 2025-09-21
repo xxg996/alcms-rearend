@@ -216,6 +216,29 @@ class Tag {
   }
 
   /**
+   * 过滤出数据库中真实存在的标签ID
+   * @param {Array<number>} tagIds - 待校验的标签ID数组
+   * @returns {Promise<Array<number>>} 存在的标签ID
+   */
+  static async filterExistingIds(tagIds = []) {
+    if (!Array.isArray(tagIds) || tagIds.length === 0) {
+      return [];
+    }
+
+    const uniqueIds = Array.from(new Set(tagIds.filter((id) => Number.isInteger(id) && id > 0)));
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+
+    const result = await query(
+      'SELECT id FROM tags WHERE id = ANY($1)',
+      [uniqueIds]
+    );
+
+    return result.rows.map((row) => row.id);
+  }
+
+  /**
    * 更新标签使用次数
    * @param {number} id - 标签ID
    * @param {number} increment - 增量（可为负数）

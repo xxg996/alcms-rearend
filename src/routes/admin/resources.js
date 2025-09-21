@@ -16,7 +16,7 @@ router.get('/all',
   requirePermission('resource:read'),
   (req, res, next) => {
     // 允许管理员查看所有状态的资源
-    req.query.includeAll = 'true';
+    req.query.include_all = 'true';
     next();
   },
   ResourceController.getResources

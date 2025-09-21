@@ -281,29 +281,29 @@ class ResourceService extends BaseService {
    */
   normalizeResourceFilters(filters) {
     const {
-      categoryId,
-      resourceTypeId,
-      authorId,
-      status = 'published',
-      isPublic,
-      isFree,
+      category_id,
+      resource_type_id,
+      author_id,
+      status,
+      is_public,
+      is_free,
       search,
       tags,
-      sortBy = 'created_at',
-      sortOrder = 'desc'
+      sort_by = 'created_at',
+      sort_order = 'desc'
     } = filters;
 
     return {
-      categoryId: categoryId ? parseInt(categoryId) : undefined,
-      resourceTypeId: resourceTypeId ? parseInt(resourceTypeId) : undefined,
-      authorId: authorId ? parseInt(authorId) : undefined,
+      category_id: category_id ? parseInt(category_id) : undefined,
+      resource_type_id: resource_type_id ? parseInt(resource_type_id) : undefined,
+      author_id: author_id ? parseInt(author_id) : undefined,
       status,
-      isPublic: isPublic !== undefined ? isPublic === 'true' : undefined,
-      isFree: isFree !== undefined ? isFree === 'true' : undefined,
+      is_public: is_public !== undefined ? is_public === 'true' : undefined,
+      is_free: is_free !== undefined ? is_free === 'true' : undefined,
       search,
       tags: tags ? (Array.isArray(tags) ? tags : tags.split(',')) : undefined,
-      sortBy,
-      sortOrder
+      sort_by,
+      sort_order
     };
   }
 
@@ -363,7 +363,7 @@ class ResourceService extends BaseService {
     // 其他字段验证...
     const optionalFields = [
       'slug', 'summary', 'cover_image_url', 'resource_type_id',
-      'is_public', 'is_free', 'required_vip_level', 'required_points'
+      'is_public', 'is_free', 'required_points', 'status'
     ];
 
     optionalFields.forEach(field => {

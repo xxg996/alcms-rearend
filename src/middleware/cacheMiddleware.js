@@ -114,13 +114,13 @@ function defaultCondition(req) {
 const resourceListCache = cacheMiddleware({
   ttl: TTL.SHORT, // 15分钟
   keyGenerator: (req) => {
-    const { page, limit, categoryId, resourceTypeId, authorId, status, search, tags, sortBy, sortOrder } = req.query;
+    const { page, limit, category_id, resource_type_id, author_id, status, search, tags, sort_by, sort_order } = req.query;
     const userId = req.user?.id || 'anonymous';
-    return cache.generateKey('resources', 'list', userId, page, limit, categoryId, resourceTypeId, authorId, status, search, tags, sortBy, sortOrder);
+    return cache.generateKey('resources', 'list', userId, page, limit, category_id, resource_type_id, author_id, status, search, tags, sort_by, sort_order);
   },
   condition: (req) => {
     // 只缓存公开资源列表
-    return !req.query.includeAll && !req.query.authorId;
+    return !req.query.include_all && !req.query.author_id;
   }
 });
 
@@ -350,8 +350,8 @@ async function warmupCache() {
             page: 1,
             limit: 20,
             status: 'published',
-            sortBy: 'view_count',
-            sortOrder: 'desc'
+            sort_by: 'view_count',
+            sort_order: 'desc'
           });
         },
         ttl: TTL.SHORT

@@ -162,10 +162,7 @@ class Favorite {
         r.description,
         r.summary,
         r.cover_image_url,
-        r.file_size,
-        r.duration,
         r.is_free,
-        r.required_vip_level,
         r.required_points,
         r.status,
         r.view_count,
@@ -230,7 +227,7 @@ class Favorite {
       SELECT 
         COUNT(*) as total_favorites,
         COUNT(CASE WHEN r.is_free = FALSE THEN 1 END) as paid_favorites,
-        COUNT(CASE WHEN r.required_vip_level IS NOT NULL THEN 1 END) as vip_favorites,
+        0 as vip_favorites,
         COUNT(CASE WHEN c.id IS NOT NULL THEN 1 END) as categorized_favorites
       FROM user_favorites uf
       JOIN resources r ON uf.resource_id = r.id

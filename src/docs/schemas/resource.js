@@ -164,15 +164,15 @@
  *         - $ref: '#/components/schemas/PaginationParams'
  *         - type: object
  *           properties:
- *             categoryId:
+ *             category_id:
  *               type: integer
  *               description: 分类ID过滤
  *               example: 1
- *             resourceTypeId:
+ *             resource_type_id:
  *               type: integer
  *               description: 资源类型ID过滤
  *               example: 1
- *             authorId:
+ *             author_id:
  *               type: integer
  *               description: 作者ID过滤
  *               example: 1
@@ -182,11 +182,11 @@
  *               default: published
  *               description: 状态过滤
  *               example: "published"
- *             isPublic:
+ *             is_public:
  *               type: boolean
  *               description: 是否公开过滤
  *               example: true
- *             isFree:
+ *             is_free:
  *               type: boolean
  *               description: 是否免费过滤
  *               example: false
@@ -200,13 +200,13 @@
  *                 type: string
  *               description: 标签过滤
  *               example: ["vue", "javascript"]
- *             sortBy:
+ *             sort_by:
  *               type: string
  *               enum: [created_at, updated_at, published_at, view_count, download_count, like_count]
  *               default: created_at
  *               description: 排序字段
  *               example: "view_count"
- *             sortOrder:
+ *             sort_order:
  *               type: string
  *               enum: [asc, desc]
  *               default: desc

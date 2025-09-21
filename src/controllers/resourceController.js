@@ -48,17 +48,17 @@ class ResourceController {
    *           maximum: 100
    *         description: 每页数量（最大100）
    *       - in: query
-   *         name: categoryId
+   *         name: category_id
    *         schema:
    *           type: integer
    *         description: 分类ID过滤
    *       - in: query
-   *         name: resourceTypeId
+   *         name: resource_type_id
    *         schema:
    *           type: integer
    *         description: 资源类型ID过滤
    *       - in: query
-   *         name: authorId
+   *         name: author_id
    *         schema:
    *           type: integer
    *         description: 作者ID过滤
@@ -69,12 +69,12 @@ class ResourceController {
    *           enum: [draft, published, archived, deleted]
    *         description: 状态过滤
    *       - in: query
-   *         name: isPublic
+   *         name: is_public
    *         schema:
    *           type: boolean
    *         description: 是否公开过滤
    *       - in: query
-   *         name: isFree
+   *         name: is_free
    *         schema:
    *           type: boolean
    *         description: 是否免费过滤
@@ -93,14 +93,14 @@ class ResourceController {
    *         explode: true
    *         description: 标签过滤
    *       - in: query
-   *         name: sortBy
+   *         name: sort_by
    *         schema:
    *           type: string
    *           enum: [created_at, updated_at, published_at, view_count, download_count, like_count]
    *           default: created_at
    *         description: 排序字段
    *       - in: query
-   *         name: sortOrder
+   *         name: sort_order
    *         schema:
    *           type: string
    *           enum: [asc, desc]
@@ -141,34 +141,36 @@ class ResourceController {
       const {
         page = 1,
         limit = 20,
-        categoryId,
-        resourceTypeId,
-        authorId,
+        category_id,
+        resource_type_id,
+        author_id,
         status,
-        isPublic,
-        isFree,
+        is_public,
+        is_free,
         search,
         tags,
-        sortBy,
-        sortOrder
+        sort_by,
+        sort_order
       } = req.query;
 
-      // 解析标签参数
-      const tagArray = tags ? (Array.isArray(tags) ? tags : tags.split(',')) : undefined;
+      const tagArray = tags ? (Array.isArray(tags) ? tags : String(tags).split(',')) : undefined;
+
+      const includeAll = String(req.query.include_all || '').toLowerCase() === 'true';
+      const resolvedStatus = includeAll ? undefined : (status ?? 'published');
 
       const options = {
         page: parseInt(page),
-        limit: Math.min(parseInt(limit), 100), // 限制最大每页数量
-        categoryId: categoryId ? parseInt(categoryId) : undefined,
-        resourceTypeId: resourceTypeId ? parseInt(resourceTypeId) : undefined,
-        authorId: authorId ? parseInt(authorId) : undefined,
-        status,
-        isPublic: isPublic !== undefined ? isPublic === 'true' : undefined,
-        isFree: isFree !== undefined ? isFree === 'true' : undefined,
+        limit: Math.min(parseInt(limit), 100),
+        category_id: category_id !== undefined ? toIntegerOrNull(category_id) : undefined,
+        resource_type_id: resource_type_id !== undefined ? toIntegerOrNull(resource_type_id) : undefined,
+        author_id: author_id !== undefined ? toIntegerOrNull(author_id) : undefined,
+        status: resolvedStatus,
+        is_public: is_public !== undefined ? toBoolean(is_public, true) : undefined,
+        is_free: is_free !== undefined ? toBoolean(is_free, false) : undefined,
         search,
         tags: tagArray,
-        sortBy,
-        sortOrder
+        sort_by,
+        sort_order
       };
 
       logger.debug('解析后的查询选项', options);
@@ -382,13 +384,12 @@ class ResourceController {
    *             title: "新的Vue.js教程"
    *             description: "这是一个全面的Vue.js学习教程"
    *             summary: "适合初学者的教程"
-   *             categoryId: 1
-   *             resourceTypeId: 1
-   *             coverImageUrl: "https://example.com/cover.jpg"
-   *             isPublic: true
-   *             isFree: false
-   *             requiredVipLevel: "vip1"
-   *             requiredPoints: 50
+   *             category_id: 1
+   *             resource_type_id: 1
+   *             cover_image_url: "https://example.com/cover.jpg"
+   *             is_public: true
+   *             is_free: false
+   *             required_points: 50
    *             tags: [1, 2, 3]
    *     responses:
    *       201:
@@ -441,41 +442,33 @@ class ResourceController {
         description,
         content,
         summary,
-        categoryId,
-        resourceTypeId,
-        coverImageUrl,
-        fileUrl,
-        fileSize,
-        fileMimeType,
-        duration,
-        externalUrl,
-        downloadUrl,
-        isPublic = true,
-        isFree = true,
-        requiredVipLevel,
-        requiredPoints = 0,
-        downloadLimit,
+        category_id,
+        resource_type_id,
+        cover_image_url,
+        is_public = true,
+        is_free = true,
+        required_points = 0,
+        status,
         tags = []
       } = req.body;
 
-      // 验证必填字段
-      if (!title || !resourceTypeId) {
+      if (!title || resource_type_id === undefined || resource_type_id === null) {
         return res.status(400).json({
           success: false,
           message: '标题和资源类型为必填字段'
         });
       }
 
-      // 处理标签
-      let tagIds = [];
-      if (tags.length > 0) {
-        if (typeof tags[0] === 'string') {
-          // 如果传入的是标签名称，创建或获取标签ID
-          tagIds = await Tag.createOrGetTags(tags);
-        } else {
-          // 如果传入的是标签ID
-          tagIds = tags;
-        }
+      const tagIds = await normalizeTagInputs(tags);
+
+      const normalizedCategoryId = toIntegerOrNull(category_id);
+      const normalizedResourceTypeId = toIntegerOrNull(resource_type_id, null);
+
+      if (normalizedResourceTypeId === null) {
+        return res.status(400).json({
+          success: false,
+          message: '资源类型ID无效'
+        });
       }
 
       const resourceData = {
@@ -484,21 +477,14 @@ class ResourceController {
         description,
         content,
         summary,
-        categoryId: categoryId ? parseInt(categoryId) : null,
-        resourceTypeId: parseInt(resourceTypeId),
-        coverImageUrl,
-        fileUrl,
-        fileSize: fileSize ? parseInt(fileSize) : null,
-        fileMimeType,
-        duration: duration ? parseInt(duration) : null,
-        externalUrl,
-        downloadUrl,
-        isPublic,
-        isFree,
-        requiredVipLevel,
-        requiredPoints: parseInt(requiredPoints),
-        downloadLimit: downloadLimit ? parseInt(downloadLimit) : null,
-        authorId: userId,
+        category_id: normalizedCategoryId,
+        resource_type_id: normalizedResourceTypeId,
+        cover_image_url,
+        is_public: toBoolean(is_public, true),
+        is_free: toBoolean(is_free, true),
+        required_points: toNonNegativeInt(required_points),
+        status: status || 'published',
+        author_id: userId,
         tags: tagIds
       };
 
@@ -566,12 +552,11 @@ class ResourceController {
    *             title: "更新的教程标题"
    *             description: "更新后的描述内容"
    *             summary: "更新的摘要"
-   *             coverImageUrl: "https://example.com/new-cover.jpg"
-   *             categoryId: 2
-   *             isPublic: false
-   *             isFree: true
-   *             requiredVipLevel: "vip2"
-   *             requiredPoints: 100
+   *             cover_image_url: "https://example.com/new-cover.jpg"
+   *             category_id: 2
+   *             is_public: false
+   *             is_free: true
+   *             required_points: 100
    *             tags: [1, 4, 5]
    *     responses:
    *       200:
@@ -626,7 +611,7 @@ class ResourceController {
     try {
       const { id } = req.params;
       const userId = req.user.id;
-      const updateData = req.body;
+      const updateData = req.body || {};
 
       const resource = await Resource.findById(parseInt(id));
 
@@ -646,21 +631,50 @@ class ResourceController {
         });
       }
 
-      // 处理标签更新
+      const sanitizedUpdate = {};
+
       if (updateData.tags) {
-        let tagIds = [];
-        if (typeof updateData.tags[0] === 'string') {
-          tagIds = await Tag.createOrGetTags(updateData.tags);
-        } else {
-          tagIds = updateData.tags;
-        }
-        
-        // 同步标签
+        const tagIds = await normalizeTagInputs(updateData.tags);
         await Tag.syncResourceTags(parseInt(id), tagIds);
-        delete updateData.tags; // 从更新数据中移除，因为已经单独处理
       }
 
-      const updatedResource = await Resource.update(parseInt(id), updateData);
+      const assignIfPresent = (field, transformer = (v) => v) => {
+        if (Object.prototype.hasOwnProperty.call(updateData, field)) {
+          sanitizedUpdate[field] = transformer(updateData[field]);
+        }
+      };
+
+      ['title', 'slug', 'description', 'content', 'summary', 'cover_image_url', 'status'].forEach((field) => {
+        assignIfPresent(field);
+      });
+
+      assignIfPresent('category_id', (value) => toIntegerOrNull(value));
+
+      if (Object.prototype.hasOwnProperty.call(updateData, 'resource_type_id')) {
+        const normalized = toIntegerOrNull(updateData.resource_type_id, null);
+        if (normalized === null) {
+          return res.status(400).json({
+            success: false,
+            message: '资源类型ID无效'
+          });
+        }
+        sanitizedUpdate.resource_type_id = normalized;
+      }
+
+      assignIfPresent('is_public', (value) => toBoolean(value, resource.is_public));
+      assignIfPresent('is_free', (value) => toBoolean(value, resource.is_free));
+      assignIfPresent('required_points', (value) => toNonNegativeInt(value, resource.required_points || 0));
+
+      if (Object.keys(sanitizedUpdate).length === 0 && !updateData.tags) {
+        return res.status(400).json({
+          success: false,
+          message: '未提供可更新的字段'
+        });
+      }
+
+      const updatedResource = Object.keys(sanitizedUpdate).length > 0
+        ? await Resource.update(parseInt(id), sanitizedUpdate)
+        : resource;
 
       await AuditLog.createSystemLog({
         operatorId: userId,
@@ -669,7 +683,7 @@ class ResourceController {
         action: 'update',
         summary: `更新资源 ${updatedResource.title}`,
         detail: {
-          fields: Object.keys(updateData),
+          fields: Object.keys(sanitizedUpdate),
           before: { status: resource.status },
           after: { status: updatedResource.status }
         },
@@ -1134,3 +1148,74 @@ class ResourceController {
 }
 
 module.exports = ResourceController;
+
+const normalizeTagInputs = async (rawTags = []) => {
+  if (!Array.isArray(rawTags) || rawTags.length === 0) {
+    return [];
+  }
+
+  const ids = rawTags
+    .map((tag) => {
+      if (typeof tag === 'number' && Number.isFinite(tag)) {
+        return Math.trunc(tag);
+      }
+      if (typeof tag === 'string' && /^\d+$/.test(tag.trim())) {
+        return Number(tag.trim());
+      }
+      if (typeof tag === 'object' && tag !== null && tag.id !== undefined) {
+        const numericId = Number(tag.id);
+        return Number.isFinite(numericId) ? numericId : null;
+      }
+      return null;
+    })
+    .filter((id) => Number.isFinite(id) && id > 0);
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const existingIds = await Tag.filterExistingIds(ids);
+  return existingIds;
+};
+
+const toBoolean = (value, defaultValue = true) => {
+  if (value === undefined || value === null) {
+    return defaultValue;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === '') {
+    return defaultValue;
+  }
+
+  return !['false', '0', 'no', 'off'].includes(normalized);
+};
+
+const toIntegerOrNull = (value, defaultValue = null) => {
+  if (value === undefined || value === null || value === '') {
+    return defaultValue;
+  }
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return defaultValue;
+  }
+
+  return Math.trunc(numeric);
+};
+
+const toNonNegativeInt = (value, defaultValue = 0) => {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric >= 0) {
+    return Math.trunc(numeric);
+  }
+  return defaultValue;
+};

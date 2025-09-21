@@ -18,13 +18,14 @@ class Resource {
       description,
       content,
       summary,
-      categoryId,
-      resourceTypeId,
-      coverImageUrl,
-      isPublic = true,
-      isFree = true,
-      requiredPoints = 0,
-      authorId,
+      category_id,
+      resource_type_id,
+      cover_image_url,
+      is_public = true,
+      is_free = true,
+      required_points = 0,
+      status = 'published',
+      author_id,
       tags = []
     } = resourceData;
 
@@ -53,12 +54,29 @@ class Resource {
       const resourceResult = await client.query(
         `INSERT INTO resources (
           title, slug, description, content, summary, category_id, resource_type_id,
-          cover_image_url, is_public, is_free, required_points, author_id, published_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          cover_image_url, is_public, is_free, required_points, status, author_id,
+          published_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7,
+          $8, $9, $10, $11, $12, $13,
+          $14
+        )
         RETURNING *`,
         [
-          title, finalSlug, description, content, summary, categoryId, resourceTypeId,
-          coverImageUrl, isPublic, isFree, requiredPoints, authorId, new Date()
+          title,
+          finalSlug,
+          description,
+          content,
+          summary,
+          category_id,
+          resource_type_id,
+          cover_image_url,
+          is_public,
+          is_free,
+          required_points,
+          status,
+          author_id,
+          new Date()
         ]
       );
 
@@ -138,58 +156,60 @@ class Resource {
     const {
       page = 1,
       limit = 20,
-      categoryId,
-      resourceTypeId,
-      authorId,
-      status = 'published',
-      isPublic,
-      isFree,
+      category_id,
+      resource_type_id,
+      author_id,
+      status = null,
+      is_public,
+      is_free,
       search,
       tags,
-      sortBy = 'created_at',
-      sortOrder = 'DESC'
+      sort_by = 'created_at',
+      sort_order = 'DESC'
     } = options;
 
-    const offset = (page - 1) * limit;
+    const currentPage = Math.max(parseInt(page, 10) || 1, 1);
+    const currentLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const offset = (currentPage - 1) * currentLimit;
     const conditions = [];
     const values = [];
     let paramIndex = 1;
 
     // 构建查询条件
 
-    if (status) {
+    if (status !== undefined && status !== null) {
       conditions.push(`r.status = $${paramIndex}`);
       values.push(status);
       paramIndex++;
     }
 
-    if (categoryId) {
+    if (category_id) {
       conditions.push(`r.category_id = $${paramIndex}`);
-      values.push(categoryId);
+      values.push(category_id);
       paramIndex++;
     }
 
-    if (resourceTypeId) {
+    if (resource_type_id) {
       conditions.push(`r.resource_type_id = $${paramIndex}`);
-      values.push(resourceTypeId);
+      values.push(resource_type_id);
       paramIndex++;
     }
 
-    if (authorId) {
+    if (author_id) {
       conditions.push(`r.author_id = $${paramIndex}`);
-      values.push(authorId);
+      values.push(author_id);
       paramIndex++;
     }
 
-    if (isPublic !== undefined) {
+    if (is_public !== undefined) {
       conditions.push(`r.is_public = $${paramIndex}`);
-      values.push(isPublic);
+      values.push(is_public);
       paramIndex++;
     }
 
-    if (isFree !== undefined) {
+    if (is_free !== undefined) {
       conditions.push(`r.is_free = $${paramIndex}`);
-      values.push(isFree);
+      values.push(is_free);
       paramIndex++;
     }
 
@@ -219,8 +239,8 @@ class Resource {
 
     // 验证排序字段
     const allowedSortFields = ['created_at', 'updated_at', 'title', 'view_count', 'download_count', 'like_count'];
-    const finalSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'created_at';
-    const finalSortOrder = ['ASC', 'DESC'].includes(sortOrder.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
+    const finalSortBy = allowedSortFields.includes(sort_by) ? sort_by : 'created_at';
+    const finalSortOrder = ['ASC', 'DESC'].includes(sort_order.toUpperCase()) ? sort_order.toUpperCase() : 'DESC';
 
     // 查询资源列表
     const resourcesQuery = `
@@ -241,7 +261,7 @@ class Resource {
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
-    values.push(limit, offset);
+    values.push(currentLimit, offset);
 
     const resourcesResult = await query(resourcesQuery, values);
 
@@ -262,10 +282,10 @@ class Resource {
     return {
       resources: resourcesResult.rows,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: currentPage,
+        limit: currentLimit,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / currentLimit)
       }
     };
   }
@@ -278,8 +298,18 @@ class Resource {
    */
   static async update(id, updateData) {
     const allowedFields = [
-      'title', 'slug', 'description', 'content', 'summary', 'category_id',
-      'cover_image_url', 'is_public', 'is_free', 'required_points', 'status'
+      'title',
+      'slug',
+      'description',
+      'content',
+      'summary',
+      'category_id',
+      'resource_type_id',
+      'cover_image_url',
+      'is_public',
+      'is_free',
+      'required_points',
+      'status'
     ];
 
     const updateFields = [];
@@ -287,11 +317,13 @@ class Resource {
     let paramIndex = 1;
 
     for (const field of allowedFields) {
-      if (updateData[field] !== undefined) {
-        updateFields.push(`${field} = $${paramIndex}`);
-        values.push(updateData[field]);
-        paramIndex++;
+      if (updateData[field] === undefined) {
+        continue;
       }
+
+      updateFields.push(`${field} = $${paramIndex}`);
+      values.push(updateData[field]);
+      paramIndex++;
     }
 
     if (updateFields.length === 0) {
