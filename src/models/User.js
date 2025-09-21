@@ -490,8 +490,7 @@ class User {
       // 13. 处理帖子最后回复者
       await client.query('UPDATE community_posts SET last_reply_user_id = NULL WHERE last_reply_user_id = $1', [userId]);
 
-      // 14. 处理资源删除记录
-      await client.query('UPDATE resources SET deleted_by = NULL WHERE deleted_by = $1', [userId]);
+      // 14. 处理删除操作者引用（保留评论的删除操作者，资源无软删除无需处理）
       await client.query('UPDATE community_comments SET deleted_by = NULL WHERE deleted_by = $1', [userId]);
 
       // 15. 删除认证和角色数据
