@@ -41,6 +41,7 @@ class ServiceFactory {
     this.register('CardKeyService', () => require('./CardKeyService'));
     this.register('CheckinService', () => require('./CheckinService'));
     this.register('VipService', () => require('./VipService'));
+    this.register('ReferralService', () => require('./ReferralService'));
     this.register('CommunityService', () => require('./CommunityService'));
     this.register('CategoryService', () => require('./CategoryService'));
     this.register('TagService', () => require('./TagService'));
