@@ -5,6 +5,12 @@
 
 const { services } = require('../services');
 const { logger } = require('../utils/logger');
+const AuditLog = require('../models/AuditLog');
+
+const getRequestMeta = (req) => ({
+  ipAddress: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip,
+  userAgent: req.get('user-agent') || ''
+});
 
 /**
  * @swagger
@@ -77,11 +83,35 @@ const generateCode = async (req, res) => {
   try {
     const userId = req.user.id;
     const { force = false } = req.body || {};
-
+    const { ipAddress, userAgent } = getRequestMeta(req);
     const result = await services.referral.generateCode(userId, { force });
+
+    if (result?.success) {
+      await AuditLog.createSystemLog({
+        operatorId: userId,
+        targetType: 'referral_code',
+        targetId: result?.data?.referral_code || null,
+        action: force ? 'generate_force' : 'generate',
+        summary: force ? '强制刷新邀请码' : '生成邀请码',
+        detail: { force },
+        ipAddress,
+        userAgent
+      });
+    }
     res.json(result);
   } catch (error) {
     logger.error('生成邀请码失败:', error);
+    const { ipAddress, userAgent } = getRequestMeta(req);
+    await AuditLog.createSystemLog({
+      operatorId: req.user?.id || null,
+      targetType: 'referral_code',
+      targetId: null,
+      action: 'generate_failed',
+      summary: '生成邀请码失败',
+      detail: { error: error.message },
+      ipAddress,
+      userAgent
+    });
     res.status(400).json({
       success: false,
       message: error.message || '生成邀请码失败'
@@ -239,10 +269,38 @@ const applyPayout = async (req, res) => {
   try {
     const userId = req.user.id;
     const payload = req.body;
+    const { ipAddress, userAgent } = getRequestMeta(req);
     const result = await services.referral.applyPayout(userId, payload);
+
+    if (result?.success) {
+      await AuditLog.createSystemLog({
+        operatorId: userId,
+        targetType: 'referral_payout',
+        targetId: result?.data?.id || null,
+        action: 'apply',
+        summary: '用户发起提现申请',
+        detail: {
+          amount: result?.data?.amount,
+          method: result?.data?.method || null
+        },
+        ipAddress,
+        userAgent
+      });
+    }
     res.json(result);
   } catch (error) {
     logger.error('提交提现申请失败:', error);
+    const { ipAddress, userAgent } = getRequestMeta(req);
+    await AuditLog.createSystemLog({
+      operatorId: req.user?.id || null,
+      targetType: 'referral_payout',
+      targetId: null,
+      action: 'apply_failed',
+      summary: '提现申请失败',
+      detail: { error: error.message },
+      ipAddress,
+      userAgent
+    });
     res.status(400).json({
       success: false,
       message: error.message || '提现申请提交失败'
@@ -318,10 +376,38 @@ const updatePayoutSetting = async (req, res) => {
   try {
     const userId = req.user.id;
     const payload = req.body;
+    const { ipAddress, userAgent } = getRequestMeta(req);
     const result = await services.referral.updatePayoutSetting(userId, payload, userId);
+
+    if (result?.success) {
+      await AuditLog.createSystemLog({
+        operatorId: userId,
+        targetType: 'referral_payout_setting',
+        targetId: userId,
+        action: 'update',
+        summary: '更新提现账号',
+        detail: {
+          method: payload?.method,
+          account: payload?.account ? '***' : null
+        },
+        ipAddress,
+        userAgent
+      });
+    }
     res.json(result);
   } catch (error) {
     logger.error('更新提现账号失败:', error);
+    const { ipAddress, userAgent } = getRequestMeta(req);
+    await AuditLog.createSystemLog({
+      operatorId: req.user?.id || null,
+      targetType: 'referral_payout_setting',
+      targetId: req.user?.id || null,
+      action: 'update_failed',
+      summary: '更新提现账号失败',
+      detail: { error: error.message },
+      ipAddress,
+      userAgent
+    });
     res.status(400).json({
       success: false,
       message: error.message || '更新提现账号失败'

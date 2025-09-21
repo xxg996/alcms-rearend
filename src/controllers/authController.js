@@ -12,6 +12,12 @@ const { generateTokenPair, verifyRefreshToken } = require('../utils/jwt');
 const { checkPasswordStrength } = require('../utils/password');
 const { logger } = require('../utils/logger');
 const { services } = require('../services');
+const AuditLog = require('../models/AuditLog');
+
+const getRequestMeta = (req) => ({
+  ipAddress: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip,
+  userAgent: req.get('user-agent') || ''
+});
 
 /**
  * @swagger
@@ -88,15 +94,30 @@ const { services } = require('../services');
  *         $ref: '#/components/responses/ServerError'
  */
 const register = async (req, res) => {
-  try {
-    const { username, email, password, nickname, invite_code } = req.body;
+  const { username, email, password, nickname, invite_code } = req.body || {};
+  const { ipAddress, userAgent } = getRequestMeta(req);
 
+  const logRegisterFailure = async (reason) => {
+    await AuditLog.createSystemLog({
+      operatorId: null,
+      targetType: 'user',
+      targetId: null,
+      action: 'register_failed',
+      summary: '用户注册失败',
+      detail: { email, reason },
+      ipAddress,
+      userAgent
+    });
+  };
+
+  try {
     let inviterPreview = null;
 
     if (invite_code) {
       try {
         inviterPreview = await services.referral.validateReferralCode(invite_code);
       } catch (validationError) {
+        await logRegisterFailure(validationError.message || '邀请码无效');
         return res.status(400).json({
           success: false,
           message: validationError.message || '邀请码无效'
@@ -104,16 +125,16 @@ const register = async (req, res) => {
       }
     }
 
-    // 基础验证
     if (!username || !email || !password) {
+      await logRegisterFailure('缺少必填字段');
       return res.status(400).json({
         success: false,
         message: '用户名、邮箱和密码为必填项'
       });
     }
 
-    // 用户名验证
     if (username.length < 3 || username.length > 50) {
+      await logRegisterFailure('用户名长度必须在3-50个字符之间');
       return res.status(400).json({
         success: false,
         message: '用户名长度必须在3-50个字符之间'
@@ -121,24 +142,25 @@ const register = async (req, res) => {
     }
 
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      await logRegisterFailure('用户名只能包含字母、数字和下划线');
       return res.status(400).json({
         success: false,
         message: '用户名只能包含字母、数字和下划线'
       });
     }
 
-    // 邮箱验证
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      await logRegisterFailure('邮箱格式不正确');
       return res.status(400).json({
         success: false,
         message: '邮箱格式不正确'
       });
     }
 
-    // 密码强度检查
     const passwordCheck = checkPasswordStrength(password);
     if (!passwordCheck.isValid) {
+      await logRegisterFailure('密码不符合要求');
       return res.status(400).json({
         success: false,
         message: '密码不符合要求',
@@ -147,7 +169,6 @@ const register = async (req, res) => {
       });
     }
 
-    // 创建用户
     const newUser = await User.create({
       username,
       email,
@@ -155,15 +176,14 @@ const register = async (req, res) => {
       nickname
     });
 
-    // 获取用户角色信息
     const userRoles = await User.getUserRoles(newUser.id);
-    
-    // 绑定邀请关系
+
     if (invite_code) {
       try {
         await services.referral.bindInviterForNewUser(newUser.id, invite_code);
       } catch (bindError) {
         logger.error('绑定邀请关系失败:', bindError);
+        await logRegisterFailure('绑定邀请关系失败');
         return res.status(500).json({
           success: false,
           message: bindError.message || '绑定邀请关系失败'
@@ -171,13 +191,22 @@ const register = async (req, res) => {
       }
     }
 
-    // 生成令牌对
     const tokens = generateTokenPair(newUser, userRoles);
 
-    // 存储刷新令牌
     const refreshTokenExpiry = new Date();
-    refreshTokenExpiry.setDate(refreshTokenExpiry.getDate() + 7); // 7天后过期
+    refreshTokenExpiry.setDate(refreshTokenExpiry.getDate() + 7);
     await User.storeRefreshToken(newUser.id, tokens.refreshToken, refreshTokenExpiry);
+
+    await AuditLog.createSystemLog({
+      operatorId: newUser.id,
+      targetType: 'user',
+      targetId: newUser.id,
+      action: 'register',
+      summary: '用户注册成功',
+      detail: { email, invite_code },
+      ipAddress,
+      userAgent
+    });
 
     res.status(201).json({
       success: true,
@@ -200,7 +229,8 @@ const register = async (req, res) => {
     });
   } catch (error) {
     logger.error('注册失败:', error);
-    
+    await logRegisterFailure(error.message);
+
     if (error.message.includes('已存在')) {
       return res.status(409).json({
         success: false,
@@ -326,36 +356,47 @@ const register = async (req, res) => {
  *               message: "登录失败，请稍后重试"
  */
 const login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+  const { email, password } = req.body || {};
+  const { ipAddress, userAgent } = getRequestMeta(req);
 
+  const logLogin = async ({ status, reason = null, userId = null }) => {
+    await AuditLog.createLoginLog({
+      userId,
+      identifier: email || '',
+      status,
+      failureReason: reason,
+      ipAddress,
+      userAgent
+    });
+  };
+
+  try {
     if (!email || !password) {
+      await logLogin({ status: 'failure', reason: '邮箱和密码为必填项' });
       return res.status(400).json({
         success: false,
         message: '邮箱和密码为必填项'
       });
     }
 
-    // 验证用户凭据
     const user = await User.authenticate(email, password);
 
     if (!user) {
+      await logLogin({ status: 'failure', reason: '邮箱或密码错误' });
       return res.status(401).json({
         success: false,
         message: '邮箱或密码错误'
       });
     }
 
-    // 获取用户角色信息
     const userRoles = await User.getUserRoles(user.id);
-    
-    // 生成令牌对
     const tokens = generateTokenPair(user, userRoles);
 
-    // 存储刷新令牌
     const refreshTokenExpiry = new Date();
     refreshTokenExpiry.setDate(refreshTokenExpiry.getDate() + 7);
     await User.storeRefreshToken(user.id, tokens.refreshToken, refreshTokenExpiry);
+
+    await logLogin({ status: 'success', userId: user.id });
 
     res.json({
       success: true,
@@ -374,7 +415,9 @@ const login = async (req, res) => {
     });
   } catch (error) {
     logger.error('登录失败:', error);
-    
+
+    await logLogin({ status: 'failure', reason: error.message });
+
     if (error.message.includes('封禁') || error.message.includes('冻结')) {
       return res.status(403).json({
         success: false,

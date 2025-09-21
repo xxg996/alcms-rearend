@@ -57,7 +57,7 @@ class PointsService extends BaseService {
         this.validateRequired({ userId }, ['userId']);
         this.validateRequired(pointsData, ['points', 'source', 'description']);
 
-        const { points, source, description, reference_id, expires_at } = pointsData;
+        const { points, source, description, reference_id, reference_type, expires_at, operatorId } = pointsData;
 
         if (points <= 0) {
           throw new Error('积分数量必须大于0');
@@ -84,7 +84,10 @@ class PointsService extends BaseService {
           await Points.addPoints(userId, {
             points,
             source,
-            description
+            description,
+            reference_id,
+            reference_type,
+            operator_id: operatorId || userId
           }, client);
 
           return pointsTransaction;
@@ -117,7 +120,7 @@ class PointsService extends BaseService {
         this.validateRequired({ userId }, ['userId']);
         this.validateRequired(pointsData, ['points', 'source', 'description']);
 
-        const { points, source, description, reference_id } = pointsData;
+        const { points, source, description, reference_id, reference_type, operatorId } = pointsData;
 
         if (points <= 0) {
           throw new Error('扣除积分数量必须大于0');
@@ -145,7 +148,10 @@ class PointsService extends BaseService {
           await Points.deductPoints(userId, {
             points,
             source,
-            description
+            description,
+            reference_id,
+            reference_type,
+            operator_id: operatorId || userId
           }, client);
 
           return pointsTransaction;

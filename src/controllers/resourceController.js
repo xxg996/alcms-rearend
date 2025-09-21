@@ -16,6 +16,12 @@ const { generateSecureResourceInfoBatch } = require('../utils/downloadUtilsBatch
 const { checkAndResetDailyDownloads } = require('../utils/downloadLimitUtils');
 const { query } = require('../config/database');
 const { logger } = require('../utils/logger');
+const AuditLog = require('../models/AuditLog');
+
+const getRequestMeta = (req) => ({
+  ipAddress: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip,
+  userAgent: req.get('user-agent') || ''
+});
 
 class ResourceController {
   /**
@@ -426,6 +432,7 @@ class ResourceController {
    *         $ref: '#/components/responses/ServerError'
    */
   static async createResource(req, res) {
+    const { ipAddress, userAgent } = getRequestMeta(req);
     try {
       const userId = req.user.id;
       const {
@@ -497,6 +504,17 @@ class ResourceController {
 
       const resource = await Resource.create(resourceData);
 
+      await AuditLog.createSystemLog({
+        operatorId: userId,
+        targetType: 'resource',
+        targetId: resource.id,
+        action: 'create',
+        summary: `创建资源 ${resource.title}`,
+        detail: { status: resource.status },
+        ipAddress,
+        userAgent
+      });
+
       res.status(201).json({
         success: true,
         message: '资源创建成功',
@@ -504,6 +522,16 @@ class ResourceController {
       });
     } catch (error) {
       logger.error('创建资源失败:', error);
+      await AuditLog.createSystemLog({
+        operatorId: req.user?.id || null,
+        targetType: 'resource',
+        targetId: null,
+        action: 'create_failed',
+        summary: '创建资源失败',
+        detail: { error: error.message },
+        ipAddress,
+        userAgent
+      });
       res.status(500).json({
         success: false,
         message: '创建资源失败',
@@ -594,6 +622,7 @@ class ResourceController {
    *         $ref: '#/components/responses/ServerError'
    */
   static async updateResource(req, res) {
+    const { ipAddress, userAgent } = getRequestMeta(req);
     try {
       const { id } = req.params;
       const userId = req.user.id;
@@ -633,6 +662,21 @@ class ResourceController {
 
       const updatedResource = await Resource.update(parseInt(id), updateData);
 
+      await AuditLog.createSystemLog({
+        operatorId: userId,
+        targetType: 'resource',
+        targetId: updatedResource.id,
+        action: 'update',
+        summary: `更新资源 ${updatedResource.title}`,
+        detail: {
+          fields: Object.keys(updateData),
+          before: { status: resource.status },
+          after: { status: updatedResource.status }
+        },
+        ipAddress,
+        userAgent
+      });
+
       res.json({
         success: true,
         message: '资源更新成功',
@@ -640,6 +684,16 @@ class ResourceController {
       });
     } catch (error) {
       logger.error('更新资源失败:', error);
+      await AuditLog.createSystemLog({
+        operatorId: req.user?.id || null,
+        targetType: 'resource',
+        targetId: req.params?.id || null,
+        action: 'update_failed',
+        summary: '更新资源失败',
+        detail: { error: error.message },
+        ipAddress,
+        userAgent
+      });
       res.status(500).json({
         success: false,
         message: '更新资源失败',
@@ -704,6 +758,7 @@ class ResourceController {
    *         $ref: '#/components/responses/ServerError'
    */
   static async deleteResource(req, res) {
+    const { ipAddress, userAgent } = getRequestMeta(req);
     try {
       const { id } = req.params;
       const userId = req.user.id;
@@ -726,7 +781,18 @@ class ResourceController {
         });
       }
 
-      await Resource.delete(parseInt(id));
+      const deletedResource = await Resource.delete(parseInt(id));
+
+      await AuditLog.createSystemLog({
+        operatorId: userId,
+        targetType: 'resource',
+        targetId: id,
+        action: 'delete',
+        summary: `删除资源 ${resource.title}`,
+        detail: { status: deletedResource?.status || 'deleted' },
+        ipAddress,
+        userAgent
+      });
 
       res.json({
         success: true,
@@ -734,6 +800,16 @@ class ResourceController {
       });
     } catch (error) {
       logger.error('删除资源失败:', error);
+      await AuditLog.createSystemLog({
+        operatorId: req.user?.id || null,
+        targetType: 'resource',
+        targetId: req.params?.id || null,
+        action: 'delete_failed',
+        summary: '删除资源失败',
+        detail: { error: error.message },
+        ipAddress,
+        userAgent
+      });
       res.status(500).json({
         success: false,
         message: '删除资源失败',

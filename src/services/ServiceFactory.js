@@ -36,6 +36,7 @@ class ServiceFactory {
     this.register('AuthService', () => require('./AuthService'));
     this.register('UserService', () => require('./UserService'));
     this.register('ResourceService', () => require('./ResourceService'));
+    this.register('AuditLogService', () => require('./AuditLogService'));
     
     // 业务服务
     this.register('CardKeyService', () => require('./CardKeyService'));

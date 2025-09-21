@@ -8,6 +8,7 @@ const BaseService = require('./BaseService');
 const AuthService = require('./AuthService');
 const UserService = require('./UserService');
 const ResourceService = require('./ResourceService');
+const AuditLogService = require('./AuditLogService');
 
 // 业务服务
 const CardKeyService = require('./CardKeyService');
@@ -32,6 +33,7 @@ module.exports = {
   AuthService,
   UserService,
   ResourceService,
+  AuditLogService,
   
   // 业务服务
   CardKeyService,
@@ -54,6 +56,7 @@ module.exports = {
     get auth() { return getService('AuthService'); },
     get user() { return getService('UserService'); },
     get resource() { return getService('ResourceService'); },
+    get auditLog() { return getService('AuditLogService'); },
     get cardKey() { return getService('CardKeyService'); },
     get checkin() { return getService('CheckinService'); },
     get vip() { return getService('VipService'); },

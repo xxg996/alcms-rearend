@@ -5,6 +5,12 @@
 
 const { services } = require('../services');
 const { logger } = require('../utils/logger');
+const AuditLog = require('../models/AuditLog');
+
+const getRequestMeta = (req) => ({
+  ipAddress: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip,
+  userAgent: req.get('user-agent') || ''
+});
 
 /**
  * @swagger
@@ -106,10 +112,37 @@ const reviewCommission = async (req, res) => {
     const reviewerId = req.user.id;
     const { id } = req.params;
     const payload = req.body;
+    const { ipAddress, userAgent } = getRequestMeta(req);
     const result = await services.referral.reviewCommission(id, payload, reviewerId);
+
+    await AuditLog.createSystemLog({
+      operatorId: reviewerId,
+      targetType: 'referral_commission',
+      targetId: id,
+      action: `commission_${payload?.status || 'review'}`,
+      summary: `佣金审核${payload?.status || ''}`.trim(),
+      detail: {
+        status: payload?.status,
+        review_notes: payload?.review_notes || null
+      },
+      ipAddress,
+      userAgent
+    });
+
     res.json(result);
   } catch (error) {
     logger.error('审核佣金失败:', error);
+    const { ipAddress, userAgent } = getRequestMeta(req);
+    await AuditLog.createSystemLog({
+      operatorId: req.user?.id || null,
+      targetType: 'referral_commission',
+      targetId: req.params?.id || null,
+      action: 'commission_review_failed',
+      summary: '佣金审核失败',
+      detail: { error: error.message },
+      ipAddress,
+      userAgent
+    });
     res.status(400).json({
       success: false,
       message: error.message || '审核佣金失败'
@@ -186,10 +219,34 @@ const updateCommissionConfig = async (req, res) => {
   try {
     const adminId = req.user.id;
     const payload = req.body;
+    const { ipAddress, userAgent } = getRequestMeta(req);
     const result = await services.referral.updateCommissionConfig(payload, adminId);
+
+    await AuditLog.createSystemLog({
+      operatorId: adminId,
+      targetType: 'referral_commission_config',
+      targetId: 'global',
+      action: 'commission_config_update',
+      summary: '更新佣金配置',
+      detail: payload,
+      ipAddress,
+      userAgent
+    });
+
     res.json(result);
   } catch (error) {
     logger.error('更新邀请佣金配置失败:', error);
+    const { ipAddress, userAgent } = getRequestMeta(req);
+    await AuditLog.createSystemLog({
+      operatorId: req.user?.id || null,
+      targetType: 'referral_commission_config',
+      targetId: 'global',
+      action: 'commission_config_update_failed',
+      summary: '更新佣金配置失败',
+      detail: { error: error.message },
+      ipAddress,
+      userAgent
+    });
     res.status(400).json({
       success: false,
       message: error.message || '更新邀请佣金配置失败'
@@ -277,10 +334,37 @@ const reviewPayoutRequest = async (req, res) => {
     const reviewerId = req.user.id;
     const { id } = req.params;
     const payload = req.body;
+    const { ipAddress, userAgent } = getRequestMeta(req);
     const result = await services.referral.reviewPayoutRequest(id, payload, reviewerId);
+
+    await AuditLog.createSystemLog({
+      operatorId: reviewerId,
+      targetType: 'referral_payout',
+      targetId: id,
+      action: `payout_${payload?.status || 'review'}`,
+      summary: '提现申请审核',
+      detail: {
+        status: payload?.status,
+        review_notes: payload?.review_notes || null
+      },
+      ipAddress,
+      userAgent
+    });
+
     res.json(result);
   } catch (error) {
     logger.error('审核提现申请失败:', error);
+    const { ipAddress, userAgent } = getRequestMeta(req);
+    await AuditLog.createSystemLog({
+      operatorId: req.user?.id || null,
+      targetType: 'referral_payout',
+      targetId: req.params?.id || null,
+      action: 'payout_review_failed',
+      summary: '提现审核失败',
+      detail: { error: error.message },
+      ipAddress,
+      userAgent
+    });
     res.status(400).json({
       success: false,
       message: error.message || '审核提现申请失败'

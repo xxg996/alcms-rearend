@@ -772,6 +772,60 @@ CREATE INDEX idx_users_download_reset_date ON users(last_download_reset_date);
 -- 角色/权限关联索引
 CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
 CREATE INDEX idx_user_roles_role_id ON user_roles(role_id);
+
+-- 用户登录日志表
+CREATE TABLE user_login_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    identifier VARCHAR(255) NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('success', 'failure')),
+    failure_reason TEXT,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_user_login_logs_user_id ON user_login_logs(user_id);
+CREATE INDEX idx_user_login_logs_status ON user_login_logs(status);
+CREATE INDEX idx_user_login_logs_login_at ON user_login_logs(login_at);
+
+-- 系统操作日志表
+CREATE TABLE system_operation_logs (
+    id SERIAL PRIMARY KEY,
+    operator_id INTEGER REFERENCES users(id),
+    target_type VARCHAR(50) NOT NULL,
+    target_id VARCHAR(100),
+    action VARCHAR(50) NOT NULL,
+    summary TEXT,
+    detail JSONB,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_sys_op_logs_operator ON system_operation_logs(operator_id);
+CREATE INDEX idx_sys_op_logs_target ON system_operation_logs(target_type, target_id);
+CREATE INDEX idx_sys_op_logs_action ON system_operation_logs(action);
+CREATE INDEX idx_sys_op_logs_created ON system_operation_logs(created_at);
+
+-- 积分操作日志（与 points_records 对应，方便审计）
+CREATE TABLE points_audit_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    operator_id INTEGER REFERENCES users(id),
+    change_amount INTEGER NOT NULL,
+    balance_before INTEGER,
+    balance_after INTEGER,
+    source VARCHAR(50) NOT NULL,
+    description TEXT,
+    related_id VARCHAR(100),
+    related_type VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_points_audit_user ON points_audit_logs(user_id);
+CREATE INDEX idx_points_audit_operator ON points_audit_logs(operator_id);
+CREATE INDEX idx_points_audit_source ON points_audit_logs(source);
 CREATE INDEX idx_role_permissions_role_id ON role_permissions(role_id);
 
 -- 刷新令牌索引

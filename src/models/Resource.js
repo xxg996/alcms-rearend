@@ -338,10 +338,13 @@ class Resource {
 
       const resource = resourceResult.rows[0];
 
-      // 直接删除资源
-      // 历史价值表(user_points, download_records, daily_purchases, user_favorites, resource_reviews)
-      // 会保留资源ID，其他表(resource_files, resource_reports, resource_tags)会级联删除
-      const deleteResult = await client.query('DELETE FROM resources WHERE id = $1', [id]);
+      const deleteResult = await client.query(
+        `UPDATE resources
+         SET status = 'deleted', updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1
+         RETURNING *`,
+        [id]
+      );
 
       await client.query('COMMIT');
 
@@ -351,7 +354,7 @@ class Resource {
         resourceTitle: resource.title
       });
 
-      return deleteResult.rowCount > 0;
+      return deleteResult.rows[0];
 
     } catch (error) {
       await client.query('ROLLBACK');

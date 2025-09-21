@@ -4,6 +4,8 @@
  */
 
 const { query, getClient } = require('../config/database');
+const AuditLog = require('./AuditLog');
+const { logger } = require('../utils/logger');
 
 class Points {
   /**
@@ -27,7 +29,19 @@ class Points {
   /**
    * 增加用户积分
    */
-  static async addPoints(userId, amount, source, description = '', relatedId = null, relatedType = null) {
+  static async addPoints(userId, amount, source, description = '', relatedId = null, relatedType = null, operatorId = null) {
+    if (typeof amount === 'object' && amount !== null) {
+      const opts = amount;
+      return this.addPoints(
+        userId,
+        opts.points,
+        opts.source,
+        opts.description || '',
+        opts.reference_id || null,
+        opts.reference_type || null,
+        opts.operator_id || operatorId || null
+      );
+    }
     const client = await getClient();
     
     try {
@@ -79,6 +93,18 @@ class Points {
       ];
       const recordResult = await client.query(recordQuery, recordValues);
 
+      await AuditLog.createPointsLog({
+        userId,
+        operatorId,
+        changeAmount: amount,
+        balanceBefore: currentPoints,
+        balanceAfter: newPoints,
+        source,
+        description,
+        relatedId,
+        relatedType
+      }, client);
+
       await client.query('COMMIT');
       
       return {
@@ -96,7 +122,19 @@ class Points {
   /**
    * 扣除用户积分
    */
-  static async deductPoints(userId, amount, source, description = '', relatedId = null, relatedType = null) {
+  static async deductPoints(userId, amount, source, description = '', relatedId = null, relatedType = null, operatorId = null) {
+    if (typeof amount === 'object' && amount !== null) {
+      const opts = amount;
+      return this.deductPoints(
+        userId,
+        opts.points,
+        opts.source,
+        opts.description || '',
+        opts.reference_id || null,
+        opts.reference_type || null,
+        opts.operator_id || operatorId || null
+      );
+    }
     const client = await getClient();
     
     try {
@@ -145,6 +183,18 @@ class Points {
         newPoints
       ];
       const recordResult = await client.query(recordQuery, recordValues);
+
+      await AuditLog.createPointsLog({
+        userId,
+        operatorId,
+        changeAmount: -amount,
+        balanceBefore: currentPoints,
+        balanceAfter: newPoints,
+        source,
+        description,
+        relatedId,
+        relatedType
+      }, client);
 
       await client.query('COMMIT');
       
@@ -210,6 +260,18 @@ class Points {
         newPoints
       ];
       const recordResult = await client.query(recordQuery, recordValues);
+
+      await AuditLog.createPointsLog({
+        userId,
+        operatorId: adminId,
+        changeAmount: amount,
+        balanceBefore: currentPoints,
+        balanceAfter: newPoints,
+        source: 'admin_adjust',
+        description,
+        relatedId: adminId,
+        relatedType: 'admin_user'
+      }, client);
 
       await client.query('COMMIT');
       

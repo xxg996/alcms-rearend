@@ -10,6 +10,13 @@
 const { UserService } = require('../services');
 const { body, validationResult } = require('express-validator');
 const { logger } = require('../utils/logger');
+const AuditLog = require('../models/AuditLog');
+const User = require('../models/User');
+
+const getRequestMeta = (req) => ({
+  ipAddress: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip,
+  userAgent: req.get('user-agent') || ''
+});
 
 /**
  * @swagger
@@ -72,11 +79,39 @@ const updateProfile = async (req, res) => {
     const userId = req.user.id;
     const profileData = req.body;
 
+    const { ipAddress, userAgent } = getRequestMeta(req);
+
     const result = await UserService.updateProfile(userId, profileData);
+
+    if (result?.success) {
+      await AuditLog.createSystemLog({
+        operatorId: userId,
+        targetType: 'user_profile',
+        targetId: userId,
+        action: 'profile_update',
+        summary: '用户更新个人资料',
+        detail: {
+          fields: Object.keys(profileData || {})
+        },
+        ipAddress,
+        userAgent
+      });
+    }
     
     res.json(result);
   } catch (error) {
     logger.error('更新用户资料失败:', error);
+    const { ipAddress, userAgent } = getRequestMeta(req);
+    await AuditLog.createSystemLog({
+      operatorId: req.user?.id || null,
+      targetType: 'user_profile',
+      targetId: req.user?.id || null,
+      action: 'profile_update_failed',
+      summary: '用户更新个人资料失败',
+      detail: { error: error.message },
+      ipAddress,
+      userAgent
+    });
     res.status(500).json({
       success: false,
       message: error.message || '用户资料更新失败'
@@ -123,12 +158,37 @@ const changePassword = async (req, res) => {
   try {
     const userId = req.user.id;
     const passwordData = req.body;
+    const { ipAddress, userAgent } = getRequestMeta(req);
 
     const result = await UserService.changePassword(userId, passwordData);
+
+    if (result?.success) {
+      await AuditLog.createSystemLog({
+        operatorId: userId,
+        targetType: 'user_password',
+        targetId: userId,
+        action: 'password_change',
+        summary: '用户修改密码',
+        detail: null,
+        ipAddress,
+        userAgent
+      });
+    }
     
     res.json(result);
   } catch (error) {
     logger.error('修改密码失败:', error);
+    const { ipAddress, userAgent } = getRequestMeta(req);
+    await AuditLog.createSystemLog({
+      operatorId: req.user?.id || null,
+      targetType: 'user_password',
+      targetId: req.user?.id || null,
+      action: 'password_change_failed',
+      summary: '用户修改密码失败',
+      detail: { error: error.message },
+      ipAddress,
+      userAgent
+    });
     res.status(500).json({
       success: false,
       message: error.message || '密码修改失败'
@@ -339,11 +399,41 @@ const updateUserStatus = async (req, res) => {
     const targetUserId = parseInt(req.params.id);
     const { status } = req.body;
 
+    const beforeUser = await User.findById(targetUserId);
+    const { ipAddress, userAgent } = getRequestMeta(req);
+
     const result = await UserService.updateUserStatus(adminUserId, targetUserId, status);
+
+    if (result?.success) {
+      await AuditLog.createSystemLog({
+        operatorId: adminUserId,
+        targetType: 'user',
+        targetId: targetUserId,
+        action: `status_${status}`,
+        summary: '管理员更新用户状态',
+        detail: {
+          previousStatus: beforeUser?.status || null,
+          newStatus: status
+        },
+        ipAddress,
+        userAgent
+      });
+    }
     
     res.json(result);
   } catch (error) {
     logger.error('更新用户状态失败:', error);
+    const { ipAddress, userAgent } = getRequestMeta(req);
+    await AuditLog.createSystemLog({
+      operatorId: req.user?.id || null,
+      targetType: 'user',
+      targetId: req.params?.id || null,
+      action: 'status_update_failed',
+      summary: '管理员更新用户状态失败',
+      detail: { error: error.message },
+      ipAddress,
+      userAgent
+    });
     res.status(500).json({
       success: false,
       message: error.message || '更新用户状态失败'

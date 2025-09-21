@@ -123,6 +123,7 @@ app.use('/api/admin/card-keys', require('./routes/admin/cardKeys'));
 app.use('/api/admin/checkin', require('./routes/admin/checkin'));
 app.use('/api/admin/download', require('./routes/admin/download'));
 app.use('/api/admin/referral', require('./routes/admin/referral'));
+app.use('/api/admin/logs', require('./routes/admin/logs'));
 app.use('/api/admin', require('./routes/admin/resourceFiles'));
 
 // 资源文件管理路由（支持作者权限，去除/admin前缀）
