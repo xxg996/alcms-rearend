@@ -184,23 +184,44 @@ const processResourceDownload = async (resource, userId, files) => {
             throw new Error(`积分不足，需要 ${resource.required_points} 积分，当前有 ${userPoints} 积分`);
           }
 
-          // 扣除积分
-          await query(`
-            UPDATE users SET points = points - $1 WHERE id = $2
-          `, [resource.required_points, userId]);
+        // 扣除积分（购买者）
+        await query(`
+          UPDATE users SET points = points - $1 WHERE id = $2
+        `, [resource.required_points, userId]);
 
-          // 记录积分消耗
-          await query(`
-            INSERT INTO user_points (user_id, points, reason, resource_id)
-            VALUES ($1, $2, $3, $4)
-          `, [userId, -resource.required_points, '下载文件消耗积分', resource.id]);
+        // 记录积分消耗（购买者）
+        await query(`
+          INSERT INTO user_points (user_id, points, reason, resource_id)
+          VALUES ($1, $2, $3, $4)
+        `, [userId, -resource.required_points, '购买消耗积分', resource.id]);
 
-          // 记录今日购买状态（用积分购买）
-          await query(`
-            INSERT INTO daily_purchases (user_id, resource_id, points_cost)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (user_id, resource_id, purchase_date) DO NOTHING
-          `, [userId, resource.id, resource.required_points]);
+        // 给资源作者增加积分（扣除平台手续费，默认10%）
+        if (resource.author_id && resource.author_id !== userId) {
+          const FEE_RATE = 0.10; // TODO: 后续改为系统设置
+          const gross = parseInt(resource.required_points, 10) || 0;
+          const fee = Math.floor(gross * FEE_RATE);
+          const net = Math.max(0, gross - fee);
+
+          if (net > 0) {
+            // 增加作者积分
+            await query(`
+              UPDATE users SET points = points + $1 WHERE id = $2
+            `, [net, resource.author_id]);
+
+            // 记录作者收入
+            await query(`
+              INSERT INTO user_points (user_id, points, reason, resource_id)
+              VALUES ($1, $2, $3, $4)
+            `, [resource.author_id, net, '售卖收入', resource.id]);
+          }
+        }
+
+        // 记录今日购买状态（用积分购买）
+        await query(`
+          INSERT INTO daily_purchases (user_id, resource_id, points_cost)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (user_id, resource_id, purchase_date) DO NOTHING
+        `, [userId, resource.id, resource.required_points]);
 
           costInfo = { type: 'points', cost: resource.required_points };
           finalDownloadStatus = await checkAndResetDailyDownloads(userId);
