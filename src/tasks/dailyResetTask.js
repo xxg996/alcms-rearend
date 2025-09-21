@@ -13,7 +13,7 @@ const { logger } = require('../utils/logger');
  */
 function startDailyResetTask() {
   // 每天凌晨0点执行重置任务
-  cron.schedule('0 0 * * *', async () => {
+  const job = cron.schedule('0 0 * * *', async () => {
     try {
       logger.info('开始执行每日下载次数重置任务...');
 
@@ -28,6 +28,7 @@ function startDailyResetTask() {
   });
 
   logger.info('每日下载次数重置任务已启动，将在每天凌晨0点执行');
+  return job;
 }
 
 /**

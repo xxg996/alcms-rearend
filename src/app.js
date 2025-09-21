@@ -8,7 +8,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 require('dotenv').config();
-const { logger } = require('./utils/logger');
+const { logger, shutdownLogger } = require('./utils/logger');
 
 // JWT安全验证 - 应用启动时验证
 const { validateJWTSecurity } = require('./utils/secureJwt');
@@ -33,7 +33,7 @@ initializeBuckets().catch(err => {
 
 // 启动每日重置任务
 const { startDailyResetTask } = require('./tasks/dailyResetTask');
-startDailyResetTask();
+const dailyResetJob = startDailyResetTask();
 
 // 导入 Swagger 配置
 const { swaggerDocument, swaggerUi, swaggerOptions } = require('./config/swagger');
@@ -190,9 +190,13 @@ app.use(globalErrorHandler);
 
 // 启动服务器
 const PORT = process.env.PORT || 3000;
+const PORT_RETRY_LIMIT = Number(process.env.PORT_RETRY_LIMIT || 5);
+const PORT_RETRY_DELAY = Number(process.env.PORT_RETRY_DELAY || 500);
 
-if (require.main === module) {
-  app.listen(PORT, () => {
+let server;
+
+const startServer = (attempt = 1) => {
+  server = app.listen(PORT, () => {
     logger.info(`
  Alcms 后端服务已启动！
  服务地址: http://localhost:${PORT}
@@ -200,6 +204,91 @@ if (require.main === module) {
  健康检查: http://localhost:${PORT}/health
  API文档: http://localhost:${PORT}/api-docs
     `);
+  });
+
+  server.once('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      server = null;
+      if (attempt >= PORT_RETRY_LIMIT) {
+        logger.error('端口仍被占用，已达最大重试次数，服务启动失败', { port: PORT, attempt });
+        return process.exit(1);
+      }
+
+      logger.warn('端口被占用，等待释放后重试', { port: PORT, attempt });
+
+      setTimeout(() => {
+        startServer(attempt + 1);
+      }, PORT_RETRY_DELAY);
+      return;
+    }
+
+    server = null;
+    logger.error('服务启动失败', error);
+    process.exit(1);
+  });
+};
+
+if (require.main === module) {
+  startServer();
+
+  let isShuttingDown = false;
+
+  const shutdown = (signal, next) => {
+    if (isShuttingDown) {
+      return;
+    }
+    isShuttingDown = true;
+
+    logger.info(`收到 ${signal} 信号，准备优雅关闭服务`);
+
+    if (dailyResetJob) {
+      try {
+        dailyResetJob.stop();
+      } catch (error) {
+        logger.warn('停止每日任务失败:', error);
+      }
+    }
+
+    const finalize = (exitCode = 0) => {
+      shutdownLogger(signal);
+      if (typeof next === 'function') {
+        next();
+      } else {
+        process.exit(exitCode);
+      }
+    };
+
+    setTimeout(() => {
+      logger.error('服务关闭超时，强制退出');
+      finalize(1);
+    }, 5000).unref();
+
+    if (server && server.listening) {
+      server.close(err => {
+        if (err) {
+          logger.error('关闭HTTP服务器时出错:', err);
+          return finalize(1);
+        }
+
+        logger.info('HTTP服务器已关闭');
+        server = null;
+        finalize(0);
+      });
+    } else {
+      server = null;
+      finalize(0);
+    }
+  };
+
+  ['SIGINT', 'SIGTERM'].forEach(signal => {
+    process.on(signal, () => shutdown(signal));
+  });
+
+  process.once('SIGUSR2', () => {
+    shutdown('SIGUSR2', () => {
+      // 交还控制权给 nodemon，确保可以重新启动新进程
+      process.kill(process.pid, 'SIGUSR2');
+    });
   });
 }
 

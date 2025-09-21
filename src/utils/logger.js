@@ -364,45 +364,33 @@ replaceConsole();
 // 优雅关闭处理
 let isShuttingDown = false;
 
-process.on('SIGINT', () => {
-  if (isShuttingDown) return;
+/**
+ * 主动关闭日志系统
+ * @param {string} signal - 触发关闭的信号
+ */
+function shutdownLogger(signal = 'SIGTERM') {
+  if (isShuttingDown) {
+    return;
+  }
   isShuttingDown = true;
-  
-  // 先输出关闭信息，然后关闭日志系统
-  console.log('接收到SIGINT信号，准备关闭日志系统');
-  
-  // 给日志一点时间完成当前写入操作
-  setTimeout(() => {
-    try {
-      logger.end();
-    } catch (error) {
-      // 忽略关闭时的错误
-    }
-    process.exit(0);
-  }, 100);
-});
 
-process.on('SIGTERM', () => {
-  if (isShuttingDown) return;
-  isShuttingDown = true;
-  
-  // 先输出关闭信息，然后关闭日志系统
-  console.log('接收到SIGTERM信号，准备关闭日志系统');
-  
-  // 给日志一点时间完成当前写入操作
+  // 使用原生输出提示日志系统正在关闭，避免 logger 自身被提前终止
+  console.log(`接收到${signal}信号，准备关闭日志系统`);
+
+  // 给日志传输器留时间冲洗缓冲区
   setTimeout(() => {
     try {
       logger.end();
     } catch (error) {
-      // 忽略关闭时的错误
+      // 忽略关闭过程中的日志错误
     }
-    process.exit(0);
   }, 100);
-});
+}
 
 module.exports = {
   logger: log,
   Logger,
   createLogger: Logger.create,
-  winston: logger
+  winston: logger,
+  shutdownLogger
 };
