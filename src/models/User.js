@@ -1052,6 +1052,39 @@ class User {
       client.release();
     }
   }
+
+  /**
+   * 更新用户密码
+   * @param {number} userId - 用户ID
+   * @param {string} newPassword - 新密码
+   * @returns {Promise<boolean>} 更新是否成功
+   */
+  static async updatePassword(userId, newPassword) {
+    const bcrypt = require('bcrypt');
+    const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    const result = await query(
+      'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [hashedPassword, userId]
+    );
+
+    return result.rowCount > 0;
+  }
+
+  /**
+   * 撤销用户的所有刷新令牌
+   * @param {number} userId - 用户ID
+   * @returns {Promise<number>} 撤销的令牌数量
+   */
+  static async revokeAllRefreshTokens(userId) {
+    const result = await query(
+      'UPDATE refresh_tokens SET is_revoked = true WHERE user_id = $1 AND is_revoked = false',
+      [userId]
+    );
+
+    return result.rowCount;
+  }
 }
 
 module.exports = User;

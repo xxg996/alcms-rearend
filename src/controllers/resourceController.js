@@ -430,7 +430,6 @@ class ResourceController {
         title,
         slug,
         description,
-        content,
         summary,
         category_id,
         resource_type_id,
@@ -465,7 +464,6 @@ class ResourceController {
         title,
         slug,
         description,
-        content,
         summary,
         category_id: normalizedCategoryId,
         resource_type_id: normalizedResourceTypeId,
@@ -634,7 +632,7 @@ class ResourceController {
         }
       };
 
-      ['title', 'slug', 'description', 'content', 'summary', 'cover_image_url', 'status'].forEach((field) => {
+      ['title', 'slug', 'description', 'summary', 'cover_image_url', 'status'].forEach((field) => {
         assignIfPresent(field);
       });
 
@@ -913,9 +911,12 @@ class ResourceController {
         });
       }
 
-      const offset = (parseInt(page) - 1) * parseInt(limit);
+      const currentPage = Math.max(parseInt(page, 10) || 1, 1);
+      const currentLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+      const offset = (currentPage - 1) * currentLimit;
+
       const searchResults = await Resource.fullTextSearch(query.trim(), {
-        limit: parseInt(limit),
+        limit: currentLimit,
         offset
       });
 
@@ -925,8 +926,8 @@ class ResourceController {
           resources: searchResults,
           query: query.trim(),
           pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
+            page: currentPage,
+            limit: currentLimit,
             total: searchResults.length
           }
         }

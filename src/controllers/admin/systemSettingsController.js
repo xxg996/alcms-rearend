@@ -5,6 +5,7 @@
 
 const SystemSetting = require('../../models/SystemSetting');
 const { logger } = require('../../utils/logger');
+const { testEmailConnection, sendRegistrationCode } = require('../../utils/emailService');
 
 /**
  * 获取所有系统设置
@@ -327,6 +328,128 @@ const getSettingsSchema = async (req, res) => {
   }
 };
 
+/**
+ * 测试SMTP邮件发送服务
+ * 管理员测试系统邮件发送功能，包括SMTP连接测试和发送测试邮件
+ */
+const testEmailService = async (req, res) => {
+  try {
+    const { email, test_type, email_type } = req.body || {};
+
+    // 验证必填字段
+    if (!email || !test_type) {
+      return res.status(400).json({
+        success: false,
+        message: '邮箱和测试类型为必填项'
+      });
+    }
+
+    // 验证邮箱格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: '邮箱格式不正确'
+      });
+    }
+
+    // 验证测试类型
+    if (!['connection', 'send_email'].includes(test_type)) {
+      return res.status(400).json({
+        success: false,
+        message: '测试类型无效'
+      });
+    }
+
+    // 如果是发送邮件测试，验证邮件类型
+    if (test_type === 'send_email') {
+      if (!email_type || !['register', 'reset_password'].includes(email_type)) {
+        return res.status(400).json({
+          success: false,
+          message: '发送邮件测试时必须指定有效的邮件类型'
+        });
+      }
+    }
+
+    let result = {
+      test_type,
+      email,
+      smtp_config: {
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT),
+        secure: process.env.SMTP_SECURE === 'true',
+        user: process.env.SMTP_USER
+      }
+    };
+
+    if (test_type === 'connection') {
+      // 测试SMTP连接
+      const connectionResult = await testEmailConnection();
+      if (!connectionResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: connectionResult.message,
+          error: connectionResult.error,
+          code: connectionResult.code,
+          errno: connectionResult.errno,
+          config: connectionResult.config
+        });
+      }
+
+      res.json({
+        success: true,
+        message: connectionResult.message,
+        data: result
+      });
+
+    } else if (test_type === 'send_email') {
+      // 测试发送邮件
+      const { generateVerificationCode } = require('../../utils/emailService');
+      const verificationCode = generateVerificationCode();
+
+      let emailSent = false;
+      if (email_type === 'register') {
+        emailSent = await sendRegistrationCode(email, verificationCode);
+      } else if (email_type === 'reset_password') {
+        const { sendPasswordResetCode } = require('../../utils/emailService');
+        emailSent = await sendPasswordResetCode(email, verificationCode);
+      }
+
+      if (!emailSent) {
+        return res.status(500).json({
+          success: false,
+          message: '邮件发送失败，请检查SMTP配置'
+        });
+      }
+
+      result.verification_code = verificationCode;
+      result.email_type = email_type;
+
+      res.json({
+        success: true,
+        message: `${email_type === 'register' ? '注册' : '密码重置'}验证码邮件发送成功`,
+        data: result
+      });
+    }
+
+    // 记录测试日志
+    logger.info(`管理员邮件测试: ${test_type}`, {
+      userId: req.user.id,
+      email,
+      test_type,
+      email_type
+    });
+
+  } catch (error) {
+    logger.error('邮件服务测试失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '邮件服务测试失败',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllSettings,
   getSetting,
@@ -334,5 +457,6 @@ module.exports = {
   deleteSetting,
   batchUpdateSettings,
   resetToDefault,
-  getSettingsSchema
+  getSettingsSchema,
+  testEmailService
 };

@@ -12,7 +12,8 @@ const {
   deleteSetting,
   batchUpdateSettings,
   resetToDefault,
-  getSettingsSchema
+  getSettingsSchema,
+  testEmailService
 } = require('../../controllers/admin/systemSettingsController');
 
 // 中间件
@@ -299,5 +300,133 @@ router.delete('/:key', authenticateToken, requirePermission('system:configure'),
  *         description: 未知的设置项
  */
 router.post('/:key/reset', authenticateToken, requirePermission('system:configure'), resetToDefault);
+
+/**
+ * @swagger
+ * /api/admin/system-settings/test-email:
+ *   post:
+ *     summary: 测试SMTP邮件发送
+ *     description: 管理员测试系统邮件发送功能，包括SMTP连接测试和发送测试邮件
+ *     tags: [系统设置管理]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - test_type
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: 测试邮件接收地址
+ *                 example: "admin@example.com"
+ *               test_type:
+ *                 type: string
+ *                 enum: [connection, send_email]
+ *                 description: 测试类型
+ *                 example: "send_email"
+ *               email_type:
+ *                 type: string
+ *                 enum: [register, reset_password]
+ *                 description: 邮件类型（当test_type为send_email时必需）
+ *                 example: "register"
+ *           examples:
+ *             connectionTest:
+ *               summary: SMTP连接测试
+ *               value:
+ *                 email: "admin@example.com"
+ *                 test_type: "connection"
+ *             sendEmailTest:
+ *               summary: 发送测试邮件
+ *               value:
+ *                 email: "admin@example.com"
+ *                 test_type: "send_email"
+ *                 email_type: "register"
+ *     responses:
+ *       200:
+ *         description: 测试成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "邮件发送测试成功"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     test_type:
+ *                       type: string
+ *                       example: "send_email"
+ *                     email:
+ *                       type: string
+ *                       example: "admin@example.com"
+ *                     verification_code:
+ *                       type: string
+ *                       description: 发送的验证码（仅在发送邮件测试时返回）
+ *                       example: "123456"
+ *                     smtp_config:
+ *                       type: object
+ *                       description: SMTP配置信息
+ *                       properties:
+ *                         host:
+ *                           type: string
+ *                           example: "smtp.qq.com"
+ *                         port:
+ *                           type: integer
+ *                           example: 587
+ *                         secure:
+ *                           type: boolean
+ *                           example: false
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               missingFields:
+ *                 summary: 缺少必填字段
+ *                 value:
+ *                   success: false
+ *                   message: "邮箱和测试类型为必填项"
+ *               invalidEmail:
+ *                 summary: 邮箱格式无效
+ *                 value:
+ *                   success: false
+ *                   message: "邮箱格式不正确"
+ *               missingEmailType:
+ *                 summary: 缺少邮件类型
+ *                 value:
+ *                   success: false
+ *                   message: "发送邮件测试时必须指定邮件类型"
+ *       500:
+ *         description: 测试失败
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               connectionFailed:
+ *                 summary: SMTP连接失败
+ *                 value:
+ *                   success: false
+ *                   message: "SMTP连接测试失败"
+ *               sendFailed:
+ *                 summary: 邮件发送失败
+ *                 value:
+ *                   success: false
+ *                   message: "邮件发送失败"
+ */
+router.post('/test-email', authenticateToken, requirePermission('system:configure'), testEmailService);
 
 module.exports = router;

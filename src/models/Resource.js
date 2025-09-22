@@ -16,7 +16,6 @@ class Resource {
       title,
       slug,
       description,
-      content,
       summary,
       category_id,
       resource_type_id,
@@ -51,18 +50,17 @@ class Resource {
       // 插入资源
       const resourceResult = await client.query(
         `INSERT INTO resources (
-          title, slug, description, content, summary, category_id, resource_type_id,
+          title, slug, description, summary, category_id, resource_type_id,
           cover_image_url, is_public, status, author_id, published_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7,
-          $8, $9, $10, $11, $12
+          $1, $2, $3, $4, $5, $6,
+          $7, $8, $9, $10, $11
         )
         RETURNING *`,
         [
           title,
           finalSlug,
           description,
-          content,
           summary,
           category_id,
           resource_type_id,
@@ -203,9 +201,8 @@ class Resource {
 
     if (search) {
       conditions.push(`(
-        r.title ILIKE $${paramIndex} OR 
-        r.description ILIKE $${paramIndex} OR
-        r.content ILIKE $${paramIndex}
+        r.title ILIKE $${paramIndex} OR
+        r.description ILIKE $${paramIndex}
       )`);
       values.push(`%${search}%`);
       paramIndex++;
@@ -288,7 +285,6 @@ class Resource {
       'title',
       'slug',
       'description',
-      'content',
       'summary',
       'category_id',
       'resource_type_id',
@@ -440,24 +436,23 @@ class Resource {
   static async fullTextSearch(searchTerm, options = {}) {
     const { limit = 20, offset = 0 } = options;
 
+    // 使用简单的 ILIKE 搜索来支持中文内容
     const result = await query(
-      `SELECT 
+      `SELECT
         r.id, r.title, r.slug, r.description, r.summary, r.cover_image_url,
         r.view_count, r.download_count, r.created_at,
         rt.display_name as resource_type_display_name,
         c.display_name as category_display_name,
-        u.nickname as author_nickname,
-        ts_rank(to_tsvector('english', r.title || ' ' || COALESCE(r.description, '') || ' ' || COALESCE(r.content, '')), query) as rank
+        u.nickname as author_nickname
       FROM resources r
       LEFT JOIN resource_types rt ON r.resource_type_id = rt.id
       LEFT JOIN categories c ON r.category_id = c.id
-      LEFT JOIN users u ON r.author_id = u.id,
-      to_tsquery('english', $1) query
-      WHERE to_tsvector('english', r.title || ' ' || COALESCE(r.description, '') || ' ' || COALESCE(r.content, '')) @@ query
+      LEFT JOIN users u ON r.author_id = u.id
+      WHERE (r.title ILIKE $1 OR r.description ILIKE $1)
       AND r.status = 'published' AND r.is_public = true
-      ORDER BY rank DESC, r.created_at DESC
+      ORDER BY r.created_at DESC
       LIMIT $2 OFFSET $3`,
-      [searchTerm.replace(/\s+/g, ' & '), limit, offset]
+      [`%${searchTerm}%`, limit, offset]
     );
 
     return result.rows;

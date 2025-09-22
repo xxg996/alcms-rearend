@@ -8,6 +8,7 @@
  */
 
 const User = require('../models/User');
+const VerificationCode = require('../models/VerificationCode');
 const { generateTokenPair, verifyRefreshToken } = require('../utils/jwt');
 const { checkPasswordStrength } = require('../utils/password');
 const { logger } = require('../utils/logger');
@@ -40,6 +41,7 @@ const getRequestMeta = (req) => ({
  *                 email: "newuser@example.com"
  *                 password: "NewUser123"
  *                 nickname: "新用户"
+ *                 verification_code: "123456"
  *                 invite_code: "ABCD1234"
  *     responses:
  *       201:
@@ -94,7 +96,7 @@ const getRequestMeta = (req) => ({
  *         $ref: '#/components/responses/ServerError'
  */
 const register = async (req, res) => {
-  const { username, email, password, nickname, invite_code } = req.body || {};
+  const { username, email, password, nickname, verification_code, invite_code } = req.body || {};
   const { ipAddress, userAgent } = getRequestMeta(req);
 
   const logRegisterFailure = async (reason) => {
@@ -125,11 +127,11 @@ const register = async (req, res) => {
       }
     }
 
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !verification_code) {
       await logRegisterFailure('缺少必填字段');
       return res.status(400).json({
         success: false,
-        message: '用户名、邮箱和密码为必填项'
+        message: '用户名、邮箱、密码和验证码为必填项'
       });
     }
 
@@ -155,6 +157,25 @@ const register = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: '邮箱格式不正确'
+      });
+    }
+
+    // 验证验证码格式
+    if (!/^[0-9]{6}$/.test(verification_code)) {
+      await logRegisterFailure('验证码格式错误');
+      return res.status(400).json({
+        success: false,
+        message: '验证码必须为6位数字'
+      });
+    }
+
+    // 验证邮箱验证码
+    const verificationResult = await VerificationCode.verify(email, verification_code, 'register');
+    if (!verificationResult.valid) {
+      await logRegisterFailure('验证码验证失败');
+      return res.status(400).json({
+        success: false,
+        message: verificationResult.reason
       });
     }
 
@@ -762,10 +783,215 @@ const getProfile = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: 重置密码
+ *     description: 使用邮箱验证码重置用户密码
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - verification_code
+ *               - new_password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: 用户邮箱
+ *                 example: "user@example.com"
+ *               verification_code:
+ *                 type: string
+ *                 pattern: '^[0-9]{6}$'
+ *                 description: 6位数字验证码
+ *                 example: "123456"
+ *               new_password:
+ *                 type: string
+ *                 description: 新密码
+ *                 example: "NewPassword123"
+ *           examples:
+ *             resetPassword:
+ *               summary: 重置密码
+ *               value:
+ *                 email: "user@example.com"
+ *                 verification_code: "123456"
+ *                 new_password: "NewPassword123"
+ *     responses:
+ *       200:
+ *         description: 密码重置成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *             example:
+ *               success: true
+ *               message: "密码重置成功"
+ *       400:
+ *         description: 请求参数错误
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               missingFields:
+ *                 summary: 缺少必填字段
+ *                 value:
+ *                   success: false
+ *                   message: "邮箱、验证码和新密码为必填项"
+ *               invalidCode:
+ *                 summary: 验证码无效
+ *                 value:
+ *                   success: false
+ *                   message: "验证码无效或已过期"
+ *               weakPassword:
+ *                 summary: 密码强度不足
+ *                 value:
+ *                   success: false
+ *                   message: "密码不符合要求"
+ *       404:
+ *         description: 用户不存在
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "用户不存在"
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const resetPassword = async (req, res) => {
+  const { email, verification_code, new_password } = req.body || {};
+  const { ipAddress, userAgent } = getRequestMeta(req);
+
+  const logPasswordResetFailure = async (reason, userId = null) => {
+    await AuditLog.createSystemLog({
+      operatorId: userId,
+      targetType: 'user',
+      targetId: userId,
+      action: 'password_reset_failed',
+      summary: '密码重置失败',
+      detail: { email, reason },
+      ipAddress,
+      userAgent
+    });
+  };
+
+  try {
+    // 验证必填字段
+    if (!email || !verification_code || !new_password) {
+      await logPasswordResetFailure('缺少必填字段');
+      return res.status(400).json({
+        success: false,
+        message: '邮箱、验证码和新密码为必填项'
+      });
+    }
+
+    // 验证邮箱格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      await logPasswordResetFailure('邮箱格式不正确');
+      return res.status(400).json({
+        success: false,
+        message: '邮箱格式不正确'
+      });
+    }
+
+    // 验证验证码格式
+    if (!/^[0-9]{6}$/.test(verification_code)) {
+      await logPasswordResetFailure('验证码格式错误');
+      return res.status(400).json({
+        success: false,
+        message: '验证码必须为6位数字'
+      });
+    }
+
+    // 检查用户是否存在
+    const user = await User.findByEmail(email);
+    if (!user) {
+      await logPasswordResetFailure('用户不存在');
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
+    // 检查账户状态
+    if (user.status === 'banned') {
+      await logPasswordResetFailure('账户已被封禁', user.id);
+      return res.status(403).json({
+        success: false,
+        message: '账户已被封禁，无法重置密码'
+      });
+    }
+
+    // 验证邮箱验证码
+    const verificationResult = await VerificationCode.verify(email, verification_code, 'reset_password');
+    if (!verificationResult.valid) {
+      await logPasswordResetFailure('验证码验证失败', user.id);
+      return res.status(400).json({
+        success: false,
+        message: verificationResult.reason
+      });
+    }
+
+    // 验证新密码强度
+    const passwordCheck = checkPasswordStrength(new_password);
+    if (!passwordCheck.isValid) {
+      await logPasswordResetFailure('密码不符合要求', user.id);
+      return res.status(400).json({
+        success: false,
+        message: '密码不符合要求',
+        errors: passwordCheck.errors,
+        suggestions: passwordCheck.suggestions
+      });
+    }
+
+    // 更新密码
+    await User.updatePassword(user.id, new_password);
+
+    // 撤销该用户的所有刷新令牌
+    await User.revokeAllRefreshTokens(user.id);
+
+    // 记录成功日志
+    await AuditLog.createSystemLog({
+      operatorId: user.id,
+      targetType: 'user',
+      targetId: user.id,
+      action: 'password_reset',
+      summary: '密码重置成功',
+      detail: { email },
+      ipAddress,
+      userAgent
+    });
+
+    res.json({
+      success: true,
+      message: '密码重置成功'
+    });
+
+  } catch (error) {
+    logger.error('密码重置失败:', error);
+    await logPasswordResetFailure(error.message);
+    res.status(500).json({
+      success: false,
+      message: '密码重置失败，请稍后重试',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   refreshToken,
   logout,
-  getProfile
+  getProfile,
+  resetPassword
 };
