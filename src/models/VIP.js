@@ -337,24 +337,8 @@ class VIP {
     return result.rows[0];
   }
 
-  /**
-   * 获取用户订单历史
-   */
-  static async getUserOrders(userId, limit = 10, offset = 0) {
-    const queryStr = `
-      SELECT 
-        vo.*,
-        vl.name as vip_name,
-        vl.display_name as vip_display_name
-      FROM vip_orders vo
-      LEFT JOIN vip_levels vl ON vo.vip_level = vl.level
-      WHERE vo.user_id = $1
-      ORDER BY vo.created_at DESC
-      LIMIT $2 OFFSET $3
-    `;
-    const result = await query(queryStr, [userId, limit, offset]);
-    return result.rows;
-  }
+  // 注意：getUserOrders 方法已废弃并移除
+  // 用户订单查询功能已迁移到 cardOrderController
 
   /**
    * 计算卡密兑换的订单金额
@@ -373,25 +357,8 @@ class VIP {
     return basePrice > 0 ? Number(basePrice.toFixed(2)) : 0;
   }
 
-  /**
-   * 获取订单详情
-   */
-  static async getOrderById(orderId) {
-    const queryStr = `
-      SELECT 
-        vo.*,
-        u.username,
-        u.email,
-        vl.name as vip_name,
-        vl.display_name as vip_display_name
-      FROM vip_orders vo
-      LEFT JOIN users u ON vo.user_id = u.id
-      LEFT JOIN vip_levels vl ON vo.vip_level = vl.level
-      WHERE vo.id = $1
-    `;
-    const result = await query(queryStr, [orderId]);
-    return result.rows[0];
-  }
+  // 注意：getOrderById 方法已废弃并移除
+  // 订单详情查询功能已迁移到 cardOrderController
 }
 
 module.exports = VIP;

@@ -106,8 +106,9 @@ app.get('/health', (req, res) => {
 // 用户功能API路由注册
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/vip', vipRoutes);
+app.use('/api/vip', vipRoutes);  // VIP等级和状态管理（订单查询已迁移到card-orders）
 app.use('/api/card-keys', cardKeyRoutes);
+app.use('/api/card-orders', require('./routes/user/cardOrders'));  // 统一的卡密兑换订单系统
 app.use('/api/points', pointsRoutes);
 app.use('/api/checkin', checkinRoutes);
 app.use('/api/referral', referralRoutes);

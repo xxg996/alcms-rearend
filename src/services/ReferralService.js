@@ -589,10 +589,97 @@ class ReferralService extends BaseService {
   }
 
   /**
+   * 通用佣金处理方法
+   */
+  async processCommission(inviteeId, order = null, cardKey = null, eventType = 'card_redeem') {
+    return this.withPerformanceMonitoring('processCommission', async () => {
+      try {
+        if (!inviteeId) {
+          return null;
+        }
+
+        const config = await SystemSetting.getReferralCommissionConfig();
+        if (!config || !config.enabled) {
+          return null;
+        }
+
+        const inviter = await Referral.getInviter(inviteeId);
+        if (!inviter || !inviter.inviter_id) {
+          return null;
+        }
+
+        const inviterId = inviter.inviter_id;
+
+        // 对于卡密兑换，直接使用卡密价值
+        let orderAmount = 0;
+        if (cardKey && cardKey.value_amount) {
+          orderAmount = Number(cardKey.value_amount);
+        } else if (order) {
+          orderAmount = await this.calculateOrderAmount(order, cardKey);
+        }
+
+        if (!orderAmount || orderAmount <= 0) {
+          this.log('info', '订单金额为0，跳过佣金结算', {
+            inviteeId,
+            eventType,
+            cardKeyId: cardKey?.id
+          });
+          return null;
+        }
+
+        // 根据事件类型确定佣金比例
+        const hasPrevious = order ? await Referral.hasPaidCardKeyOrder(inviteeId, order.id) :
+                           await Referral.hasPaidCardKeyOrder(inviteeId);
+        const finalEventType = hasPrevious ? 'renewal' : 'first_recharge';
+        const rate = finalEventType === 'first_recharge' ? config.first_rate : config.renewal_rate;
+
+        if (!rate || rate <= 0) {
+          return null;
+        }
+
+        const commissionAmount = Number((orderAmount * rate).toFixed(2));
+        if (commissionAmount <= 0) {
+          return null;
+        }
+
+        const record = await Referral.createCommissionRecord({
+          inviterId,
+          inviteeId,
+          orderId: order?.id || null,
+          orderAmount,
+          commissionAmount,
+          commissionRate: rate,
+          eventType: finalEventType,
+          cardKeyId: cardKey?.id
+        });
+
+        this.log('info', '佣金结算成功', {
+          inviteeId,
+          inviterId,
+          orderAmount,
+          commissionAmount,
+          rate,
+          eventType: finalEventType,
+          cardKeyId: cardKey?.id
+        });
+
+        return record;
+      } catch (error) {
+        this.handleError(error, 'processCommission');
+      }
+    });
+  }
+
+  /**
    * 计算卡密订单的参考金额
   */
   async calculateOrderAmount(order, cardKey) {
     if (cardKey) {
+      // 优先使用卡密的价值字段
+      if (cardKey.value_amount && cardKey.value_amount > 0) {
+        return Number(cardKey.value_amount);
+      }
+      // 回退到传统计算方式
       return await VIP.calculateCardKeyPrice(cardKey);
     }
 

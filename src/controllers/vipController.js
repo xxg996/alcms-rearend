@@ -179,6 +179,9 @@ const getLevelById = async (req, res) => {
  *               priority_support: true
  *               exclusive_content: true
  *             price: 39.99
+ *             quarterly_price: 99.99
+ *             yearly_price: 359.99
+ *             discount_rate: 0.85
  *             duration_days: 90
  *     responses:
  *       201:
@@ -327,6 +330,9 @@ const createLevel = async (req, res) => {
  *               ad_free: true
  *               priority_support: true
  *             price: 29.99
+ *             quarterly_price: 79.99
+ *             yearly_price: 299.99
+ *             discount_rate: 0.85
  *             duration_days: 60
  *     responses:
  *       200:
@@ -961,183 +967,13 @@ const cancelUserVIP = async (req, res) => {
   }
 };
 
-/**
- * @swagger
- * /api/vip/my-orders:
- *   get:
- *     tags: [VIP]
- *     summary: 获取用户订单历史
- *     description: 获取当前用户的VIP订单历史记录
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *           maximum: 100
- *         description: 返回数量限制
- *       - in: query
- *         name: offset
- *         schema:
- *           type: integer
- *           default: 0
- *         description: 偏移量
- *     responses:
- *       200:
- *         description: 订单历史获取成功
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/VIPOrderListResponse'
- *             example:
- *               success: true
- *               message: "订单历史获取成功"
- *               data:
- *                 - id: 1001
- *                   order_number: "VIP202509120001"
- *                   vip_level: 1
- *                   vip_level_name: "vip1"
- *                   duration_days: 30
- *                   amount: 19.99
- *                   status: "paid"
- *                   payment_method: "alipay"
- *                   created_at: "2025-09-12T10:00:00.000Z"
- *                   paid_at: "2025-09-12T10:05:00.000Z"
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       500:
- *         $ref: '#/components/responses/ServerError'
- */
-const getMyOrders = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { limit = 10, offset = 0 } = req.query;
-    
-    const orders = await VIP.getUserOrders(userId, parseInt(limit), parseInt(offset));
-    
-    res.json({
-      success: true,
-      message: '订单历史获取成功',
-      data: orders
-    });
-  } catch (error) {
-    logger.error('获取订单历史失败:', error);
-    res.status(500).json({
-      success: false,
-      message: '获取订单历史失败'
-    });
-  }
-};
+// 注意：getMyOrders 方法已废弃并移除
+// VIP订单查询功能已迁移到 /api/card-orders/my-orders
+// 请使用新的卡密兑换订单记录接口
 
-/**
- * @swagger
- * /api/vip/orders/{orderId}:
- *   get:
- *     tags: [VIP]
- *     summary: 获取订单详情
- *     description: 获取指定VIP订单的详细信息（订单所有者或管理员可访问）
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: orderId
- *         required: true
- *         schema:
- *           type: integer
- *         description: 订单ID
- *         example: 1001
- *     responses:
- *       200:
- *         description: 订单详情获取成功
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/SuccessResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/VIPOrder'
- *             example:
- *               success: true
- *               message: "订单详情获取成功"
- *               data:
- *                 id: 1001
- *                 user_id: 123
- *                 username: "testuser"
- *                 email: "test@example.com"
- *                 order_number: "VIP202509120001"
- *                 vip_level: 1
- *                 vip_level_name: "vip1"
- *                 vip_level_display_name: "VIP会员"
- *                 duration_days: 30
- *                 amount: "19.99"
- *                 status: "paid"
- *                 payment_method: "alipay"
- *                 payment_transaction_id: "2025091200001001"
- *                 created_at: "2025-09-12T10:00:00.000Z"
- *                 paid_at: "2025-09-12T10:05:00.000Z"
- *       403:
- *         description: 无权查看此订单
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *             example:
- *               success: false
- *               message: "无权查看此订单"
- *       404:
- *         description: 订单不存在
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *             example:
- *               success: false
- *               message: "订单不存在"
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       500:
- *         $ref: '#/components/responses/ServerError'
- */
-const getOrderById = async (req, res) => {
-  try {
-    const { orderId } = req.params;
-    const order = await VIP.getOrderById(parseInt(orderId));
-    
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: '订单不存在'
-      });
-    }
-
-    // 检查权限：只有订单所有者或管理员才能查看
-    const isOwner = order.user_id === req.user.id;
-    const isAdmin = req.user.roles?.some(role => ['admin', 'super_admin'].includes(role.name));
-    
-    if (!isOwner && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: '无权查看此订单'
-      });
-    }
-    
-    res.json({
-      success: true,
-      message: '订单详情获取成功',
-      data: order
-    });
-  } catch (error) {
-    logger.error('获取订单详情失败:', error);
-    res.status(500).json({
-      success: false,
-      message: '获取订单详情失败'
-    });
-  }
-};
+// 注意：getOrderById 方法已废弃并移除
+// VIP订单详情查询功能已迁移到 /api/card-orders/orders/{orderId}
+// 请使用新的卡密兑换订单记录接口
 
 /**
  * @swagger
@@ -1221,7 +1057,6 @@ module.exports = {
   setUserVIP,
   extendUserVIP,
   cancelUserVIP,
-  getMyOrders,
-  getOrderById,
   updateExpiredVIP
+  // 注意：getMyOrders 和 getOrderById 已迁移到 cardOrderController
 };

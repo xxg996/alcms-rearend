@@ -178,6 +178,7 @@ const swaggerOptions = {
     path.join(__dirname, '../controllers/*.js'), // Controller文件
     path.join(__dirname, '../routes/*.js'),      // 路由文件
     path.join(__dirname, '../routes/admin/*.js'), // 管理员路由文件
+    path.join(__dirname, '../routes/user/*.js'), // 用户路由文件
     path.join(__dirname, '../docs/schemas/*.js') // 数据模型定义
   ]
 };

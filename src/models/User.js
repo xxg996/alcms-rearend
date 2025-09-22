@@ -41,11 +41,12 @@ class User {
    */
   static async findById(id) {
     const result = await query(
-      `SELECT 
+      `SELECT
         id, username, email, nickname, avatar_url, bio, status,
         created_at, updated_at,
         referral_code, inviter_id, invited_at,
-        commission_balance, total_commission_earned
+        commission_balance, total_commission_earned,
+        points, vip_level, is_vip
        FROM users WHERE id = $1`,
       [id]
     );

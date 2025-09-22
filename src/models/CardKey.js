@@ -28,6 +28,34 @@ class CardKey {
   }
 
   /**
+   * 计算卡密价值
+   */
+  static async calculateCardValue(cardData) {
+    const { type, vip_level, vip_days, points } = cardData;
+
+    let value = 0;
+
+    if (type === 'vip' && vip_level > 0) {
+      // 获取VIP等级配置
+      const VIP = require('./VIP');
+      const vipLevel = await VIP.getLevelById(vip_level);
+
+      if (vipLevel && vipLevel.price) {
+        // 按天数比例计算价值
+        const basePrice = Number(vipLevel.price) || 0;
+        const baseDays = 30; // 基础价格通常按30天计算
+        value = basePrice * (vip_days / baseDays);
+      }
+    } else if (type === 'points' && points > 0) {
+      // 积分卡密，可以设置积分兑换比例（比如100积分=1元）
+      const pointsToMoneyRate = 0.01; // 1积分=0.01元，可配置
+      value = points * pointsToMoneyRate;
+    }
+
+    return Number(value.toFixed(2));
+  }
+
+  /**
    * 创建单个卡密
    */
   static async createCardKey(cardData, createdBy = null) {
@@ -37,18 +65,25 @@ class CardKey {
       vip_days = 30,
       points = 0,
       expire_at = null,
-      batch_id = null
+      batch_id = null,
+      value_amount = null
     } = cardData;
 
     const code = this.generateCode();
-    
+
+    // 如果没有指定价值金额，自动计算
+    let finalValueAmount = value_amount;
+    if (finalValueAmount === null) {
+      finalValueAmount = await this.calculateCardValue(cardData);
+    }
+
     const queryStr = `
-      INSERT INTO card_keys 
-      (code, type, vip_level, vip_days, points, expire_at, batch_id, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO card_keys
+      (code, type, vip_level, vip_days, points, expire_at, batch_id, created_by, value_amount)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `;
-    const values = [code, type, vip_level, vip_days, points, expire_at, batch_id, createdBy];
+    const values = [code, type, vip_level, vip_days, points, expire_at, batch_id, createdBy, finalValueAmount];
     const result = await query(queryStr, values);
     return result.rows[0];
   }
@@ -191,6 +226,33 @@ class CardKey {
           cardKey.id,
           'card_key'
         );
+
+        // 为积分卡密也创建订单记录
+        const VIP = require('./VIP');
+        const orderData = {
+          user_id: userId,
+          vip_level: 0, // 积分卡密VIP等级为0
+          price: cardKey.value_amount || 0,
+          duration_days: 0, // 积分卡密持续天数为0
+          payment_method: 'card_key',
+          order_no: 'CARD_POINTS_' + Date.now() + '_' + userId,
+          card_key_code: code
+        };
+        const createdOrder = await VIP.createOrder(orderData);
+        result.order = await VIP.updateOrderStatus(createdOrder.id, 'paid');
+      }
+
+      // 处理佣金分配（如果卡密有价值且用户有邀请人）
+      if (cardKey.value_amount > 0 && result.order) {
+        try {
+          const { services } = require('../services');
+          result.commission = await services.referral.processCommission(userId, result.order, cardKey, 'card_redeem');
+        } catch (commissionError) {
+          // 佣金处理失败不影响卡密兑换，只记录日志
+          const { logger } = require('../utils/logger');
+          logger.error('卡密兑换佣金处理失败:', commissionError);
+          result.commission = null;
+        }
       }
 
       await client.query('COMMIT');

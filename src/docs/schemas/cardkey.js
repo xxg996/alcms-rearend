@@ -39,6 +39,12 @@
  *           nullable: true
  *           description: 积分数量（points类型时使用）
  *           example: 1000
+ *         value_amount:
+ *           type: number
+ *           format: decimal
+ *           nullable: true
+ *           description: 卡密价值金额（用于佣金计算）
+ *           example: 19.99
  *         status:
  *           type: string
  *           enum: [unused, used, expired, disabled]
@@ -115,6 +121,12 @@
  *           minimum: 1
  *           description: 积分数量（points类型时必填）
  *           example: 1000
+ *         value_amount:
+ *           type: number
+ *           format: decimal
+ *           minimum: 0
+ *           description: 卡密价值金额（可选，用于佣金计算，不填则自动计算）
+ *           example: 19.99
  *         expire_at:
  *           type: string
  *           format: date-time
@@ -148,6 +160,12 @@
  *           minimum: 1
  *           description: 积分数量（points类型时必填）
  *           example: 500
+ *         value_amount:
+ *           type: number
+ *           format: decimal
+ *           minimum: 0
+ *           description: 卡密价值金额（可选，用于佣金计算，不填则自动计算）
+ *           example: 19.99
  *         count:
  *           type: integer
  *           minimum: 1

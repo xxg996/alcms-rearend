@@ -26,10 +26,16 @@ router.get('/file/:resourceId',
   downloadController.downloadResourceFiles
 );
 
-// 下载资源文件
+// 下载资源文件（按资源ID）
 router.get('/download/:resourceId',
   authenticateToken,
   downloadController.downloadResource
+);
+
+// 下载单个文件（按文件ID）
+router.get('/file-download/:fileId',
+  authenticateToken,
+  downloadController.downloadSingleFile
 );
 
 // 获取当前用户文件统计

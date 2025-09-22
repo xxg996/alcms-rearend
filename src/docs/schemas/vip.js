@@ -41,8 +41,28 @@
  *         price:
  *           type: number
  *           format: decimal
- *           description: VIP价格
+ *           description: VIP价格（月价格）
  *           example: 19.99
+ *         quarterly_price:
+ *           type: number
+ *           format: decimal
+ *           nullable: true
+ *           description: 季度价格（3个月）
+ *           example: 49.99
+ *         yearly_price:
+ *           type: number
+ *           format: decimal
+ *           nullable: true
+ *           description: 年度价格（12个月）
+ *           example: 179.99
+ *         discount_rate:
+ *           type: number
+ *           format: decimal
+ *           nullable: true
+ *           minimum: 0
+ *           maximum: 1
+ *           description: 折扣率（0-1之间，如0.8表示8折）
+ *           example: 0.85
  *         duration_days:
  *           type: integer
  *           description: VIP有效期（天数），0表示永久
@@ -108,8 +128,27 @@
  *           type: number
  *           format: decimal
  *           minimum: 0
- *           description: VIP价格
+ *           description: VIP价格（月价格）
  *           example: 39.99
+ *         quarterly_price:
+ *           type: number
+ *           format: decimal
+ *           minimum: 0
+ *           description: 季度价格（3个月，可选）
+ *           example: 99.99
+ *         yearly_price:
+ *           type: number
+ *           format: decimal
+ *           minimum: 0
+ *           description: 年度价格（12个月，可选）
+ *           example: 359.99
+ *         discount_rate:
+ *           type: number
+ *           format: decimal
+ *           minimum: 0
+ *           maximum: 1
+ *           description: 折扣率（0-1之间，如0.8表示8折，可选）
+ *           example: 0.85
  *         duration_days:
  *           type: integer
  *           minimum: 0
@@ -144,8 +183,27 @@
  *           type: number
  *           format: decimal
  *           minimum: 0
- *           description: VIP价格
+ *           description: VIP价格（月价格）
  *           example: 29.99
+ *         quarterly_price:
+ *           type: number
+ *           format: decimal
+ *           minimum: 0
+ *           description: 季度价格（3个月）
+ *           example: 79.99
+ *         yearly_price:
+ *           type: number
+ *           format: decimal
+ *           minimum: 0
+ *           description: 年度价格（12个月）
+ *           example: 299.99
+ *         discount_rate:
+ *           type: number
+ *           format: decimal
+ *           minimum: 0
+ *           maximum: 1
+ *           description: 折扣率（0-1之间，如0.8表示8折）
+ *           example: 0.85
  *         duration_days:
  *           type: integer
  *           minimum: 0

@@ -34,17 +34,20 @@ const { services } = require('../services');
  *                 type: "vip"
  *                 vip_level: 1
  *                 vip_days: 30
+ *                 value_amount: 19.99
  *             points_card:
  *               summary: 生成积分卡密
  *               value:
  *                 type: "points"
  *                 points: 1000
+ *                 value_amount: 10.00
  *             permanent_vip:
  *               summary: 生成永久VIP卡密
  *               value:
  *                 type: "vip"
  *                 vip_level: 3
  *                 vip_days: 0
+ *                 value_amount: 199.99
  *     responses:
  *       201:
  *         description: 卡密生成成功
@@ -66,6 +69,7 @@ const { services } = require('../services');
  *                 type: "vip"
  *                 vip_level: 1
  *                 vip_days: 30
+ *                 value_amount: 19.99
  *                 status: "unused"
  *                 batch_id: null
  *                 created_at: "2025-09-12T10:00:00.000Z"
@@ -98,7 +102,8 @@ const generateSingleCard = async (req, res) => {
       vip_level = 1,
       vip_days = 30,
       points = 0,
-      expire_at = null
+      expire_at = null,
+      value_amount = null
     } = req.body;
 
     // 验证参数
@@ -128,7 +133,8 @@ const generateSingleCard = async (req, res) => {
       vip_level: parseInt(vip_level),
       vip_days: parseInt(vip_days),
       points: parseInt(points),
-      expire_at: expire_at ? new Date(expire_at) : null
+      expire_at: expire_at ? new Date(expire_at) : null,
+      value_amount: value_amount ? parseFloat(value_amount) : null
     }, req.user.id);
 
     res.status(201).json({
@@ -164,6 +170,7 @@ const generateSingleCard = async (req, res) => {
  *             type: "vip"
  *             vip_level: 1
  *             vip_days: 30
+ *             value_amount: 19.99
  *             count: 100
  *             expire_at: "2025-12-31T23:59:59.000Z"
  *     responses:
@@ -204,7 +211,8 @@ const generateBatchCards = async (req, res) => {
       vip_days = 30,
       points = 0,
       count = 1,
-      expire_at = null
+      expire_at = null,
+      value_amount = null
     } = req.body;
 
     // 验证参数
@@ -241,7 +249,8 @@ const generateBatchCards = async (req, res) => {
       vip_level: parseInt(vip_level),
       vip_days: parseInt(vip_days),
       points: parseInt(points),
-      expire_at: expire_at ? new Date(expire_at) : null
+      expire_at: expire_at ? new Date(expire_at) : null,
+      value_amount: value_amount ? parseFloat(value_amount) : null
     }, parseInt(count), req.user.id);
 
     res.status(201).json({

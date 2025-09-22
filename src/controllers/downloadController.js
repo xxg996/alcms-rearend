@@ -7,6 +7,7 @@ const { getUserDownloadStats, resetAllUsersDailyDownloads, checkAndResetDailyDow
 const { checkFileDownloadPermission, executeDownloadPayment } = require('../utils/downloadAuthUtils');
 const ResourceFile = require('../models/ResourceFile');
 const Resource = require('../models/Resource');
+const User = require('../models/User');
 const { query } = require('../config/database');
 const { logger } = require('../utils/logger');
 
@@ -831,6 +832,15 @@ const downloadResource = async (req, res) => {
       });
     }
 
+    // 获取用户信息
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
     // 获取资源的所有文件
     const files = await ResourceFile.findByResourceId(parseInt(resourceId), {
       includeInactive: true
@@ -844,7 +854,7 @@ const downloadResource = async (req, res) => {
     }
 
     // 处理下载逻辑
-    const { costInfo, finalDownloadStatus } = await processResourceDownload(resource, userId, files);
+    const downloadResult = await processResourceDownload(resource, userId, user, files);
 
     // 记录下载行为
     await recordDownload({
@@ -859,7 +869,7 @@ const downloadResource = async (req, res) => {
 
     // 获取实际消耗的下载配额次数以正确显示统计
     const todayConsumed = await getTodayConsumedDownloads(userId);
-    const dailyLimit = finalDownloadStatus.dailyLimit || 10;
+    const dailyLimit = downloadResult.finalDownloadStatus.dailyLimit || 10;
 
     // 格式化文件列表
     const formattedFiles = files.map(file => ({
@@ -877,7 +887,7 @@ const downloadResource = async (req, res) => {
 
     res.json({
       success: true,
-      message: '下载成功',
+      message: downloadResult.hasError ? '部分文件下载失败' : '下载成功',
       data: {
         resource: {
           id: resource.id,
@@ -891,7 +901,9 @@ const downloadResource = async (req, res) => {
           daily_limit: dailyLimit,
           can_download: todayConsumed < dailyLimit
         },
-        cost_info: costInfo
+        download_results: downloadResult.results,
+        success_count: downloadResult.successCount,
+        total_count: downloadResult.totalCount
       }
     });
 
@@ -1060,11 +1072,237 @@ const getCurrentUserStats = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/file-download/{fileId}:
+ *   get:
+ *     tags: [Download]
+ *     summary: 下载单个文件（按文件ID）
+ *     description: 根据文件ID下载单个文件，支持权限检查和费用扣除
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: fileId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 文件ID
+ *     responses:
+ *       200:
+ *         description: 下载成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         file:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: integer
+ *                               description: 文件ID
+ *                             name:
+ *                               type: string
+ *                               description: 文件名称
+ *                             url:
+ *                               type: string
+ *                               format: uri
+ *                               description: 下载链接
+ *                             file_size:
+ *                               type: integer
+ *                               description: 文件大小
+ *                             file_type:
+ *                               type: string
+ *                               description: 文件类型
+ *                         cost_info:
+ *                           type: object
+ *                           properties:
+ *                             type:
+ *                               type: string
+ *                               description: 计费类型
+ *                             cost:
+ *                               type: integer
+ *                               description: 消耗的次数或积分
+ *                         download_status:
+ *                           type: object
+ *                           properties:
+ *                             remaining_downloads:
+ *                               type: integer
+ *                               description: 剩余下载次数
+ *                             daily_limit:
+ *                               type: integer
+ *                               description: 每日下载限制
+ *             example:
+ *               success: true
+ *               message: "文件下载成功"
+ *               data:
+ *                 file:
+ *                   id: 13
+ *                   name: "demo.pdf"
+ *                   url: "https://example.com/demo.pdf"
+ *                   file_size: 1024000
+ *                   file_type: "application/pdf"
+ *                 cost_info:
+ *                   type: "download_count"
+ *                   cost: 1
+ *                 download_status:
+ *                   remaining_downloads: 9
+ *                   daily_limit: 10
+ *       400:
+ *         description: 请求参数错误
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         description: 权限不足或次数/积分不足
+ *       404:
+ *         description: 文件不存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const downloadSingleFile = async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const userId = req.user.id;
+    const userAgent = req.headers['user-agent'];
+    const ipAddress = req.ip || req.connection.remoteAddress;
+
+    // 获取文件信息
+    const file = await ResourceFile.findById(parseInt(fileId));
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        message: '文件不存在'
+      });
+    }
+
+    // 获取文件对应的资源信息
+    const resource = await Resource.findById(file.resource_id);
+    if (!resource) {
+      return res.status(404).json({
+        success: false,
+        message: '文件对应的资源不存在'
+      });
+    }
+
+    // 检查资源是否发布
+    if (resource.status !== 'published') {
+      return res.status(403).json({
+        success: false,
+        message: '资源未发布，无法下载文件'
+      });
+    }
+
+    // 获取用户信息
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
+    // 检查文件下载权限
+    const permissionResult = await checkFileDownloadPermission(file, userId, user);
+
+    if (!permissionResult.canDownload) {
+      return res.status(403).json({
+        success: false,
+        message: permissionResult.reason,
+        data: {
+          file: {
+            id: file.id,
+            name: file.name,
+            required_points: file.required_points || 0,
+            required_vip_level: file.required_vip_level || 0
+          },
+          user: {
+            points: user.points || 0,
+            vip_level: user.vip_level || 0
+          },
+          download_status: permissionResult.finalDownloadStatus
+        }
+      });
+    }
+
+    // 执行下载扣费
+    const paymentSuccess = await executeDownloadPayment(file, userId, permissionResult.costInfo);
+    if (!paymentSuccess) {
+      return res.status(500).json({
+        success: false,
+        message: '扣费失败，请稍后重试'
+      });
+    }
+
+    // 记录下载行为
+    await recordDownload({
+      userId,
+      resourceId: resource.id,
+      ipAddress,
+      userAgent,
+      downloadUrl: file.url,
+      expiresAt: null,
+      isSuccessful: true
+    });
+
+    // 增加文件下载次数
+    await query('UPDATE resource_files SET download_count = download_count + 1 WHERE id = $1', [file.id]);
+
+    // 获取最新的下载状态
+    const { checkAndResetDailyDownloads, getTodayConsumedDownloads } = require('../utils/downloadLimitUtils');
+    const todayConsumed = await getTodayConsumedDownloads(userId);
+    const dailyLimit = permissionResult.finalDownloadStatus?.dailyLimit || 10;
+
+    res.json({
+      success: true,
+      message: '文件下载成功',
+      data: {
+        resource: {
+          id: resource.id,
+          title: resource.title
+        },
+        file: {
+          id: file.id,
+          name: file.name,
+          url: file.url,
+          file_size: file.file_size,
+          file_type: file.file_type,
+          file_extension: file.file_extension,
+          quality: file.quality,
+          version: file.version,
+          language: file.language
+        },
+        cost_info: permissionResult.costInfo,
+        download_status: {
+          remaining_downloads: Math.max(0, dailyLimit - todayConsumed),
+          daily_limit: dailyLimit,
+          today_consumed: todayConsumed,
+          can_download: todayConsumed < dailyLimit
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error('单文件下载失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '下载失败',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getUserDownloadStatistics,
   resetAllDailyDownloads,
   downloadResourceFiles,
   getResourceFilesList,
   downloadResource,
-  getCurrentUserStats
+  getCurrentUserStats,
+  downloadSingleFile
 };

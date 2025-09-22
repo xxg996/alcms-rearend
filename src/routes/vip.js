@@ -23,18 +23,7 @@ router.get('/my-info',
   vipController.getMyVIPInfo
 );
 
-// 获取当前用户订单历史
-router.get('/my-orders',
-  authenticateToken,
-  requirePermission('vip:order:read'),
-  vipController.getMyOrders
-);
-
-// 获取订单详情
-router.get('/orders/:orderId',
-  authenticateToken,
-  requirePermission('vip:order:read'),
-  vipController.getOrderById
-);
+// 注意：VIP订单查询已迁移到 /api/card-orders/my-orders
+// 请使用新的卡密兑换订单记录接口
 
 module.exports = router;
