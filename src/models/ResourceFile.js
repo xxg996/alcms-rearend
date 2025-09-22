@@ -24,22 +24,24 @@ class ResourceFile {
       version,
       language,
       isActive = true,
-      sortOrder = 0
+      sortOrder = 0,
+      requiredPoints = 0,
+      requiredVipLevel = 0
     } = fileData;
 
     try {
       const queryStr = `
         INSERT INTO resource_files (
           resource_id, name, url, file_size, file_type, file_extension,
-          quality, version, language, is_active, sort_order
+          quality, version, language, is_active, sort_order, required_points, required_vip_level
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *
       `;
 
       const values = [
         resourceId, name, url, fileSize, fileType, fileExtension,
-        quality, version, language, isActive, sortOrder
+        quality, version, language, isActive, sortOrder, requiredPoints, requiredVipLevel
       ];
 
       const result = await query(queryStr, values);

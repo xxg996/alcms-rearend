@@ -30,9 +30,21 @@ class ResourceController {
    *   get:
    *     tags: [Resources]
    *     summary: 获取资源列表
-   *     description: 获取分页的资源列表，支持多种过滤和排序选项
+   *     description: |
+   *       获取分页的资源列表，支持多种过滤和排序选项。
+   *
+   *       **权限控制说明：**
+   *       - 未登录用户：只能看到公开的已发布资源（is_public=true, status='published'）
+   *       - 已登录用户：额外可以看到自己创建的所有状态资源
+   *       - 管理员：可以通过 include_all=true 参数查看所有资源
+   *
+   *       **默认过滤：**
+   *       - 默认只返回已发布的资源（status='published'）
+   *       - 使用 include_all=true 可以返回所有状态的资源（需要相应权限）
+   *
    *     security:
-   *       - BearerAuth: []
+ *       - BearerAuth: []
+ *       - {}
    *     parameters:
    *       - in: query
    *         name: page
@@ -146,7 +158,6 @@ class ResourceController {
         author_id,
         status,
         is_public,
-        is_free,
         search,
         tags,
         sort_by,
@@ -166,7 +177,6 @@ class ResourceController {
         author_id: author_id !== undefined ? toIntegerOrNull(author_id) : undefined,
         status: resolvedStatus,
         is_public: is_public !== undefined ? toBoolean(is_public, true) : undefined,
-        is_free: is_free !== undefined ? toBoolean(is_free, false) : undefined,
         search,
         tags: tagArray,
         sort_by,
@@ -205,9 +215,22 @@ class ResourceController {
    *   get:
    *     tags: [Resources]
    *     summary: 获取单个资源详情
-   *     description: 根据资源ID获取资源的详细信息，包括安全的下载链接。对于已认证用户，额外返回用户的下载余量和成本信息
+   *     description: |
+   *       根据资源ID获取资源的详细信息。
+   *
+   *       **权限控制说明：**
+   *       - 公开资源（is_public=true）：所有用户（包括未登录游客）都可以访问
+   *       - 私有资源（is_public=false）：仅以下用户可以访问：
+   *         - 资源作者本人
+   *         - 拥有 'resource:read' 权限的管理员用户
+   *
+   *       **响应内容：**
+   *       - 未登录用户：返回基本资源信息
+   *       - 已登录用户：额外返回用户相关的个人化数据（如收藏状态等）
+   *       - 下载状态信息请查看 /api/files/{resourceId} 接口
    *     security:
-   *       - BearerAuth: []
+ *       - BearerAuth: []
+ *       - {}
    *     parameters:
    *       - in: path
    *         name: id
@@ -260,7 +283,12 @@ class ResourceController {
    *       401:
    *         $ref: '#/components/responses/Unauthorized'
    *       403:
-   *         description: 无权访问此资源
+   *         description: |
+   *           权限不足 - 尝试访问私有资源但没有足够权限。
+   *
+   *           **可能的原因：**
+   *           - 未登录用户尝试访问私有资源（is_public=false）
+   *           - 已登录用户尝试访问不属于自己且无管理权限的私有资源
    *         content:
    *           application/json:
    *             schema:
@@ -312,44 +340,6 @@ class ResourceController {
       // 生成安全的资源信息（隐藏真实下载链接）
       const secureResource = await generateSecureResourceInfo(resource, userId);
 
-      // 如果用户已登录，添加下载状态信息
-      if (userId) {
-        // 获取用户下载状态
-        const downloadStatus = await checkAndResetDailyDownloads(userId);
-
-        // 检查今日是否已购买过该资源
-        const purchaseCheck = await query(`
-          SELECT id, points_cost FROM daily_purchases
-          WHERE user_id = $1 AND resource_id = $2 AND purchase_date = CURRENT_DATE
-        `, [userId, resource.id]);
-
-        const hasPurchasedToday = purchaseCheck.rows.length > 0;
-        const purchase = purchaseCheck.rows[0];
-
-        // 计算下载成本
-        let downloadCost = null;
-        if (!resource.is_free && !hasPurchasedToday) {
-          if (downloadStatus.canDownload) {
-            downloadCost = { type: 'download_count', cost: 1 };
-          } else if (resource.required_points && resource.required_points > 0) {
-            downloadCost = { type: 'points', cost: resource.required_points };
-          }
-        }
-
-        // 添加用户下载状态信息
-        secureResource.user_download_status = {
-          daily_limit: downloadStatus.dailyLimit,
-          daily_used: downloadStatus.dailyUsed,
-          remaining_downloads: downloadStatus.remainingDownloads,
-          can_download: downloadStatus.canDownload,
-          purchased_today: hasPurchasedToday,
-          download_cost: downloadCost,
-          purchased_info: hasPurchasedToday ? {
-            cost_type: purchase.points_cost > 0 ? 'points' : 'download_count',
-            cost: purchase.points_cost || 1
-          } : null
-        };
-      }
 
       res.json({
         success: true,

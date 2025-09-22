@@ -68,36 +68,12 @@ async function validateDownloadPermission(userId, resource) {
       }
     }
 
-    // 检查免费状态
-    if (!resource.is_free) {
-      if (!userId) {
-        return {
-          allowed: false,
-          reason: '请先登录后下载付费资源'
-        };
-      }
-
-      // 检查积分要求
-      if (resource.required_points > 0) {
-        const userPoints = await getUserPoints(userId);
-        if (userPoints < resource.required_points) {
-          return {
-            allowed: false,
-            reason: `需要 ${resource.required_points} 积分，当前积分不足`
-          };
-        }
-      }
-    }
-
-    // 检查是否需要消耗积分
-    let pointsToDeduct = 0;
-    if (!resource.is_free && resource.required_points > 0) {
-      pointsToDeduct = resource.required_points;
-    }
+    // 新的下载逻辑：权限控制已移到文件级别
+    // 这个函数主要用于检查基本权限，具体的积分和VIP控制在downloadAuthUtils中处理
 
     return {
       allowed: true,
-      pointsToDeduct,
+      pointsToDeduct: 0, // 积分控制已移到文件级别
       reason: '允许下载'
     };
 

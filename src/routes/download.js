@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const downloadController = require('../controllers/downloadController');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, optionalAuth } = require('../middleware/auth');
 
 // 获取用户下载统计
 router.get('/download-stats',
@@ -14,8 +14,9 @@ router.get('/download-stats',
   downloadController.getUserDownloadStatistics
 );
 
-// 获取资源文件列表（只返回文件名，不包含下载链接）- 公开接口
+// 获取资源文件列表（包含用户下载状态信息）
 router.get('/files/:resourceId',
+  optionalAuth,
   downloadController.getResourceFilesList
 );
 

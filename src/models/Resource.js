@@ -22,8 +22,6 @@ class Resource {
       resource_type_id,
       cover_image_url,
       is_public = true,
-      is_free = true,
-      required_points = 0,
       status = 'published',
       author_id,
       tags = []
@@ -54,12 +52,10 @@ class Resource {
       const resourceResult = await client.query(
         `INSERT INTO resources (
           title, slug, description, content, summary, category_id, resource_type_id,
-          cover_image_url, is_public, is_free, required_points, status, author_id,
-          published_at
+          cover_image_url, is_public, status, author_id, published_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7,
-          $8, $9, $10, $11, $12, $13,
-          $14
+          $8, $9, $10, $11, $12
         )
         RETURNING *`,
         [
@@ -72,8 +68,6 @@ class Resource {
           resource_type_id,
           cover_image_url,
           is_public,
-          is_free,
-          required_points,
           status,
           author_id,
           new Date()
@@ -161,7 +155,6 @@ class Resource {
       author_id,
       status = null,
       is_public,
-      is_free,
       search,
       tags,
       sort_by = 'created_at',
@@ -207,11 +200,6 @@ class Resource {
       paramIndex++;
     }
 
-    if (is_free !== undefined) {
-      conditions.push(`r.is_free = $${paramIndex}`);
-      values.push(is_free);
-      paramIndex++;
-    }
 
     if (search) {
       conditions.push(`(
@@ -244,10 +232,9 @@ class Resource {
 
     // 查询资源列表
     const resourcesQuery = `
-      SELECT 
+      SELECT
         r.id, r.title, r.slug, r.description, r.summary, r.cover_image_url,
-        r.is_public, r.is_free, r.required_points,
-        r.view_count, r.download_count, r.like_count, r.created_at, r.published_at,
+        r.is_public, r.view_count, r.download_count, r.like_count, r.created_at, r.published_at,
         rt.name as resource_type_name, rt.display_name as resource_type_display_name,
         c.name as category_name, c.display_name as category_display_name,
         u.username as author_username, u.nickname as author_nickname
@@ -307,8 +294,6 @@ class Resource {
       'resource_type_id',
       'cover_image_url',
       'is_public',
-      'is_free',
-      'required_points',
       'status'
     ];
 

@@ -105,7 +105,23 @@ const getResourceFiles = async (req, res) => {
  *   post:
  *     tags: [ResourceFiles]
  *     summary: 添加资源文件
- *     description: 为指定资源添加下载文件。资源作者可以为自己的资源添加文件，管理员可以为任何资源添加文件
+ *     description: |
+ *       为指定资源添加下载文件，支持文件级权限控制配置。
+ *
+ *       **权限要求：**
+ *       - 资源作者可以为自己的资源添加文件
+ *       - 拥有 'resource:create' 权限的管理员可以为任何资源添加文件
+ *
+ *       **文件权限控制字段：**
+ *       - `required_points`: 下载该文件所需积分（0表示无积分要求）
+ *       - `required_vip_level`: 下载该文件所需VIP等级（0表示无VIP要求）
+ *
+ *       **权限配置组合说明：**
+ *       - `required_points=0, required_vip_level=0`: 完全免费文件
+ *       - `required_points=0, required_vip_level>0`: 仅VIP用户可免费下载
+ *       - `required_points>0, required_vip_level=0`: 普通用户需要积分，VIP用户免费
+ *       - `required_points>0, required_vip_level>0`: 达到VIP等级免费，否则需要积分
+ *
  *     security:
  *       - BearerAuth: []
  *     parameters:
@@ -132,6 +148,8 @@ const getResourceFiles = async (req, res) => {
  *             version: "v1.0"
  *             language: "zh-CN"
  *             sort_order: 0
+ *             required_points: 50
+ *             required_vip_level: 0
  *     responses:
  *       201:
  *         description: 文件添加成功
@@ -165,7 +183,9 @@ const createResourceFile = async (req, res) => {
       quality,
       version,
       language,
-      sort_order
+      sort_order,
+      required_points,
+      required_vip_level
     } = req.body;
 
     // 验证必填字段
@@ -186,7 +206,9 @@ const createResourceFile = async (req, res) => {
       quality,
       version,
       language,
-      sortOrder: sort_order || 0
+      sortOrder: sort_order || 0,
+      requiredPoints: required_points || 0,
+      requiredVipLevel: required_vip_level || 0
     };
 
     const file = await ResourceFile.create(fileData);
@@ -211,7 +233,21 @@ const createResourceFile = async (req, res) => {
  *   put:
  *     tags: [ResourceFiles]
  *     summary: 更新资源文件
- *     description: 更新指定的资源文件信息。资源作者可以更新自己资源的文件，管理员可以更新任何资源的文件
+ *     description: |
+ *       更新指定的资源文件信息，包括文件权限控制配置。
+ *
+ *       **权限要求：**
+ *       - 资源作者可以更新自己资源的文件
+ *       - 拥有 'resource:update' 权限的管理员可以更新任何资源的文件
+ *
+ *       **可更新的权限控制字段：**
+ *       - `required_points`: 调整下载该文件所需积分
+ *       - `required_vip_level`: 调整下载该文件所需VIP等级
+ *       - `is_active`: 启用/禁用文件（禁用后用户无法下载）
+ *
+ *       **注意事项：**
+ *       - 修改权限配置会立即生效，影响后续的下载权限检查
+ *       - 已下载过的用户不受权限调整影响（基于今日已购买记录）
  *     security:
  *       - BearerAuth: []
  *     parameters:
@@ -261,6 +297,8 @@ const updateResourceFile = async (req, res) => {
     if (updateData.file_extension !== undefined) mappedData.file_extension = updateData.file_extension;
     if (updateData.sort_order !== undefined) mappedData.sort_order = updateData.sort_order;
     if (updateData.is_active !== undefined) mappedData.is_active = updateData.is_active;
+    if (updateData.required_points !== undefined) mappedData.required_points = updateData.required_points;
+    if (updateData.required_vip_level !== undefined) mappedData.required_vip_level = updateData.required_vip_level;
 
     // 直接映射的字段
     ['name', 'url', 'quality', 'version', 'language'].forEach(field => {
