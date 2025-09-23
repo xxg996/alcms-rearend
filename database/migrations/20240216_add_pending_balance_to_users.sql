@@ -1,6 +1,0 @@
-BEGIN;
-
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS commission_pending_balance DECIMAL(12,2) DEFAULT 0;
-
-COMMIT;

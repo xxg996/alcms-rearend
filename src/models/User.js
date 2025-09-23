@@ -457,7 +457,7 @@ class User {
 
       // 2. 删除用户收藏和互动数据
       await client.query('DELETE FROM user_favorites WHERE user_id = $1', [userId]);
-      await client.query('DELETE FROM resource_reviews WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM resource_comments WHERE user_id = $1', [userId]);
 
       // 3. 删除VIP相关数据
       await client.query('DELETE FROM vip_orders WHERE user_id = $1', [userId]);

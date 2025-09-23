@@ -73,6 +73,33 @@ BEGIN
 END;
 $$;
 
+-- 检查子评论数量限制的触发器函数
+CREATE OR REPLACE FUNCTION check_subcomment_limit() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    -- 如果是子评论（parent_id不为空）
+    IF NEW.parent_id IS NOT NULL THEN
+        -- 检查该父评论下的子评论数量
+        IF (SELECT COUNT(*) FROM resource_comments WHERE parent_id = NEW.parent_id) >= 999 THEN
+            RAISE EXCEPTION '父评论下的子评论数量不能超过999条';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+-- 更新资源评论时间戳的触发器函数
+CREATE OR REPLACE FUNCTION update_resource_comment_updated_at() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
 -- ============================================================================
 -- 核心表结构 - 用户管理
 -- ============================================================================
@@ -293,17 +320,17 @@ CREATE TABLE resource_reports (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 资源评价表 (历史数据表，无外键约束)
-CREATE TABLE resource_reviews (
+-- 资源评论表 (支持层级评论)
+CREATE TABLE resource_comments (
     id SERIAL PRIMARY KEY,
-    resource_id INTEGER NOT NULL, -- 保留resource_id用于历史记录
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-    comment TEXT,
+    resource_id INTEGER NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    parent_id INTEGER DEFAULT NULL REFERENCES resource_comments(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
     is_approved BOOLEAN DEFAULT FALSE,
+    like_count INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(resource_id, user_id)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================================
@@ -762,6 +789,14 @@ CREATE INDEX idx_resources_created_at ON resources(created_at);
 CREATE INDEX idx_resources_view_count ON resources(view_count);
 CREATE INDEX idx_resources_download_count ON resources(download_count);
 
+-- 资源评论相关索引
+CREATE INDEX idx_resource_comments_resource ON resource_comments(resource_id);
+CREATE INDEX idx_resource_comments_user ON resource_comments(user_id);
+CREATE INDEX idx_resource_comments_parent ON resource_comments(parent_id);
+CREATE INDEX idx_resource_comments_approved ON resource_comments(is_approved);
+CREATE INDEX idx_resource_comments_created ON resource_comments(created_at);
+CREATE INDEX idx_resource_comments_resource_parent ON resource_comments(resource_id, parent_id);
+
 -- 分类相关索引
 CREATE INDEX idx_categories_parent_id ON categories(parent_id);
 CREATE INDEX idx_categories_is_active ON categories(is_active);
@@ -902,6 +937,18 @@ CREATE TRIGGER trigger_community_likes_stats
     AFTER INSERT OR DELETE ON community_likes
     FOR EACH ROW
     EXECUTE FUNCTION update_like_stats();
+
+-- 资源评论子评论数量限制触发器
+CREATE TRIGGER trigger_check_subcomment_limit
+    BEFORE INSERT ON resource_comments
+    FOR EACH ROW
+    EXECUTE FUNCTION check_subcomment_limit();
+
+-- 资源评论更新时间触发器
+CREATE TRIGGER update_resource_comments_updated_at
+    BEFORE UPDATE ON resource_comments
+    FOR EACH ROW
+    EXECUTE FUNCTION update_resource_comment_updated_at();
 
 -- ============================================================================
 -- 默认数据插入
