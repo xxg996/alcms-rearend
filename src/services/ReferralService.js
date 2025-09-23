@@ -424,8 +424,11 @@ class ReferralService extends BaseService {
         const {
           enabled = true,
           first_rate = 0,
-          renewal_rate = 0
+          renewal_rate = 0,
+          card_type_rates
         } = payload || {};
+
+        const currentConfig = await SystemSetting.getReferralCommissionConfig();
 
         const normalized = {
           enabled: Boolean(enabled),
@@ -440,6 +443,27 @@ class ReferralService extends BaseService {
         if (Number.isNaN(normalized.renewal_rate) || normalized.renewal_rate < 0 || normalized.renewal_rate > 1) {
           throw new Error('续费佣金比例必须在0-1之间');
         }
+
+        let normalizedCardTypeRates = { ...(currentConfig.card_type_rates || {}) };
+
+        if (card_type_rates !== undefined) {
+          if (card_type_rates === null) {
+            normalizedCardTypeRates = {};
+          } else if (typeof card_type_rates !== 'object' || Array.isArray(card_type_rates)) {
+            throw new Error('卡密类型专属比例必须为对象');
+          } else {
+            normalizedCardTypeRates = {};
+            for (const [cardType, rate] of Object.entries(card_type_rates)) {
+              const numericRate = Number(rate);
+              if (Number.isNaN(numericRate) || numericRate < 0 || numericRate > 1) {
+                throw new Error(`卡密类型 ${cardType} 的返佣比例必须在0-1之间`);
+              }
+              normalizedCardTypeRates[cardType] = Number(numericRate.toFixed(4));
+            }
+          }
+        }
+
+        normalized.card_type_rates = normalizedCardTypeRates;
 
         await SystemSetting.upsertSetting(
           'referral_commission',
@@ -628,10 +652,27 @@ class ReferralService extends BaseService {
         }
 
         // 根据事件类型确定佣金比例
-        const hasPrevious = order ? await Referral.hasPaidCardKeyOrder(inviteeId, order.id) :
-                           await Referral.hasPaidCardKeyOrder(inviteeId);
-        const finalEventType = hasPrevious ? 'renewal' : 'first_recharge';
-        const rate = finalEventType === 'first_recharge' ? config.first_rate : config.renewal_rate;
+        const cardTypeRates = config.card_type_rates || {};
+        let finalEventType = 'first_recharge';
+        let rate = 0;
+
+        if (cardKey && cardKey.type && cardKey.type !== 'vip') {
+          rate = Number(cardTypeRates[cardKey.type] || 0);
+          if (!rate || rate <= 0) {
+            this.log('info', '卡密类型未配置返佣比例，跳过结算', {
+              inviteeId,
+              cardKeyId: cardKey.id,
+              cardKeyType: cardKey.type
+            });
+            return null;
+          }
+          finalEventType = 'first_recharge';
+        } else {
+          const hasPrevious = order ? await Referral.hasPaidCardKeyOrder(inviteeId, order.id) :
+            await Referral.hasPaidCardKeyOrder(inviteeId);
+          finalEventType = hasPrevious ? 'renewal' : 'first_recharge';
+          rate = finalEventType === 'first_recharge' ? Number(config.first_rate || 0) : Number(config.renewal_rate || 0);
+        }
 
         if (!rate || rate <= 0) {
           return null;

@@ -49,7 +49,10 @@ class SystemSetting {
     const defaultConfig = {
       enabled: true,
       first_rate: 0.10,
-      renewal_rate: 0
+      renewal_rate: 0,
+      card_type_rates: {
+        points: 0.10
+      }
     };
 
     const stored = await this.getSetting('referral_commission', defaultConfig);
@@ -58,9 +61,29 @@ class SystemSetting {
       return defaultConfig;
     }
 
-    return {
+    const merged = {
       ...defaultConfig,
-      ...stored
+      ...stored,
+      card_type_rates: {
+        ...defaultConfig.card_type_rates,
+        ...(stored.card_type_rates || {})
+      }
+    };
+
+    // 确保返佣比例均为数字，避免字符串导致计算异常
+    const sanitizedCardTypeRates = {};
+    if (merged.card_type_rates) {
+      for (const [cardType, rateValue] of Object.entries(merged.card_type_rates)) {
+        const numericRate = Number(rateValue);
+        if (!Number.isNaN(numericRate)) {
+          sanitizedCardTypeRates[cardType] = Number(numericRate.toFixed(4));
+        }
+      }
+    }
+
+    return {
+      ...merged,
+      card_type_rates: sanitizedCardTypeRates
     };
   }
 }

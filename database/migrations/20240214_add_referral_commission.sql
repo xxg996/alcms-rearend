@@ -45,7 +45,11 @@ CREATE TABLE IF NOT EXISTS system_settings (
 
 -- 默认佣金配置
 INSERT INTO system_settings (key, value, description)
-VALUES ('referral_commission', '{"enabled": true, "first_rate": 0.10, "renewal_rate": 0.00}', '邀请分佣配置')
+VALUES (
+  'referral_commission',
+  '{"enabled": true, "first_rate": 0.10, "renewal_rate": 0.00, "card_type_rates": {"points": 0.10}}',
+  '邀请分佣配置'
+)
 ON CONFLICT (key) DO NOTHING;
 
 -- 佣金记录表

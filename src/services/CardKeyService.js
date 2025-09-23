@@ -19,46 +19,81 @@ class CardKeyService extends BaseService {
     return this.withPerformanceMonitoring('generateCardKeys', async () => {
       try {
         this.validateRequired({ adminUserId }, ['adminUserId']);
-        this.validateRequired(keyData, ['type', 'value', 'count']);
 
-        const { type, value, count, expire_days, remark } = keyData;
+        const payload = keyData || {};
+        const {
+          type = 'vip',
+          count,
+          vip_level,
+          vip_days,
+          points,
+          value,
+          value_amount,
+          expire_at,
+          expire_days
+        } = payload;
 
-        if (count <= 0 || count > 1000) {
+        const normalizedCount = parseInt(count, 10);
+        if (Number.isNaN(normalizedCount) || normalizedCount <= 0 || normalizedCount > 1000) {
           throw new Error('卡密数量必须在1-1000之间');
         }
 
-        const keys = [];
-        const batch_id = this.generateBatchId();
-        const expire_at = expire_days ? new Date(Date.now() + expire_days * 24 * 60 * 60 * 1000) : null;
+        const normalizedType = typeof type === 'string' ? type.toLowerCase() : 'vip';
 
-        for (let i = 0; i < count; i++) {
-          keys.push({
-            key_code: this.generateKeyCode(),
-            type,
-            value: parseFloat(value),
-            status: 'unused',
-            batch_id,
-            expire_at,
-            remark,
-            created_by: adminUserId,
-            created_at: new Date(),
-            updated_at: new Date()
-          });
+        const cardData = {
+          type: normalizedType,
+          vip_level: vip_level !== undefined ? parseInt(vip_level, 10) : 1,
+          vip_days: vip_days !== undefined ? parseInt(vip_days, 10) : 30,
+          points: points !== undefined ? parseInt(points, 10) : undefined,
+          expire_at: null,
+          value_amount: null
+        };
+
+        if (expire_at) {
+          cardData.expire_at = new Date(expire_at);
+        } else if (expire_days && Number(expire_days) > 0) {
+          const days = Number(expire_days);
+          cardData.expire_at = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
         }
 
-        const createdKeys = await CardKey.createBatch(keys);
+        const resolvedValue = value_amount !== undefined ? Number(value_amount) : (value !== undefined ? Number(value) : null);
+        if (resolvedValue !== null && !Number.isNaN(resolvedValue)) {
+          cardData.value_amount = resolvedValue;
+        }
 
-        this.log('info', '批量生成卡密成功', { 
-          count, 
-          batch_id, 
-          adminUserId 
+        if (normalizedType === 'vip') {
+          if (!cardData.vip_level || cardData.vip_level < 1) {
+            throw new Error('VIP类型卡密必须指定有效的VIP等级');
+          }
+
+          if (cardData.vip_days < 0) {
+            throw new Error('VIP天数不能为负数');
+          }
+        } else {
+          const normalizedPoints = cardData.points !== undefined ? cardData.points : (resolvedValue !== null ? Math.round(resolvedValue) : 0);
+          if (!normalizedPoints || normalizedPoints <= 0) {
+            throw new Error('非VIP类型卡密必须指定有效的积分数量');
+          }
+          cardData.points = normalizedPoints;
+          // 非VIP类型不需要VIP字段
+          cardData.vip_level = 0;
+          cardData.vip_days = 0;
+        }
+
+        const batchResult = await CardKey.createBatchCardKeys(cardData, normalizedCount, adminUserId);
+
+        this.log('info', '批量生成卡密成功', {
+          adminUserId,
+          batchId: batchResult.batch_id,
+          count: batchResult.count,
+          type: normalizedType
         });
 
         return this.formatSuccessResponse({
-          keys: createdKeys,
-          batch_id,
-          count: createdKeys.length
-        }, `成功生成 ${count} 个卡密`);
+          batch_id: batchResult.batch_id,
+          count: batchResult.count,
+          card_keys: batchResult.card_keys
+        }, `成功生成 ${batchResult.count} 个卡密`);
 
       } catch (error) {
         this.handleError(error, 'generateCardKeys');
@@ -74,21 +109,9 @@ class CardKeyService extends BaseService {
       try {
         this.validateRequired({ keyCode, userId }, ['keyCode', 'userId']);
 
-        const cardKey = await CardKey.findByKeyCode(keyCode);
-        if (!cardKey) {
-          throw new Error('卡密不存在');
-        }
-
-        if (cardKey.status === 'used') {
-          throw new Error('卡密已被使用');
-        }
-
-        if (cardKey.status === 'disabled') {
-          throw new Error('卡密已被禁用');
-        }
-
-        if (cardKey.expire_at && new Date() > cardKey.expire_at) {
-          throw new Error('卡密已过期');
+        const normalizedCode = (keyCode || '').trim().toUpperCase();
+        if (!normalizedCode) {
+          throw new Error('请输入有效的卡密代码');
         }
 
         const user = await User.findById(userId);
@@ -96,27 +119,33 @@ class CardKeyService extends BaseService {
           throw new Error('用户不存在');
         }
 
-        const result = await this.executeInTransaction(async (client) => {
-          // 标记卡密为已使用
-          await CardKey.markAsUsed(cardKey.id, userId, client);
+        // 调用模型层统一的兑换逻辑，确保事务一致性
+        const redeemResult = await CardKey.redeemCardKey(normalizedCode, userId);
 
-          // 根据卡密类型执行相应操作
-          const rewardResult = await this.processCardKeyReward(cardKey, user, client);
+        // 重新获取最新的卡密信息并进行脱敏处理
+        const updatedCardKey = await CardKey.getByCode(normalizedCode);
+        const sanitizedCardKey = updatedCardKey ? {
+          ...updatedCardKey,
+          code: this.maskCardCode(updatedCardKey.code)
+        } : null;
 
-          return {
-            cardKey: await CardKey.findById(cardKey.id, client),
-            reward: rewardResult
-          };
-        });
+        const responsePayload = {
+          cardKey: sanitizedCardKey,
+          reward: this.processCardKeyReward(updatedCardKey || redeemResult.cardKey, redeemResult),
+          vipResult: redeemResult.vipResult || null,
+          pointsResult: redeemResult.pointsResult || null,
+          order: redeemResult.order || null,
+          commission: redeemResult.commission || null
+        };
 
-        this.log('info', '卡密使用成功', { 
-          keyCode: keyCode.substring(0, 6) + '***',
+        this.log('info', '卡密使用成功', {
+          keyCode: this.maskCardCode(normalizedCode),
           userId,
-          type: cardKey.type,
-          value: cardKey.value
+          type: updatedCardKey?.type || null,
+          value: updatedCardKey?.value_amount || null
         });
 
-        return this.formatSuccessResponse(result, '卡密使用成功');
+        return this.formatSuccessResponse(responsePayload, '卡密使用成功');
 
       } catch (error) {
         this.handleError(error, 'useCardKey');
@@ -221,19 +250,45 @@ class CardKeyService extends BaseService {
   /**
    * 处理卡密奖励
    */
-  async processCardKeyReward(cardKey, user, client) {
-    const { type, value } = cardKey;
-
-    switch (type) {
-      case 'points':
-        return await this.rewardPoints(user.id, value, client);
-      case 'vip_days':
-        return await this.rewardVipDays(user.id, value, client);
-      case 'vip_level':
-        return await this.upgradeVipLevel(user.id, value, client);
-      default:
-        throw new Error(`不支持的卡密类型: ${type}`);
+  processCardKeyReward(cardKey, redeemContext = {}) {
+    if (!cardKey) {
+      return null;
     }
+
+    const { vipResult = null, pointsResult = null } = redeemContext;
+
+    if (cardKey.type === 'vip') {
+      return {
+        type: 'vip',
+        vip_level: cardKey.vip_level,
+        vip_days: cardKey.vip_days,
+        vip_result: vipResult
+      };
+    }
+
+    if (cardKey.type === 'points') {
+      return {
+        type: 'points',
+        points: cardKey.points,
+        points_result: pointsResult
+      };
+    }
+
+    return {
+      type: cardKey.type,
+      value_amount: cardKey.value_amount || null
+    };
+  }
+
+  /**
+   * 脱敏展示卡密代码
+   */
+  maskCardCode(code = '') {
+    if (typeof code !== 'string' || code.length <= 6) {
+      return code;
+    }
+
+    return `${code.slice(0, 6)}***${code.slice(-3)}`;
   }
 
   /**

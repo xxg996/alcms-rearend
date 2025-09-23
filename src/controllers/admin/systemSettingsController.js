@@ -181,7 +181,10 @@ const resetToDefault = async (req, res) => {
       referral_commission: {
         enabled: true,
         first_rate: 0.10,
-        renewal_rate: 0
+        renewal_rate: 0,
+        card_type_rates: {
+          points: 0.10
+        }
       },
       resource_sale_fee: {
         fee_rate: 0.10
@@ -253,7 +256,16 @@ const getSettingsSchema = async (req, res) => {
         properties: {
           enabled: { type: "boolean", description: "是否启用邀请分佣" },
           first_rate: { type: "number", description: "首次购买分佣比例", minimum: 0, maximum: 1 },
-          renewal_rate: { type: "number", description: "续费分佣比例", minimum: 0, maximum: 1 }
+          renewal_rate: { type: "number", description: "续费分佣比例", minimum: 0, maximum: 1 },
+          card_type_rates: {
+            type: "object",
+            description: "按卡密类型配置的固定返佣比例",
+            additionalProperties: {
+              type: "number",
+              minimum: 0,
+              maximum: 1
+            }
+          }
         }
       },
       resource_sale_fee: {

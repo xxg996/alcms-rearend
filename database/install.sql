@@ -180,7 +180,7 @@ CREATE TABLE system_settings (
 );
 
 INSERT INTO system_settings (key, value, description) VALUES
-('referral_commission', '{"enabled": true, "first_rate": 0.10, "renewal_rate": 0.00}', '邀请分佣配置');
+('referral_commission', '{"enabled": true, "first_rate": 0.10, "renewal_rate": 0.00, "card_type_rates": {"points": 0.10}}', '邀请分佣配置');
 
 -- ============================================================================
 -- 资源管理模块
