@@ -4,6 +4,7 @@
  */
 
 const { query, getClient } = require('../config/database');
+const NotificationService = require('../services/NotificationService');
 
 class ResourceComment {
   /**
@@ -23,21 +24,25 @@ class ResourceComment {
       parent_id = null
     } = commentData;
 
-    // 验证资源是否存在（如果resources表为空，则跳过验证）
+    // 获取资源信息和作者信息
+    let resourceInfo = null;
     const resourceCheck = await query('SELECT COUNT(*) as count FROM resources');
     if (parseInt(resourceCheck.rows[0].count) > 0) {
       const resourceResult = await query(
-        'SELECT id FROM resources WHERE id = $1',
+        'SELECT r.id, r.title, r.author_id, u.username, u.nickname FROM resources r LEFT JOIN users u ON r.author_id = u.id WHERE r.id = $1',
         [resource_id]
       );
       if (resourceResult.rows.length === 0) {
         throw new Error('指定的资源不存在');
       }
+      resourceInfo = resourceResult.rows[0];
     }
 
+    // 获取父评论信息（用于回复通知）
+    let parentCommentInfo = null;
     if (parent_id) {
       const parentResult = await query(
-        'SELECT resource_id FROM resource_comments WHERE id = $1',
+        'SELECT rc.resource_id, rc.user_id, u.username, u.nickname FROM resource_comments rc LEFT JOIN users u ON rc.user_id = u.id WHERE rc.id = $1',
         [parent_id]
       );
 
@@ -48,7 +53,16 @@ class ResourceComment {
       if (parentResult.rows[0].resource_id !== resource_id) {
         throw new Error('子评论必须与父评论属于同一资源');
       }
+
+      parentCommentInfo = parentResult.rows[0];
     }
+
+    // 获取评论者信息
+    const commenterResult = await query(
+      'SELECT username, nickname FROM users WHERE id = $1',
+      [user_id]
+    );
+    const commenterInfo = commenterResult.rows[0];
 
     const queryStr = `
       INSERT INTO resource_comments (resource_id, user_id, content, parent_id)
@@ -57,7 +71,42 @@ class ResourceComment {
     `;
 
     const result = await query(queryStr, [resource_id, user_id, content, parent_id]);
-    return result.rows[0];
+    const newComment = result.rows[0];
+
+    // 异步创建通知，不阻塞主流程
+    if (resourceInfo && commenterInfo) {
+      if (parent_id && parentCommentInfo) {
+        // 这是回复评论，通知原评论者
+        if (parentCommentInfo.user_id !== user_id) {
+          NotificationService.createResourceReplyNotification({
+            originalCommentId: parent_id,
+            originalCommenterId: parentCommentInfo.user_id,
+            replierId: user_id,
+            replierName: commenterInfo.nickname || commenterInfo.username,
+            replyContent: content,
+            resourceTitle: resourceInfo.title
+          }).catch(error => {
+            console.error('创建资源回复通知失败:', error);
+          });
+        }
+      } else {
+        // 这是新评论，通知资源作者
+        if (resourceInfo.author_id && resourceInfo.author_id !== user_id) {
+          NotificationService.createResourceCommentNotification({
+            resourceId: resource_id,
+            resourceTitle: resourceInfo.title,
+            authorId: resourceInfo.author_id,
+            commenterId: user_id,
+            commenterName: commenterInfo.nickname || commenterInfo.username,
+            commentContent: content
+          }).catch(error => {
+            console.error('创建资源评论通知失败:', error);
+          });
+        }
+      }
+    }
+
+    return newComment;
   }
 
   /**

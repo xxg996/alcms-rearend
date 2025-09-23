@@ -11,12 +11,14 @@
 const Resource = require('../models/Resource');
 const Category = require('../models/Category');
 const Tag = require('../models/Tag');
+const ResourceInteraction = require('../models/ResourceInteraction');
 const { generateSecureResourceInfo } = require('../utils/downloadUtils');
 const { generateSecureResourceInfoBatch } = require('../utils/downloadUtilsBatch');
 const { checkAndResetDailyDownloads } = require('../utils/downloadLimitUtils');
 const { query } = require('../config/database');
 const { logger } = require('../utils/logger');
 const AuditLog = require('../models/AuditLog');
+const { successResponse, errorResponse } = require('../utils/responseHelper');
 
 const getRequestMeta = (req) => ({
   ipAddress: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip,
@@ -1135,6 +1137,177 @@ class ResourceController {
     `, [userId, permissionName]);
     
     return result.rows.length > 0;
+  }
+
+  /**
+   * @swagger
+   * /api/resources/{id}/like:
+   *   post:
+   *     tags: [资源管理相关]
+   *     summary: 点赞/取消点赞资源
+   *     description: 切换资源的点赞状态
+   *     security:
+   *       - BearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 资源ID
+   *     responses:
+   *       200:
+   *         description: 操作成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 message:
+   *                   type: string
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     isLiked:
+   *                       type: boolean
+   *                     likeCount:
+   *                       type: integer
+   *                     action:
+   *                       type: string
+   *                       enum: [liked, unliked]
+   *       400:
+   *         description: 请求参数错误
+   *       401:
+   *         description: 未授权
+   *       404:
+   *         description: 资源不存在
+   *       500:
+   *         description: 服务器错误
+   */
+  static async toggleLike(req, res) {
+    try {
+      const resourceId = parseInt(req.params.id, 10);
+      const userId = req.user.id;
+
+      if (Number.isNaN(resourceId) || resourceId <= 0) {
+        return errorResponse(res, '资源ID格式不正确', 400);
+      }
+
+      // 检查资源是否存在
+      const resourceResult = await query('SELECT id FROM resources WHERE id = $1', [resourceId]);
+      if (resourceResult.rows.length === 0) {
+        return errorResponse(res, '资源不存在', 404);
+      }
+
+      const result = await ResourceInteraction.toggleLike(userId, resourceId);
+
+      const message = result.action === 'liked' ? '点赞成功' : '取消点赞成功';
+      return successResponse(res, message, result);
+
+    } catch (error) {
+      logger.error('切换资源点赞状态失败:', error);
+      return errorResponse(res, '操作失败', 500);
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/resources/{id}/likes:
+   *   get:
+   *     tags: [资源管理相关]
+   *     summary: 获取资源点赞列表
+   *     description: 获取资源的点赞用户列表
+   *     security:
+   *       - BearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 资源ID
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           default: 1
+   *         description: 页码
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 20
+   *         description: 每页数量
+   *     responses:
+   *       200:
+   *         description: 获取成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 message:
+   *                   type: string
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     data:
+   *                       type: array
+   *                       items:
+   *                         type: object
+   *                         properties:
+   *                           id:
+   *                             type: integer
+   *                           user_id:
+   *                             type: integer
+   *                           username:
+   *                             type: string
+   *                           nickname:
+   *                             type: string
+   *                           avatar_url:
+   *                             type: string
+   *                           created_at:
+   *                             type: string
+   *                     pagination:
+   *                       type: object
+   *       400:
+   *         description: 请求参数错误
+   *       404:
+   *         description: 资源不存在
+   *       500:
+   *         description: 服务器错误
+   */
+  static async getResourceLikes(req, res) {
+    try {
+      const resourceId = parseInt(req.params.id, 10);
+      const page = parseInt(req.query.page, 10) || 1;
+      const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+
+      if (Number.isNaN(resourceId) || resourceId <= 0) {
+        return errorResponse(res, '资源ID格式不正确', 400);
+      }
+
+      // 检查资源是否存在
+      const resourceResult = await query('SELECT id FROM resources WHERE id = $1', [resourceId]);
+      if (resourceResult.rows.length === 0) {
+        return errorResponse(res, '资源不存在', 404);
+      }
+
+      const result = await ResourceInteraction.getResourceLikes(resourceId, {
+        page,
+        limit
+      });
+
+      return successResponse(res, '获取点赞列表成功', result);
+
+    } catch (error) {
+      logger.error('获取资源点赞列表失败:', error);
+      return errorResponse(res, '获取点赞列表失败', 500);
+    }
   }
 }
 

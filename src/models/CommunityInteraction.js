@@ -4,6 +4,7 @@
  */
 
 const { query, getClient } = require('../config/database');
+const NotificationService = require('../services/NotificationService');
 
 class CommunityInteraction {
   /**
@@ -52,6 +53,73 @@ class CommunityInteraction {
       likeCount = parseInt(countResult.rows[0].count);
 
       await client.query('COMMIT');
+
+      // 异步创建点赞通知（只在点赞时创建，取消点赞不通知）
+      if (isLiked) {
+        setImmediate(async () => {
+          try {
+            let targetInfo = null;
+            let targetAuthorId = null;
+            let targetTitle = '';
+
+            if (targetType === 'post') {
+              // 获取帖子信息
+              const postResult = await query(
+                'SELECT title, author_id FROM community_posts WHERE id = $1',
+                [targetId]
+              );
+              if (postResult.rows.length > 0) {
+                targetInfo = postResult.rows[0];
+                targetAuthorId = targetInfo.author_id;
+                targetTitle = targetInfo.title;
+              }
+            } else if (targetType === 'comment') {
+              // 获取评论信息
+              const commentResult = await query(
+                'SELECT content, author_id, post_id FROM community_comments WHERE id = $1',
+                [targetId]
+              );
+              if (commentResult.rows.length > 0) {
+                const comment = commentResult.rows[0];
+                targetAuthorId = comment.author_id;
+                targetTitle = comment.content?.substring(0, 50) || '评论';
+
+                // 获取帖子标题作为上下文
+                const postResult = await query(
+                  'SELECT title FROM community_posts WHERE id = $1',
+                  [comment.post_id]
+                );
+                if (postResult.rows.length > 0) {
+                  targetTitle = `在《${postResult.rows[0].title}》中的评论`;
+                }
+              }
+            }
+
+            // 获取点赞者信息
+            if (targetAuthorId && targetAuthorId !== userId) {
+              const likerResult = await query(
+                'SELECT username, nickname FROM users WHERE id = $1',
+                [userId]
+              );
+              const likerInfo = likerResult.rows[0];
+
+              if (likerInfo) {
+                await NotificationService.createLikeNotification({
+                  targetType,
+                  targetId,
+                  targetTitle,
+                  targetAuthorId,
+                  likerId: userId,
+                  likerName: likerInfo.nickname || likerInfo.username,
+                  category: 'community'
+                });
+              }
+            }
+          } catch (error) {
+            console.error('创建点赞通知失败:', error);
+          }
+        });
+      }
 
       return {
         isLiked,

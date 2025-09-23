@@ -4,6 +4,7 @@
  */
 
 const { query } = require('../config/database');
+const NotificationService = require('../services/NotificationService');
 
 class CommunityComment {
   /**
@@ -221,7 +222,61 @@ class CommunityComment {
       `, [comment.created_at, postId]);
 
       await client.query('COMMIT');
-      
+
+      // 异步创建通知，不阻塞主流程
+      setImmediate(async () => {
+        try {
+          // 获取帖子信息和作者信息
+          const postInfoResult = await query(
+            'SELECT cp.title, cp.author_id, u.username, u.nickname FROM community_posts cp LEFT JOIN users u ON cp.author_id = u.id WHERE cp.id = $1',
+            [postId]
+          );
+          const postInfo = postInfoResult.rows[0];
+
+          // 获取评论者信息
+          const commenterResult = await query(
+            'SELECT username, nickname FROM users WHERE id = $1',
+            [authorId]
+          );
+          const commenterInfo = commenterResult.rows[0];
+
+          if (postInfo && commenterInfo) {
+            if (parentId) {
+              // 这是回复评论，通知原评论者或被回复的用户
+              const targetUserId = replyToUserId || (await query(
+                'SELECT author_id FROM community_comments WHERE id = $1',
+                [parentId]
+              )).rows[0]?.author_id;
+
+              if (targetUserId && targetUserId !== authorId) {
+                await NotificationService.createCommunityReplyNotification({
+                  originalCommentId: parentId,
+                  originalCommenterId: targetUserId,
+                  replierId: authorId,
+                  replierName: commenterInfo.nickname || commenterInfo.username,
+                  replyContent: content,
+                  postTitle: postInfo.title
+                });
+              }
+            } else {
+              // 这是新评论，通知帖子作者
+              if (postInfo.author_id && postInfo.author_id !== authorId) {
+                await NotificationService.createCommunityCommentNotification({
+                  postId: postId,
+                  postTitle: postInfo.title,
+                  authorId: postInfo.author_id,
+                  commenterId: authorId,
+                  commenterName: commenterInfo.nickname || commenterInfo.username,
+                  commentContent: content
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error('创建社区评论通知失败:', error);
+        }
+      });
+
       // 返回完整的评论信息
       return await this.findById(comment.id, authorId);
       

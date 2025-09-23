@@ -143,6 +143,7 @@ app.use('/api/categories', require('./routes/categories'));
 app.use('/api/tags', require('./routes/tags'));
 app.use('/api/favorites', require('./routes/favorites'));
 app.use('/api', require('./routes/resourceComments'));
+app.use('/api', require('./routes/notifications'));
 
 // CMS管理员路由注册
 app.use('/api/admin/resources', require('./routes/admin/resources'));

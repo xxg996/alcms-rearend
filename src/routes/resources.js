@@ -48,6 +48,18 @@ router.delete('/:id',
   ResourceController.deleteResource
 );
 
+// 资源点赞功能
+router.post('/:id/like',
+  authenticateToken,
+  ResourceController.toggleLike
+);
+
+// 获取资源点赞列表
+router.get('/:id/likes',
+  optionalAuth,
+  ResourceController.getResourceLikes
+);
+
 // 注意：下载功能已迁移到 /api/admin/resources/:id/files 和 /api/user/download/:fileId
 
 module.exports = router;

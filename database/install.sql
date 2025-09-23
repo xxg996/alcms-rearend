@@ -481,6 +481,10 @@ CREATE TABLE community_notifications (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX idx_community_notifications_user ON community_notifications(user_id, created_at DESC);
+CREATE INDEX idx_community_notifications_user_type ON community_notifications(user_id, type);
+CREATE INDEX idx_community_notifications_user_read ON community_notifications(user_id, is_read);
+
 -- 社区用户统计表
 CREATE TABLE community_user_stats (
     id SERIAL PRIMARY KEY,
