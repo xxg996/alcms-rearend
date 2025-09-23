@@ -31,9 +31,23 @@ class CardKey {
    * 计算卡密价值
    */
   static async calculateCardValue(cardData) {
-    const { type, vip_level, vip_days, points } = cardData;
+    const {
+      type,
+      vip_level,
+      vip_days,
+      points,
+      download_credits,
+      value_amount
+    } = cardData;
 
     let value = 0;
+
+    if (value_amount !== undefined && value_amount !== null) {
+      const numericValue = Number(value_amount);
+      if (!Number.isNaN(numericValue)) {
+        return Number(numericValue.toFixed(2));
+      }
+    }
 
     if (type === 'vip' && vip_level > 0) {
       // 获取VIP等级配置
@@ -50,6 +64,9 @@ class CardKey {
       // 积分卡密，可以设置积分兑换比例（比如100积分=1元）
       const pointsToMoneyRate = 0.01; // 1积分=0.01元，可配置
       value = points * pointsToMoneyRate;
+    } else if (type === 'download' && download_credits > 0) {
+      const creditValue = 1; // 每个下载次数折算1元，可在后续配置
+      value = download_credits * creditValue;
     }
 
     return Number(value.toFixed(2));
@@ -64,6 +81,7 @@ class CardKey {
       vip_level = 1,
       vip_days = 30,
       points = 0,
+      download_credits = 0,
       expire_at = null,
       batch_id = null,
       value_amount = null
@@ -79,11 +97,11 @@ class CardKey {
 
     const queryStr = `
       INSERT INTO card_keys
-      (code, type, vip_level, vip_days, points, expire_at, batch_id, created_by, value_amount)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      (code, type, vip_level, vip_days, points, download_credits, expire_at, batch_id, created_by, value_amount)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
-    const values = [code, type, vip_level, vip_days, points, expire_at, batch_id, createdBy, finalValueAmount];
+    const values = [code, type, vip_level, vip_days, points, download_credits, expire_at, batch_id, createdBy, finalValueAmount];
     const result = await query(queryStr, values);
     return result.rows[0];
   }
@@ -236,6 +254,37 @@ class CardKey {
           duration_days: 0, // 积分卡密持续天数为0
           payment_method: 'card_key',
           order_no: 'CARD_POINTS_' + Date.now() + '_' + userId,
+          card_key_code: code
+        };
+        const createdOrder = await VIP.createOrder(orderData);
+        result.order = await VIP.updateOrderStatus(createdOrder.id, 'paid');
+      }
+
+      if (cardKey.type === 'download' && cardKey.download_credits > 0) {
+        const creditsToAdd = Number(cardKey.download_credits || 0);
+        const updateResult = await client.query(
+          `UPDATE users
+             SET daily_download_limit = COALESCE(daily_download_limit, 0) + $2,
+                 updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1
+           RETURNING daily_download_limit`,
+          [userId, creditsToAdd]
+        );
+
+        result.downloadResult = {
+          user_id: userId,
+          credits_added: creditsToAdd,
+          new_daily_limit: Number(updateResult.rows[0]?.daily_download_limit || creditsToAdd)
+        };
+
+        const VIP = require('./VIP');
+        const orderData = {
+          user_id: userId,
+          vip_level: 0,
+          price: cardKey.value_amount || 0,
+          duration_days: 0,
+          payment_method: 'card_key',
+          order_no: 'CARD_DOWNLOAD_' + Date.now() + '_' + userId,
           card_key_code: code
         };
         const createdOrder = await VIP.createOrder(orderData);

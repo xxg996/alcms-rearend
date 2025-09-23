@@ -111,7 +111,10 @@ CREATE TABLE users (
     -- 下载限制
     daily_download_limit INTEGER DEFAULT 10,
     daily_downloads_used INTEGER DEFAULT 0,
-    last_download_reset_date DATE DEFAULT CURRENT_DATE
+    last_download_reset_date DATE DEFAULT CURRENT_DATE,
+
+    -- 下载增益余额
+    download_credit_balance INTEGER DEFAULT 0
 );
 
 -- 角色表
@@ -180,7 +183,7 @@ CREATE TABLE system_settings (
 );
 
 INSERT INTO system_settings (key, value, description) VALUES
-('referral_commission', '{"enabled": true, "first_rate": 0.10, "renewal_rate": 0.00, "card_type_rates": {"points": 0.10}}', '邀请分佣配置');
+('referral_commission', '{"enabled": true, "first_rate": 0.10, "renewal_rate": 0.00, "card_type_rates": {"points": 0.10, "download": 0.10}}', '邀请分佣配置');
 
 -- ============================================================================
 -- 资源管理模块
@@ -612,10 +615,11 @@ CREATE INDEX idx_referral_payout_requests_status ON referral_payout_requests(sta
 CREATE TABLE card_keys (
     id SERIAL PRIMARY KEY,
     code VARCHAR(50) NOT NULL UNIQUE,
-    type VARCHAR(20) DEFAULT 'vip' CHECK (type IN ('vip', 'points', 'days')),
+    type VARCHAR(20) DEFAULT 'vip' CHECK (type IN ('vip', 'points', 'days', 'download')),
     vip_level INTEGER DEFAULT 1,
     vip_days INTEGER DEFAULT 30,
     points INTEGER DEFAULT 0,
+    download_credits INTEGER DEFAULT 0,
     status VARCHAR(20) DEFAULT 'unused' CHECK (status IN ('unused', 'used', 'expired', 'disabled')),
     used_by INTEGER REFERENCES users(id),
     used_at TIMESTAMP,
@@ -623,7 +627,8 @@ CREATE TABLE card_keys (
     batch_id VARCHAR(100),
     created_by INTEGER REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    value_amount NUMERIC(10,2) DEFAULT 0
 );
 
 -- 积分商品表

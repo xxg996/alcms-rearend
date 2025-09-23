@@ -21,7 +21,7 @@
  *           example: "VIP2025091200001"
  *         type:
  *           type: string
- *           enum: [vip, points]
+ *           enum: [vip, points, download]
  *           description: 卡密类型
  *           example: "vip"
  *         vip_level:
@@ -39,6 +39,11 @@
  *           nullable: true
  *           description: 积分数量（points类型时使用）
  *           example: 1000
+ *         download_credits:
+ *           type: integer
+ *           nullable: true
+ *           description: 下载次数（download类型时使用）
+ *           example: 5
  *         value_amount:
  *           type: number
  *           format: decimal
@@ -102,7 +107,7 @@
  *       properties:
  *         type:
  *           type: string
- *           enum: [vip, points]
+ *           enum: [vip, points, download]
  *           description: 卡密类型
  *           example: "vip"
  *         vip_level:
@@ -121,6 +126,11 @@
  *           minimum: 1
  *           description: 积分数量（points类型时必填）
  *           example: 1000
+ *         download_credits:
+ *           type: integer
+ *           minimum: 1
+ *           description: 下载次数（download类型时必填）
+ *           example: 5
  *         value_amount:
  *           type: number
  *           format: decimal
@@ -141,7 +151,7 @@
  *       properties:
  *         type:
  *           type: string
- *           enum: [vip, points]
+ *           enum: [vip, points, download]
  *           description: 卡密类型
  *           example: "vip"
  *         vip_level:
@@ -160,6 +170,11 @@
  *           minimum: 1
  *           description: 积分数量（points类型时必填）
  *           example: 500
+ *         download_credits:
+ *           type: integer
+ *           minimum: 1
+ *           description: 下载次数（download类型时必填）
+ *           example: 20
  *         value_amount:
  *           type: number
  *           format: decimal
@@ -209,7 +224,7 @@
  *           example: "BATCH_20250912_001"
  *         type:
  *           type: string
- *           enum: [vip, points]
+ *           enum: [vip, points, download]
  *           description: 卡密类型
  *           example: "vip"
  *         vip_level:
@@ -227,6 +242,11 @@
  *           nullable: true
  *           description: 积分数量
  *           example: 1000
+ *         download_credits:
+ *           type: integer
+ *           nullable: true
+ *           description: 下载次数
+ *           example: 20
  *         total_count:
  *           type: integer
  *           description: 总数量
@@ -291,6 +311,10 @@
  *               type: integer
  *               description: 积分类型卡密数量
  *               example: 200
+ *             download:
+ *               type: integer
+ *               description: 下载次数卡密数量
+ *               example: 50
  *         recent_usage:
  *           type: object
  *           properties:

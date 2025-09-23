@@ -34,16 +34,15 @@ async function checkAndResetDailyDownloads(userId) {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD格式
     const lastResetDate = user.last_download_reset_date?.toISOString().split('T')[0];
 
-    // 如果是新的一天，重置下载次数
-    if (lastResetDate !== today) {
-      // 开始事务处理
+  // 如果是新的一天，根据VIP状态决定是否重置
+  if (lastResetDate !== today) {
+    if (user.is_vip && user.vip_level > 0) {
       const { getClient } = require('../config/database');
       const client = await getClient();
 
       try {
         await client.query('BEGIN');
 
-        // 1. 重置用户每日下载次数
         await client.query(`
           UPDATE users
           SET
@@ -52,7 +51,6 @@ async function checkAndResetDailyDownloads(userId) {
           WHERE id = $1
         `, [userId]);
 
-        // 2. 清理该用户过期的购买记录
         const cleanupResult = await client.query(`
           DELETE FROM daily_purchases
           WHERE user_id = $1 AND purchase_date < CURRENT_DATE
@@ -64,7 +62,7 @@ async function checkAndResetDailyDownloads(userId) {
         user.daily_downloads_used = 0;
         user.last_download_reset_date = new Date();
 
-        logger.info(`用户 ${userId} 的每日下载次数已重置，清理了 ${cleanupCount} 条过期购买记录`);
+        logger.info(`用户 ${userId} (VIP) 的每日下载次数已重置，清理了 ${cleanupCount} 条过期购买记录`);
       } catch (error) {
         await client.query('ROLLBACK');
         logger.error(`用户 ${userId} 重置失败:`, error);
@@ -72,7 +70,24 @@ async function checkAndResetDailyDownloads(userId) {
       } finally {
         client.release();
       }
+    } else {
+      await query(
+        `UPDATE users
+            SET last_download_reset_date = CURRENT_DATE,
+                updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1`,
+        [userId]
+      );
+
+      await query(
+        `DELETE FROM daily_purchases
+          WHERE user_id = $1 AND purchase_date < CURRENT_DATE`,
+        [userId]
+      );
+
+      user.last_download_reset_date = new Date();
     }
+  }
 
     // 获取用户实际的下载限制（VIP用户可能有更高限制）
     const actualLimit = await getUserActualDownloadLimit(userId, user);
@@ -257,6 +272,8 @@ async function resetAllUsersDailyDownloads() {
         daily_downloads_used = 0,
         last_download_reset_date = CURRENT_DATE
       WHERE last_download_reset_date < CURRENT_DATE
+        AND is_vip = true
+        AND vip_level > 0
       RETURNING id
     `);
 

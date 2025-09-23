@@ -45,6 +45,7 @@ class CardKeyService extends BaseService {
           vip_level: vip_level !== undefined ? parseInt(vip_level, 10) : 1,
           vip_days: vip_days !== undefined ? parseInt(vip_days, 10) : 30,
           points: points !== undefined ? parseInt(points, 10) : undefined,
+          download_credits: payload.download_credits !== undefined ? parseInt(payload.download_credits, 10) : undefined,
           expire_at: null,
           value_amount: null
         };
@@ -69,15 +70,39 @@ class CardKeyService extends BaseService {
           if (cardData.vip_days < 0) {
             throw new Error('VIP天数不能为负数');
           }
+
+          cardData.points = 0;
+          cardData.download_credits = 0;
         } else {
           const normalizedPoints = cardData.points !== undefined ? cardData.points : (resolvedValue !== null ? Math.round(resolvedValue) : 0);
-          if (!normalizedPoints || normalizedPoints <= 0) {
-            throw new Error('非VIP类型卡密必须指定有效的积分数量');
+
+          if (normalizedType === 'points') {
+            if (!normalizedPoints || normalizedPoints <= 0) {
+              throw new Error('积分卡密必须指定有效积分');
+            }
+            cardData.points = normalizedPoints;
+            cardData.vip_level = 0;
+            cardData.vip_days = 0;
+            cardData.download_credits = 0;
+          } else if (normalizedType === 'download') {
+            const normalizedCredits = payload.download_credits !== undefined
+              ? parseInt(payload.download_credits, 10)
+              : (normalizedPoints > 0 ? normalizedPoints : (resolvedValue !== null ? Math.round(resolvedValue) : 0));
+
+            if (!normalizedCredits || normalizedCredits <= 0) {
+              throw new Error('下载卡密必须指定有效的下载次数');
+            }
+
+            cardData.download_credits = normalizedCredits;
+            cardData.points = 0;
+            cardData.vip_level = 0;
+            cardData.vip_days = 0;
+          } else {
+            cardData.points = normalizedPoints;
+            cardData.vip_level = 0;
+            cardData.vip_days = 0;
+            cardData.download_credits = 0;
           }
-          cardData.points = normalizedPoints;
-          // 非VIP类型不需要VIP字段
-          cardData.vip_level = 0;
-          cardData.vip_days = 0;
         }
 
         const batchResult = await CardKey.createBatchCardKeys(cardData, normalizedCount, adminUserId);
@@ -134,6 +159,7 @@ class CardKeyService extends BaseService {
           reward: this.processCardKeyReward(updatedCardKey || redeemResult.cardKey, redeemResult),
           vipResult: redeemResult.vipResult || null,
           pointsResult: redeemResult.pointsResult || null,
+          downloadResult: redeemResult.downloadResult || null,
           order: redeemResult.order || null,
           commission: redeemResult.commission || null
         };
@@ -271,6 +297,14 @@ class CardKeyService extends BaseService {
         type: 'points',
         points: cardKey.points,
         points_result: pointsResult
+      };
+    }
+
+    if (cardKey.type === 'download') {
+      return {
+        type: 'download',
+        download_credits: cardKey.download_credits,
+        download_result: redeemContext.downloadResult || null
       };
     }
 

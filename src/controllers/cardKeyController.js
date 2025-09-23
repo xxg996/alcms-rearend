@@ -18,7 +18,7 @@ const { services } = require('../services');
  *   post:
  *     tags: [CardKeys]
  *     summary: 生成单个卡密
- *     description: 管理员功能，生成单个VIP或积分卡密
+ *     description: 管理员功能，生成单个VIP、积分或下载次数卡密
  *     security:
  *       - BearerAuth: []
  *     requestBody:
@@ -41,6 +41,12 @@ const { services } = require('../services');
  *                 type: "points"
  *                 points: 1000
  *                 value_amount: 10.00
+ *             download_card:
+ *               summary: 生成下载次数卡密
+ *               value:
+ *                 type: "download"
+ *                 download_credits: 20
+ *                 value_amount: 5.00
  *             permanent_vip:
  *               summary: 生成永久VIP卡密
  *               value:
@@ -88,6 +94,10 @@ const { services } = require('../services');
  *                 value:
  *                   success: false
  *                   message: "积分类型卡密必须指定有效的积分数量"
+ *               download_missing:
+ *                 value:
+ *                   success: false
+ *                   message: "下载次数卡密必须指定有效的下载次数"
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
@@ -102,6 +112,7 @@ const generateSingleCard = async (req, res) => {
       vip_level = 1,
       vip_days = 30,
       points = 0,
+      download_credits = 0,
       expire_at = null,
       value_amount = null
     } = req.body;
@@ -121,6 +132,13 @@ const generateSingleCard = async (req, res) => {
       });
     }
 
+    if (type === 'download' && (!download_credits || download_credits <= 0)) {
+      return res.status(400).json({
+        success: false,
+        message: '下载次数卡密必须指定有效的下载次数'
+      });
+    }
+
     if (vip_days < 0) {
       return res.status(400).json({
         success: false,
@@ -133,6 +151,7 @@ const generateSingleCard = async (req, res) => {
       vip_level: parseInt(vip_level),
       vip_days: parseInt(vip_days),
       points: parseInt(points),
+      download_credits: parseInt(download_credits),
       expire_at: expire_at ? new Date(expire_at) : null,
       value_amount: value_amount ? parseFloat(value_amount) : null
     }, req.user.id);
@@ -157,7 +176,7 @@ const generateSingleCard = async (req, res) => {
  *   post:
  *     tags: [CardKeys]
  *     summary: 批量生成卡密
- *     description: 管理员功能，批量生成VIP或积分卡密
+ *     description: 管理员功能，批量生成VIP、积分或下载次数卡密
  *     security:
  *       - BearerAuth: []
  *     requestBody:
@@ -173,6 +192,13 @@ const generateSingleCard = async (req, res) => {
  *             value_amount: 19.99
  *             count: 100
  *             expire_at: "2025-12-31T23:59:59.000Z"
+ *         download_card:
+ *           summary: 批量生成下载次数卡密
+ *           value:
+ *             type: "download"
+ *             download_credits: 20
+ *             value_amount: 8.00
+ *             count: 50
  *     responses:
  *       201:
  *         description: 批量生成成功
@@ -193,9 +219,15 @@ const generateSingleCard = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
- *             example:
- *               success: false
- *               message: "批量生成数量必须在1-1000之间"
+ *             examples:
+ *               invalid_count:
+ *                 value:
+ *                   success: false
+ *                   message: "批量生成数量必须在1-1000之间"
+ *               download_missing:
+ *                 value:
+ *                   success: false
+ *                   message: "下载次数卡密必须指定有效的下载次数"
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
@@ -210,6 +242,7 @@ const generateBatchCards = async (req, res) => {
       vip_level = 1,
       vip_days = 30,
       points = 0,
+      download_credits = 0,
       count = 1,
       expire_at = null,
       value_amount = null
@@ -237,6 +270,13 @@ const generateBatchCards = async (req, res) => {
       });
     }
 
+    if (type === 'download' && (!download_credits || download_credits <= 0)) {
+      return res.status(400).json({
+        success: false,
+        message: '下载次数卡密必须指定有效的下载次数'
+      });
+    }
+
     if (vip_days < 0) {
       return res.status(400).json({
         success: false,
@@ -249,6 +289,7 @@ const generateBatchCards = async (req, res) => {
       vip_level: parseInt(vip_level),
       vip_days: parseInt(vip_days),
       points: parseInt(points),
+      download_credits: parseInt(download_credits),
       expire_at: expire_at ? new Date(expire_at) : null,
       value_amount: value_amount ? parseFloat(value_amount) : null
     }, parseInt(count), req.user.id);

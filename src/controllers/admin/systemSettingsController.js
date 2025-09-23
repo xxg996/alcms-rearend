@@ -183,7 +183,8 @@ const resetToDefault = async (req, res) => {
         first_rate: 0.10,
         renewal_rate: 0,
         card_type_rates: {
-          points: 0.10
+          points: 0.10,
+          download: 0.10
         }
       },
       resource_sale_fee: {
