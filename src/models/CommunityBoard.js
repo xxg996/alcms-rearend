@@ -94,14 +94,15 @@ class CommunityBoard {
       iconUrl,
       coverImageUrl,
       sortOrder = 0,
-      moderatorIds = []
+      moderatorIds = [],
+      isActive = true
     } = boardData;
 
     const sql = `
       INSERT INTO community_boards (
-        name, display_name, description, icon_url, cover_image_url, 
-        sort_order, moderator_ids
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        name, display_name, description, icon_url, cover_image_url,
+        sort_order, is_active, moderator_ids
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
 
@@ -112,7 +113,8 @@ class CommunityBoard {
       iconUrl || null,
       coverImageUrl || null,
       sortOrder,
-      moderatorIds
+      Boolean(isActive),
+      Array.isArray(moderatorIds) ? moderatorIds : []
     ];
 
     const result = await query(sql, params);

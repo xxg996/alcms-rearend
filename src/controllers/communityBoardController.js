@@ -134,8 +134,10 @@ class CommunityBoardController {
    *             display_name: "技术讨论"
    *             description: "技术相关话题讨论区"
    *             icon_url: "https://example.com/tech-icon.png"
+   *             cover_image_url: "https://example.com/tech-cover.png"
    *             sort_order: 1
    *             is_active: true
+   *             moderator_ids: [2, 3]
    *     responses:
    *       201:
    *         description: 创建板块成功
@@ -161,15 +163,24 @@ class CommunityBoardController {
    */
   static async createBoard(req, res) {
     try {
-      const {
-        name,
-        displayName,
-        description,
-        iconUrl,
-        coverImageUrl,
-        sortOrder,
-        moderatorIds
-      } = req.body;
+      const body = req.body || {};
+
+      const name = typeof body.name === 'string' ? body.name.trim() : '';
+      const displayNameRaw = body.display_name ?? body.displayName;
+      const displayName = typeof displayNameRaw === 'string' ? displayNameRaw.trim() : '';
+      const description = body.description ?? null;
+      const iconUrl = body.icon_url ?? body.iconUrl ?? null;
+      const coverImageUrl = body.cover_image_url ?? body.coverImageUrl ?? null;
+      const sortOrder = body.sort_order ?? body.sortOrder ?? 0;
+      const isActive = body.is_active ?? body.isActive ?? true;
+      const rawModerators = Array.isArray(body.moderatorIds)
+        ? body.moderatorIds
+        : Array.isArray(body.moderator_ids)
+          ? body.moderator_ids
+          : [];
+      const moderatorIds = rawModerators
+        .map(id => parseInt(id, 10))
+        .filter(id => Number.isInteger(id) && id > 0);
 
       // 验证必填字段
       if (!name || !displayName) {
@@ -188,8 +199,9 @@ class CommunityBoardController {
         description,
         iconUrl,
         coverImageUrl,
-        sortOrder,
-        moderatorIds: moderatorIds || []
+        sortOrder: Number(sortOrder) || 0,
+        moderatorIds,
+        isActive: Boolean(isActive)
       };
 
       const newBoard = await CommunityBoard.create(boardData);

@@ -12,16 +12,25 @@
  *           example: 1
  *         name:
  *           type: string
- *           description: 板块名称
+ *           description: 板块英文唯一名称
+ *           example: "tech-discussion"
+ *         display_name:
+ *           type: string
+ *           description: 板块显示名称
  *           example: "技术讨论"
  *         description:
  *           type: string
  *           description: 板块描述
  *           example: "技术相关话题讨论区"
- *         icon:
+ *         icon_url:
  *           type: string
  *           description: 板块图标URL
- *           example: "https://example.com/icon.png"
+ *           example: "https://example.com/tech-icon.png"
+ *         cover_image_url:
+ *           type: string
+ *           nullable: true
+ *           description: 板块封面图URL
+ *           example: "https://example.com/tech-cover.png"
  *         sort_order:
  *           type: integer
  *           description: 排序顺序
@@ -30,10 +39,20 @@
  *           type: boolean
  *           description: 是否激活
  *           example: true
+ *         moderator_ids:
+ *           type: array
+ *           items:
+ *             type: integer
+ *           description: 版主用户ID列表
+ *           example: [2, 3]
  *         post_count:
  *           type: integer
  *           description: 帖子数量
  *           example: 150
+ *         comment_count:
+ *           type: integer
+ *           description: 评论数量
+ *           example: 320
  *         last_post_at:
  *           type: string
  *           format: date-time
@@ -227,23 +246,35 @@
  *       type: object
  *       required:
  *         - name
+ *         - display_name
  *       properties:
  *         name:
  *           type: string
  *           minLength: 1
  *           maxLength: 100
- *           description: 板块名称
- *           example: "新板块"
+ *           description: 板块英文唯一名称（用于URL）
+ *           example: "tech-discussion"
+ *         display_name:
+ *           type: string
+ *           minLength: 1
+ *           maxLength: 100
+ *           description: 板块显示名称
+ *           example: "技术讨论"
  *         description:
  *           type: string
  *           maxLength: 500
  *           description: 板块描述
- *           example: "这是一个新的讨论板块"
- *         icon:
+ *           example: "技术相关话题讨论区"
+ *         icon_url:
  *           type: string
  *           maxLength: 500
  *           description: 板块图标URL
- *           example: "https://example.com/icon.png"
+ *           example: "https://example.com/tech-icon.png"
+ *         cover_image_url:
+ *           type: string
+ *           maxLength: 500
+ *           description: 板块封面图URL
+ *           example: "https://example.com/tech-cover.png"
  *         sort_order:
  *           type: integer
  *           minimum: 0
@@ -253,6 +284,12 @@
  *           type: boolean
  *           description: 是否激活
  *           example: true
+ *         moderator_ids:
+ *           type: array
+ *           items:
+ *             type: integer
+ *           description: 版主用户ID列表
+ *           example: [2, 3]
  *
  *     CreatePostRequest:
  *       type: object
@@ -271,23 +308,29 @@
  *           maxLength: 200
  *           description: 帖子标题
  *           example: "Node.js学习心得"
- *         content:
+*         content:
+*           type: string
+*           minLength: 1
+*           description: 帖子内容
+*           example: "分享一下我的Node.js学习经验..."
+*         content_type:
+*           type: string
+*           enum: [text, markdown, html]
+*           default: text
+*           description: 内容类型
+*           example: "markdown"
+ *         summary:
  *           type: string
- *           minLength: 1
- *           description: 帖子内容
- *           example: "分享一下我的Node.js学习经验..."
- *         content_type:
- *           type: string
- *           enum: [text, markdown, html]
- *           default: text
- *           description: 内容类型
- *           example: "markdown"
- *         tags:
- *           type: array
- *           items:
- *             type: string
- *           description: 标签列表
- *           example: ["nodejs", "学习"]
+ *           maxLength: 500
+ *           nullable: true
+ *           description: 摘要（可选）
+ *           example: "本文分享了从基础到进阶的学习路径"
+*         tags:
+*           type: array
+*           items:
+*             type: string
+*           description: 标签列表
+*           example: ["nodejs", "学习"]
  *         status:
  *           type: string
  *           enum: [draft, published]

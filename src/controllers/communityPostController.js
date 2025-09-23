@@ -219,7 +219,15 @@ class CommunityPostController {
    *                     data:
    *                       $ref: '#/components/schemas/CommunityPost'
    *       400:
-   *         $ref: '#/components/responses/ValidationError'
+   *         description: 请求参数错误
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "标题、内容和板块不能为空"
+   *               timestamp: "2025-09-23T13:58:56.589Z"
    *       401:
    *         $ref: '#/components/responses/UnauthorizedError'
    *       403:
@@ -231,20 +239,40 @@ class CommunityPostController {
    */
   static async createPost(req, res) {
     try {
-      const {
-        title,
-        content,
-        contentType = 'markdown',
-        summary,
-        boardId,
-        tags = [],
-        status = 'published'
-      } = req.body;
+      const body = req.body || {};
+
+      const rawTitle = body.title;
+      const title = typeof rawTitle === 'string' ? rawTitle.trim() : '';
+
+      const rawContent = body.content;
+      const content = typeof rawContent === 'string' ? rawContent.trim() : '';
+
+      const boardIdRaw = body.board_id ?? body.boardId;
+      const boardId = boardIdRaw !== undefined && boardIdRaw !== null
+        ? parseInt(boardIdRaw, 10)
+        : NaN;
+
+      const rawContentType = body.content_type ?? body.contentType ?? 'markdown';
+      const contentType = typeof rawContentType === 'string'
+        ? rawContentType.toLowerCase()
+        : 'markdown';
+
+      const summary = typeof body.summary === 'string' ? body.summary : null;
+
+      const rawTags = Array.isArray(body.tags) ? body.tags : [];
+      const tags = rawTags
+        .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
+        .filter(tag => tag.length > 0);
+
+      const rawStatus = body.status ?? 'published';
+      const status = typeof rawStatus === 'string'
+        ? rawStatus.toLowerCase()
+        : 'published';
 
       const authorId = req.user.id;
 
       // 验证必填字段
-      if (!title || !content || !boardId) {
+      if (!title || !content || !Number.isInteger(boardId) || boardId <= 0) {
         return errorResponse(res, '标题、内容和板块不能为空', 400);
       }
 
