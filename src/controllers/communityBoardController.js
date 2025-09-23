@@ -3,7 +3,7 @@
  * 处理板块的CRUD操作和管理功能
  * @swagger
  * tags:
- *   name: Community-Boards
+ *   name: 社区板块管理相关
  *   description: 社区板块管理相关API
  */
 
@@ -18,7 +18,7 @@ class CommunityBoardController {
    *   get:
    *     summary: 获取板块列表
    *     description: 获取社区所有板块列表，支持筛选选项
-   *     tags: [Community-Boards]
+   *     tags: [社区板块管理相关]
    *     parameters:
    *       - in: query
    *         name: includeStats
@@ -71,7 +71,7 @@ class CommunityBoardController {
    *   get:
    *     summary: 获取板块详情
    *     description: 根据ID获取指定板块的详细信息
-   *     tags: [Community-Boards]
+   *     tags: [社区板块管理相关]
    *     parameters:
    *       - in: path
    *         name: id
@@ -120,7 +120,7 @@ class CommunityBoardController {
    *   post:
    *     summary: 创建板块
    *     description: 创建新的社区板块（管理员功能）
-   *     tags: [Community-Boards]
+   *     tags: [社区板块管理相关]
    *     security:
    *       - BearerAuth: []
    *     requestBody:

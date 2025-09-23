@@ -4,8 +4,8 @@
  * 
  * @swagger
  * tags:
- *   - name: Resources
- *     description: 资源管理相关接口
+ *   - name: 资源管理相关
+ *     description: 资源管理相关api
  */
 
 const Resource = require('../models/Resource');
@@ -28,7 +28,7 @@ class ResourceController {
    * @swagger
    * /api/resources:
    *   get:
-   *     tags: [Resources]
+   *     tags: [资源管理相关]
    *     summary: 获取资源列表
    *     description: |
    *       获取分页的资源列表，支持多种过滤和排序选项。
@@ -213,7 +213,7 @@ class ResourceController {
    * @swagger
    * /api/resources/{id}:
    *   get:
-   *     tags: [Resources]
+   *     tags: [资源管理相关]
    *     summary: 获取单个资源详情
    *     description: |
    *       根据资源ID获取资源的详细信息。
@@ -359,7 +359,7 @@ class ResourceController {
    * @swagger
    * /api/resources:
    *   post:
-   *     tags: [Resources]
+   *     tags: [资源管理相关]
    *     summary: 创建新资源
    *     description: 创建一个新的资源，需要认证
    *     security:
@@ -518,7 +518,7 @@ class ResourceController {
    * @swagger
    * /api/resources/{id}:
    *   put:
-   *     tags: [Resources]
+   *     tags: [资源管理相关]
    *     summary: 更新资源
    *     description: 更新指定ID的资源，只有作者或管理员可以操作
    *     security:
@@ -708,7 +708,7 @@ class ResourceController {
    * @swagger
    * /api/resources/{id}:
    *   delete:
-   *     tags: [Resources]
+   *     tags: [资源管理相关]
    *     summary: 删除资源
    *     description: 删除指定ID的资源，只有作者或管理员可以操作
    *     security:
@@ -826,7 +826,7 @@ class ResourceController {
    * @swagger
    * /api/resources/search:
    *   get:
-   *     tags: [Resources]
+   *     tags: [资源管理相关]
    *     summary: 搜索资源
    *     description: 使用关键词进行全文搜索资源
    *     security:
@@ -946,7 +946,7 @@ class ResourceController {
    * @swagger
    * /api/resources/stats:
    *   get:
-   *     tags: [Resources]
+   *     tags: [资源管理相关]
    *     summary: 获取资源统计信息
    *     description: 获取系统中资源的统计数据，包括总数、状态分布、类型分布等
    *     security:

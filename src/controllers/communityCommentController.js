@@ -3,7 +3,7 @@
  * 处理评论的CRUD操作和楼中楼功能
  * @swagger
  * tags:
- *   name: Community-Comments
+ *   name: 社区评论管理相关
  *   description: 社区评论管理相关API
  */
 
@@ -19,7 +19,7 @@ class CommunityCommentController {
    *   get:
    *     summary: 获取帖子的评论列表
    *     description: 获取指定帖子的所有评论，支持分页和排序
-   *     tags: [Community-Comments]
+   *     tags: [社区评论管理相关]
    *     parameters:
    *       - in: path
    *         name: postId
@@ -149,7 +149,7 @@ class CommunityCommentController {
    *   post:
    *     summary: 创建评论
    *     description: 创建新的评论或回复
-   *     tags: [Community-Comments]
+   *     tags: [社区评论管理相关]
    *     security:
    *       - BearerAuth: []
    *     requestBody:

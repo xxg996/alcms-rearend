@@ -3,7 +3,7 @@
  * 处理帖子的CRUD操作、搜索和统计
  */
 
-const { query } = require('../config/database');
+const { query, getClient } = require('../config/database');
 
 class CommunityPost {
   /**
@@ -260,7 +260,7 @@ class CommunityPost {
     } = postData;
 
     // 开始事务
-    const client = await require('../config/database').getClient();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -334,7 +334,7 @@ class CommunityPost {
       throw new Error('没有有效的更新字段');
     }
 
-    const client = await require('../config/database').getClient();
+    const client = await getClient();
     
     try {
       await client.query('BEGIN');
@@ -377,13 +377,188 @@ class CommunityPost {
   }
 
   /**
+   * 管理员更新帖子状态
+   * 采用事务保证状态与板块计数一致
+   * @param {number} id - 帖子ID
+   * @param {string} status - 新状态
+   * @returns {Promise<Object>} 更新后的帖子
+   */
+  static async changeStatus(id, status) {
+    const allowedStatus = new Set(['draft', 'published', 'hidden', 'archived', 'deleted']);
+    const normalizedStatus = typeof status === 'string'
+      ? status.trim().toLowerCase()
+      : '';
+
+    if (!allowedStatus.has(normalizedStatus)) {
+      throw new Error('无效的帖子状态');
+    }
+
+    const client = await getClient();
+
+    try {
+      await client.query('BEGIN');
+
+      const postResult = await client.query(
+        'SELECT id, status, board_id FROM community_posts WHERE id = $1 FOR UPDATE',
+        [id]
+      );
+
+      if (postResult.rows.length === 0) {
+        throw new Error('帖子不存在');
+      }
+
+      const post = postResult.rows[0];
+      const isPublishing = post.status !== 'published' && normalizedStatus === 'published';
+      const isUnpublishing = post.status === 'published' && normalizedStatus !== 'published';
+
+      await client.query(
+        `UPDATE community_posts
+         SET status = $2,
+             published_at = CASE 
+               WHEN $2 = 'published' THEN COALESCE(published_at, CURRENT_TIMESTAMP)
+               ELSE published_at
+             END,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [id, normalizedStatus]
+      );
+
+      if (isPublishing) {
+        await client.query(
+          'UPDATE community_boards SET post_count = post_count + 1 WHERE id = $1',
+          [post.board_id]
+        );
+      } else if (isUnpublishing) {
+        await client.query(
+          'UPDATE community_boards SET post_count = GREATEST(0, post_count - 1) WHERE id = $1',
+          [post.board_id]
+        );
+      }
+
+      await client.query('COMMIT');
+
+      return await this.findById(id);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * 硬删除帖子及其所有关联数据
+   * @param {number} id - 帖子ID
+   * @returns {Promise<boolean>} 是否删除成功
+   */
+  static async deleteCompletely(id) {
+    const client = await getClient();
+
+    try {
+      await client.query('BEGIN');
+
+      const postResult = await client.query(
+        'SELECT id, board_id, status FROM community_posts WHERE id = $1 FOR UPDATE',
+        [id]
+      );
+
+      if (postResult.rows.length === 0) {
+        throw new Error('帖子不存在');
+      }
+
+      const post = postResult.rows[0];
+      const isPublished = post.status === 'published';
+
+      // 删除评论相关的点赞、举报、通知
+      await client.query(
+        `DELETE FROM community_likes
+         WHERE target_type = 'comment'
+           AND target_id IN (SELECT id FROM community_comments WHERE post_id = $1)`,
+        [id]
+      );
+
+      await client.query(
+        `DELETE FROM community_reports
+         WHERE target_type = 'comment'
+           AND target_id IN (SELECT id FROM community_comments WHERE post_id = $1)`,
+        [id]
+      );
+
+      await client.query(
+        `DELETE FROM community_notifications
+         WHERE related_id IN (SELECT id FROM community_comments WHERE post_id = $1)
+           AND related_type LIKE 'comment%'`,
+        [id]
+      );
+
+      // 删除帖子本身的互动与通知
+      await client.query(
+        "DELETE FROM community_likes WHERE target_type = 'post' AND target_id = $1",
+        [id]
+      );
+
+      await client.query(
+        'DELETE FROM community_favorites WHERE post_id = $1',
+        [id]
+      );
+
+      await client.query(
+        'DELETE FROM community_shares WHERE post_id = $1',
+        [id]
+      );
+
+      await client.query(
+        `DELETE FROM community_reports
+         WHERE target_type = 'post' AND target_id = $1`,
+        [id]
+      );
+
+      await client.query(
+        `DELETE FROM community_notifications
+         WHERE related_id = $1 AND related_type LIKE 'post%'`,
+        [id]
+      );
+
+      // 删除评论（级联删除子评论）
+      await client.query(
+        'DELETE FROM community_comments WHERE post_id = $1',
+        [id]
+      );
+
+      // 删除帖子本体
+      const deleteResult = await client.query(
+        'DELETE FROM community_posts WHERE id = $1',
+        [id]
+      );
+
+      if (deleteResult.rowCount === 0) {
+        throw new Error('帖子不存在');
+      }
+
+      if (isPublished) {
+        await client.query(
+          'UPDATE community_boards SET post_count = GREATEST(0, post_count - 1) WHERE id = $1',
+          [post.board_id]
+        );
+      }
+
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * 删除帖子
    * @param {number} id - 帖子ID
    * @returns {Promise<boolean>} 是否删除成功
    */
   static async delete(id) {
-    const result = await query('DELETE FROM community_posts WHERE id = $1', [id]);
-    return result.rowCount > 0;
+    return this.deleteCompletely(id);
   }
 
   /**

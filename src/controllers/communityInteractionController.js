@@ -3,7 +3,7 @@
  * 处理点赞、收藏、分享、举报等互动功能
  * @swagger
  * tags:
- *   name: Community-Interactions
+ *   name: 社区互动功能相关
  *   description: 社区互动功能相关API
  */
 
@@ -20,7 +20,7 @@ class CommunityInteractionController {
    *   post:
    *     summary: 点赞/取消点赞
    *     description: 对帖子或评论进行点赞操作，已点赞则取消点赞
-   *     tags: [Community-Interactions]
+   *     tags: [社区互动功能相关]
    *     security:
    *       - BearerAuth: []
    *     requestBody:

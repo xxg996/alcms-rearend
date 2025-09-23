@@ -3,8 +3,8 @@
  * 处理帖子的CRUD操作、搜索和管理功能
  * @swagger
  * tags:
- *   name: Community-Posts
- *   description: 社区帖子管理相关API
+ *   name: 社区帖子管理相关
+ *   description: 包含管理员相关的帖子管理接口
  */
 
 const CommunityPost = require('../models/CommunityPost');
@@ -20,7 +20,7 @@ class CommunityPostController {
    *   get:
    *     summary: 获取帖子列表
    *     description: 获取社区帖子列表，支持分页、筛选和搜索
-   *     tags: [Community-Posts]
+   *     tags: [社区帖子管理相关]
    *     parameters:
    *       - in: query
    *         name: page
@@ -190,7 +190,7 @@ class CommunityPostController {
    *   post:
    *     summary: 创建帖子
    *     description: 创建新的社区帖子
-   *     tags: [Community-Posts]
+   *     tags: [社区帖子管理相关]
    *     security:
    *       - BearerAuth: []
    *     requestBody:
@@ -538,6 +538,128 @@ class CommunityPostController {
     } catch (error) {
       logger.error('获取用户帖子统计失败:', error);
       return errorResponse(res, '获取用户帖子统计失败', 500);
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/admin/community/posts/{id}/status:
+   *   put:
+   *     summary: 管理员修改帖子状态
+   *     tags: [社区帖子管理相关]
+   *     security:
+   *       - BearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 帖子ID
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - status
+   *             properties:
+   *               status:
+   *                 type: string
+   *                 description: 新的帖子状态（draft、published、hidden、archived、deleted）
+   *     responses:
+   *       200:
+   *         description: 修改成功
+   *       400:
+   *         description: 参数错误
+   *       404:
+   *         description: 帖子不存在
+   */
+  static async adminUpdateStatus(req, res) {
+    try {
+      const postId = parseInt(req.params.id, 10);
+      const { status } = req.body;
+
+      if (Number.isNaN(postId) || postId <= 0) {
+        return errorResponse(res, '帖子ID格式不正确', 400);
+      }
+
+      if (!status || typeof status !== 'string') {
+        return errorResponse(res, 'status 参数不能为空', 400);
+      }
+
+      const updatedPost = await CommunityPost.changeStatus(postId, status);
+
+      logger.info('管理员更新帖子状态', {
+        adminId: req.user.id,
+        postId,
+        status
+      });
+
+      return successResponse(res, '更新帖子状态成功', updatedPost);
+    } catch (error) {
+      logger.error('管理员更新帖子状态失败:', error);
+
+      if (error.message.includes('帖子不存在')) {
+        return errorResponse(res, '帖子不存在', 404);
+      }
+
+      if (error.message.includes('无效的帖子状态')) {
+        return errorResponse(res, 'status 参数取值不合法', 400);
+      }
+
+      return errorResponse(res, '更新帖子状态失败', 500);
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/admin/community/posts/{id}/hard-delete:
+   *   delete:
+   *     summary: 管理员硬删除帖子及其关联数据
+   *     tags: [社区帖子管理相关]
+   *     security:
+   *       - BearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 帖子ID
+   *     responses:
+   *       200:
+   *         description: 删除成功
+   *       400:
+   *         description: 参数错误
+   *       404:
+   *         description: 帖子不存在
+   */
+  static async adminHardDelete(req, res) {
+    try {
+      const postId = parseInt(req.params.id, 10);
+
+      if (Number.isNaN(postId) || postId <= 0) {
+        return errorResponse(res, '帖子ID格式不正确', 400);
+      }
+
+      await CommunityPost.deleteCompletely(postId);
+
+      logger.info('管理员硬删除帖子', {
+        adminId: req.user.id,
+        postId
+      });
+
+      return successResponse(res, '硬删除帖子成功');
+    } catch (error) {
+      logger.error('管理员硬删除帖子失败:', error);
+
+      if (error.message.includes('帖子不存在')) {
+        return errorResponse(res, '帖子不存在', 404);
+      }
+
+      return errorResponse(res, '删除帖子失败', 500);
     }
   }
 

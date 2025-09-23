@@ -10,7 +10,7 @@ const { logger } = require('../utils/logger');
  * @swagger
  * /api/resources/{resourceId}/files:
  *   get:
- *     tags: [ResourceFiles]
+ *     tags: [资源文件管理相关]
  *     summary: 获取资源的所有文件
  *     description: 获取指定资源的所有下载文件。资源作者可以获取自己资源的文件，管理员可以获取任何资源的文件
  *     security:
@@ -103,7 +103,7 @@ const getResourceFiles = async (req, res) => {
  * @swagger
  * /api/resources/{resourceId}/files:
  *   post:
- *     tags: [ResourceFiles]
+ *     tags: [资源文件管理相关]
  *     summary: 添加资源文件
  *     description: |
  *       为指定资源添加下载文件，支持文件级权限控制配置。
@@ -231,7 +231,7 @@ const createResourceFile = async (req, res) => {
  * @swagger
  * /api/resource-files/{fileId}:
  *   put:
- *     tags: [ResourceFiles]
+ *     tags: [资源文件管理相关]
  *     summary: 更新资源文件
  *     description: |
  *       更新指定的资源文件信息，包括文件权限控制配置。
@@ -341,7 +341,7 @@ const updateResourceFile = async (req, res) => {
  * @swagger
  * /api/resource-files/{fileId}/delete:
  *   post:
- *     tags: [ResourceFiles]
+ *     tags: [资源文件管理相关]
  *     summary: 删除资源文件
  *     description: 删除指定的资源文件（软删除）。资源作者可以删除自己资源的文件，管理员可以删除任何文件
  *     security:
@@ -417,7 +417,7 @@ const deleteResourceFile = async (req, res) => {
  * @swagger
  * /api/resources/{resourceId}/files/sort:
  *   put:
- *     tags: [ResourceFiles]
+ *     tags: [资源文件管理相关]
  *     summary: 更新文件排序
  *     description: 更新资源文件的排序顺序。资源作者可以更新自己资源的文件排序，管理员可以更新任何资源的文件排序
  *     security:
@@ -521,7 +521,7 @@ const updateFileSort = async (req, res) => {
  * @swagger
  * /api/admin/resource-files/statistics:
  *   get:
- *     tags: [ResourceFiles]
+ *     tags: [资源文件管理相关]
  *     summary: 获取文件统计信息
  *     description: 管理员获取资源文件的统计信息
  *     security:
@@ -577,7 +577,7 @@ const getFileStatistics = async (req, res) => {
  * @swagger
  * /api/admin/resource-files:
  *   get:
- *     tags: [ResourceFiles]
+ *     tags: [资源文件管理相关]
  *     summary: 获取所有资源文件列表
  *     description: 管理员获取系统中所有资源文件的分页列表，支持多种筛选和搜索功能
  *     security:
@@ -739,7 +739,7 @@ const getAllResourceFiles = async (req, res) => {
  * @swagger
  * /api/admin/resource-files/batch-delete:
  *   post:
- *     tags: [ResourceFiles]
+ *     tags: [资源文件管理相关]
  *     summary: 批量删除资源文件
  *     description: 管理员批量删除指定的资源文件（软删除）
  *     security:
@@ -845,7 +845,7 @@ const batchDeleteResourceFiles = async (req, res) => {
  * @swagger
  * /api/admin/resource-files/batch-update:
  *   post:
- *     tags: [ResourceFiles]
+ *     tags: [资源文件管理相关]
  *     summary: 批量更新资源文件
  *     description: 管理员批量更新指定的资源文件信息
  *     security:

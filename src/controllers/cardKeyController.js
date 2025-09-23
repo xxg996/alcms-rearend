@@ -4,8 +4,8 @@
  * 
  * @swagger
  * tags:
- *   - name: CardKeys
- *     description: 卡密管理相关接口
+ *   - name: 卡密管理相关
+ *     description: 卡密管理相关api
  */
 
 const CardKey = require('../models/CardKey');
@@ -16,7 +16,7 @@ const { services } = require('../services');
  * @swagger
  * /api/admin/card-keys/generate/single:
  *   post:
- *     tags: [CardKeys]
+ *     tags: [卡密管理相关]
  *     summary: 生成单个卡密
  *     description: 管理员功能，生成单个VIP、积分或下载次数卡密
  *     security:
@@ -174,7 +174,7 @@ const generateSingleCard = async (req, res) => {
  * @swagger
  * /api/admin/card-keys/generate/batch:
  *   post:
- *     tags: [CardKeys]
+ *     tags: [卡密管理相关]
  *     summary: 批量生成卡密
  *     description: 管理员功能，批量生成VIP、积分或下载次数卡密
  *     security:
@@ -316,7 +316,7 @@ const generateBatchCards = async (req, res) => {
  * @swagger
  * /api/card-keys/redeem:
  *   post:
- *     tags: [CardKeys]
+ *     tags: [卡密管理相关]
  *     summary: 兑换卡密
  *     description: 用户使用卡密代码兑换VIP或积分
  *     security:
@@ -460,7 +460,7 @@ const redeemCard = async (req, res) => {
  * @swagger
  * /api/card-keys/info/{code}:
  *   get:
- *     tags: [CardKeys]
+ *     tags: [卡密管理相关]
  *     summary: 查询卡密信息
  *     description: 根据卡密代码查询卡密的详细信息
  *     security:
@@ -586,7 +586,7 @@ const getCardInfo = async (req, res) => {
  * @swagger
  * /api/admin/card-keys/list:
  *   get:
- *     tags: [CardKeys]
+ *     tags: [卡密管理相关]
  *     summary: 获取卡密列表
  *     description: 管理员获取卡密列表，支持过滤和分页
  *     security:
@@ -689,7 +689,7 @@ const getCardsList = async (req, res) => {
  * @swagger
  * /api/admin/card-keys/statistics:
  *   get:
- *     tags: [CardKeys]
+ *     tags: [卡密管理相关]
  *     summary: 获取卡密统计信息
  *     description: 管理员获取卡密的统计数据
  *     security:
@@ -758,7 +758,7 @@ const getCardsStatistics = async (req, res) => {
  * @swagger
  * /api/admin/card-keys/batches:
  *   get:
- *     tags: [CardKeys]
+ *     tags: [卡密管理相关]
  *     summary: 获取批次列表
  *     description: 管理员获取卡密批次列表
  *     security:

@@ -4,8 +4,8 @@
  * 
  * @swagger
  * tags:
- *   - name: Categories
- *     description: 分类管理相关接口
+ *   - name: 分类管理相关
+ *     description: 分类管理相关api
  */
 
 const Category = require('../models/Category');
@@ -17,7 +17,7 @@ class CategoryController {
    * @swagger
    * /api/categories:
    *   get:
-   *     tags: [Categories]
+   *     tags: [分类管理相关]
    *     summary: 获取分类列表
    *     description: 获取分类列表，支持树形结构或扁平列表，可以过滤活跃状态
    *     security:
@@ -108,7 +108,7 @@ class CategoryController {
    * @swagger
    * /api/categories/{id}:
    *   get:
-   *     tags: [Categories]
+   *     tags: [分类管理相关]
    *     summary: 获取单个分类详情
    *     description: 根据分类ID获取分类的详细信息，包括分类路径（面包屑）
    *     security:
@@ -186,7 +186,7 @@ class CategoryController {
    * @swagger
    * /api/categories:
    *   post:
-   *     tags: [Categories]
+   *     tags: [分类管理相关]
    *     summary: 创建新分类
    *     description: 创建一个新的分类，需要管理员权限。层级限制：分类最多支持3级（根=1，子=2，孙=3），当 parentId 指向的父级已处于第3级或更深，将返回 400 错误。
    *     security:
@@ -311,7 +311,7 @@ class CategoryController {
    * @swagger
    * /api/categories/{id}:
    *   put:
-   *     tags: [Categories]
+   *     tags: [分类管理相关]
    *     summary: 更新分类
    *     description: 更新指定ID的分类，需要管理员权限。层级限制：当变更 parentId 导致层级超过3级，或形成循环引用，将返回 400 错误。
    *     security:
@@ -422,7 +422,7 @@ class CategoryController {
    * @swagger
    * /api/categories/{id}:
    *   delete:
-   *     tags: [Categories]
+   *     tags: [分类管理相关]
    *     summary: 删除分类
    *     description: 删除指定ID的分类，需要管理员权限。不能删除有子分类或关联资源的分类。说明：数据库外键为 ON DELETE CASCADE，但应用层会在存在子分类时阻止删除，避免级联删除。
    *     security:
@@ -531,7 +531,7 @@ class CategoryController {
    * @swagger
    * /api/categories/popular:
    *   get:
-   *     tags: [Categories]
+   *     tags: [分类管理相关]
    *     summary: 获取热门分类
    *     description: 根据资源数量获取热门分类列表
    *     security:
