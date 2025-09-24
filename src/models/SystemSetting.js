@@ -43,6 +43,43 @@ class SystemSetting {
   }
 
   /**
+   * 获取CORS白名单配置
+   */
+  static async getCorsConfig() {
+    const defaultConfig = {
+      allowed_origins: process.env.NODE_ENV === 'production'
+        ? []
+        : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001']
+    };
+
+    const stored = await this.getSetting('security_cors', defaultConfig);
+
+    if (!stored || !Array.isArray(stored.allowed_origins)) {
+      return defaultConfig;
+    }
+
+    // 过滤和验证域名格式
+    const validOrigins = stored.allowed_origins.filter(origin => {
+      if (typeof origin !== 'string' || origin.trim() === '') {
+        return false;
+      }
+
+      // 基本URL格式验证
+      try {
+        new URL(origin);
+        return true;
+      } catch {
+        // 如果不是完整URL，检查是否是有效的域名格式
+        return /^https?:\/\/[a-zA-Z0-9.-]+(:[0-9]+)?$/.test(origin);
+      }
+    });
+
+    return {
+      allowed_origins: validOrigins
+    };
+  }
+
+  /**
    * 获取邀请佣金配置
    */
   static async getReferralCommissionConfig() {

@@ -144,24 +144,70 @@ const handleValidationErrors = (req, res, next) => {
 };
 
 /**
- * CORS配置
+ * 动态CORS配置中间件
+ * 从数据库读取白名单配置，支持缓存机制
  */
-const corsOptions = {
+const corsCache = require('../utils/corsCache');
+const { logger } = require('../utils/logger');
+
+/**
+ * 创建动态CORS配置选项
+ */
+const createDynamicCorsOptions = () => {
+  return {
+    origin: async function (origin, callback) {
+      try {
+        // 开发环境允许无origin请求（如Postman、移动端应用等）
+        if (!origin && process.env.NODE_ENV === 'development') {
+          return callback(null, true);
+        }
+
+        // 检查origin是否在白名单中
+        const isAllowed = await corsCache.isOriginAllowed(origin);
+
+        if (isAllowed) {
+          callback(null, true);
+        } else {
+          logger.warn('CORS请求被拒绝', {
+            origin,
+            userAgent: this?.req?.get?.('user-agent')?.substring(0, 100)
+          });
+          callback(new Error(`域名 ${origin} 不在CORS白名单中`));
+        }
+      } catch (error) {
+        logger.error('CORS验证失败:', error);
+        // 发生错误时默认拒绝
+        callback(new Error('CORS配置验证失败'));
+      }
+    },
+    credentials: true, // 允许发送cookies和认证头
+    optionsSuccessStatus: 200, // 兼容旧版浏览器
+    maxAge: 86400 // 预检请求缓存24小时
+  };
+};
+
+/**
+ * 静态CORS配置（作为备用）
+ * 当动态配置失败时使用
+ */
+const fallbackCorsOptions = {
   origin: function (origin, callback) {
-    // 在生产环境中，应该设置具体的允许域名
-    const allowedOrigins = process.env.ALLOWED_ORIGINS 
-      ? process.env.ALLOWED_ORIGINS.split(',') 
-      : ['http://localhost:3000', 'http://localhost:3001'];
-    
-    if (!origin || allowedOrigins.includes(origin)) {
+    const defaultOrigins = process.env.NODE_ENV === 'production'
+      ? []
+      : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'];
+
+    if (!origin || defaultOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('不允许的来源'));
+      callback(new Error('域名不在默认白名单中'));
     }
   },
-  credentials: true, // 允许发送cookies
+  credentials: true,
   optionsSuccessStatus: 200
 };
+
+// 导出动态CORS选项
+const corsOptions = createDynamicCorsOptions();
 
 /**
  * 请求体大小限制
@@ -251,6 +297,9 @@ module.exports = {
   profileUpdateValidation,
   handleValidationErrors,
   corsOptions,
+  fallbackCorsOptions,
+  createDynamicCorsOptions,
+  corsCache,
   bodySizeLimit,
   sqlInjectionProtection,
   xssProtection

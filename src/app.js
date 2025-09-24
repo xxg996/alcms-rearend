@@ -39,13 +39,15 @@ const dailyResetJob = startDailyResetTask();
 const { swaggerDocument, swaggerUi, swaggerOptions } = require('./config/swagger');
 
 // 导入中间件
-const { 
-  securityMiddleware, 
-  apiLimiter, 
-  corsOptions, 
+const {
+  securityMiddleware,
+  apiLimiter,
+  corsOptions,
+  fallbackCorsOptions,
+  corsCache,
   bodySizeLimit,
   sqlInjectionProtection,
-  xssProtection 
+  xssProtection
 } = require('./middleware/security');
 const { 
   validateJsonRequest, 
@@ -63,6 +65,7 @@ const checkinRoutes = require('./routes/checkin');
 const referralRoutes = require('./routes/referral');
 const rolePermissionRoutes = require('./routes/admin/rolePermissions');
 const permissionRoutes = require('./routes/admin/permissions');
+const cacheRoutes = require('./routes/admin/cache');
 const uploadRoutes = require('./routes/upload');
 
 // 创建Express应用实例
@@ -71,8 +74,49 @@ const app = express();
 // 基础安全中间件
 app.use(securityMiddleware);
 
-// CORS配置
-app.use(cors(corsOptions));
+// 动态CORS配置中间件
+app.use(async (req, res, next) => {
+  try {
+    // 创建动态CORS中间件
+    const dynamicCors = cors({
+      origin: async (origin, callback) => {
+        try {
+          // 开发环境允许无origin请求（如Postman、移动端应用等）
+          if (!origin && process.env.NODE_ENV === 'development') {
+            return callback(null, true);
+          }
+
+          // 检查origin是否在白名单中
+          const isAllowed = await corsCache.isOriginAllowed(origin);
+
+          if (isAllowed) {
+            callback(null, true);
+          } else {
+            logger.warn('CORS请求被拒绝', {
+              origin,
+              method: req.method,
+              userAgent: req.get('user-agent')?.substring(0, 100)
+            });
+            callback(new Error(`域名 ${origin} 不在CORS白名单中`));
+          }
+        } catch (error) {
+          logger.error('CORS验证失败:', error);
+          callback(new Error('CORS配置验证失败'));
+        }
+      },
+      credentials: true, // 允许发送cookies和认证头
+      optionsSuccessStatus: 200, // 兼容旧版浏览器
+      maxAge: 86400 // 预检请求缓存24小时
+    });
+
+    dynamicCors(req, res, next);
+  } catch (error) {
+    logger.error('动态CORS中间件失败，使用fallback配置:', error);
+    // 使用fallback配置
+    const fallbackCors = cors(fallbackCorsOptions);
+    fallbackCors(req, res, next);
+  }
+});
 
 // 请求日志
 if (process.env.NODE_ENV !== 'test') {
@@ -117,6 +161,7 @@ app.use('/api', require('./routes/download'));
 // 管理员功能API路由注册 - 角色权限管理
 app.use('/api/admin/roles', rolePermissionRoutes);
 app.use('/api/admin/permissions', permissionRoutes);
+app.use('/api/admin/cache', cacheRoutes);
 app.use('/api/admin/users', require('./routes/admin/users'));
 app.use('/api/admin/vip', require('./routes/admin/vip'));
 app.use('/api/admin/points', require('./routes/admin/points'));

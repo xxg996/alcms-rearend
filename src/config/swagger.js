@@ -176,6 +176,7 @@ const swaggerOptions = {
   definition: swaggerDefinition,
   apis: [
     path.join(__dirname, '../controllers/*.js'), // Controller文件
+    path.join(__dirname, '../controllers/admin/*.js'), // 管理员Controller文件
     path.join(__dirname, '../routes/*.js'),      // 路由文件
     path.join(__dirname, '../routes/admin/*.js'), // 管理员路由文件
     path.join(__dirname, '../routes/user/*.js'), // 用户路由文件
