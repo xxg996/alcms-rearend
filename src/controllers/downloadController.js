@@ -398,6 +398,9 @@ const downloadResourceFiles = async (req, res) => {
         expiresAt: null,
         isSuccessful: true
       });
+
+      // 增加资源下载次数
+      await query('UPDATE resources SET download_count = download_count + 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [resource.id]);
     }
 
     // 获取实际消耗的下载配额次数以正确显示统计
@@ -483,12 +486,12 @@ const downloadResourceFiles = async (req, res) => {
  *       - 已登录用户：额外返回用户下载状态信息（user_download_status字段）
  *
  *       **user_download_status字段说明：**
- *       - daily_limit: 每日下载次数限制
- *       - daily_used: 今日已使用次数
- *       - remaining_downloads: 剩余下载次数
- *       - can_download: 是否还能下载
+ *       - remaining_daily_downloads: 当前用户剩余每日下载次数
+ *       - remaining_total_downloads: 当前用户剩余总下载次数
+ *       - remaining_points: 当前用户剩余积分
  *       - purchased_today: 今日是否已购买过该资源
  *       - has_files: 该资源是否有可下载文件
+ *       - purchased_info: 购买信息（仅当purchased_today为true时有值）
  *     parameters:
  *       - in: path
  *         name: resourceId
@@ -569,6 +572,40 @@ const downloadResourceFiles = async (req, res) => {
  *                         total_files:
  *                           type: integer
  *                           description: 文件总数
+ *                         user_download_status:
+ *                           type: object
+ *                           description: 用户下载状态信息（仅登录用户有此字段）
+ *                           properties:
+ *                             remaining_daily_downloads:
+ *                               type: integer
+ *                               description: 当前用户剩余每日下载次数
+ *                             remaining_total_downloads:
+ *                               type: integer
+ *                               description: 当前用户剩余总下载次数
+ *                             remaining_points:
+ *                               type: integer
+ *                               description: 当前用户剩余积分
+ *                             purchased_today:
+ *                               type: boolean
+ *                               description: 今日是否已购买过该资源
+ *                             has_files:
+ *                               type: boolean
+ *                               description: 该资源是否有可下载文件
+ *                             purchased_info:
+ *                               type: object
+ *                               nullable: true
+ *                               description: 购买信息（仅当purchased_today为true时有值）
+ *                               properties:
+ *                                 cost_type:
+ *                                   type: string
+ *                                   description: 费用类型
+ *                                   enum: [points, download_count]
+ *                                 cost:
+ *                                   type: integer
+ *                                   description: 费用数量
+ *                                 file_id:
+ *                                   type: integer
+ *                                   description: 购买的文件ID
  *             example:
  *               success: true
  *               message: "文件列表获取成功"
@@ -591,6 +628,13 @@ const downloadResourceFiles = async (req, res) => {
  *                     required_points: 10
  *                     required_vip_level: 0
  *                 total_files: 1
+ *                 user_download_status:
+ *                   remaining_daily_downloads: 8
+ *                   remaining_total_downloads: 50
+ *                   remaining_points: 120
+ *                   purchased_today: false
+ *                   has_files: true
+ *                   purchased_info: null
  *       400:
  *         description: 请求参数错误
  *       401:
@@ -655,10 +699,17 @@ const getResourceFilesList = async (req, res) => {
       total_files: formattedFiles.length
     };
 
-    // 如果用户已登录，添加下载状态信息
+    // 如果用户已登录，添加用户资源状态信息
     if (userId) {
       const { checkAndResetDailyDownloads } = require('../utils/downloadLimitUtils');
       const downloadStatus = await checkAndResetDailyDownloads(userId);
+
+      // 获取用户详细信息
+      const userQuery = await query(`
+        SELECT points, download_count FROM users WHERE id = $1
+      `, [userId]);
+
+      const user = userQuery.rows[0];
 
       // 检查今日是否已购买过该资源
       const purchaseCheck = await query(`
@@ -670,10 +721,9 @@ const getResourceFilesList = async (req, res) => {
       const purchase = purchaseCheck.rows[0];
 
       responseData.user_download_status = {
-        daily_limit: downloadStatus.dailyLimit,
-        daily_used: downloadStatus.dailyUsed,
-        remaining_downloads: downloadStatus.remainingDownloads,
-        can_download: downloadStatus.canDownload,
+        remaining_daily_downloads: downloadStatus.remainingDownloads,
+        remaining_total_downloads: user.download_count,
+        remaining_points: user.points,
         purchased_today: hasPurchasedToday,
         has_files: formattedFiles.length > 0,
         purchased_info: hasPurchasedToday ? {
@@ -866,6 +916,9 @@ const downloadResource = async (req, res) => {
       expiresAt: null,
       isSuccessful: true
     });
+
+    // 增加资源下载次数
+    await query('UPDATE resources SET download_count = download_count + 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [resource.id]);
 
     // 获取实际消耗的下载配额次数以正确显示统计
     const todayConsumed = await getTodayConsumedDownloads(userId);
@@ -1129,15 +1182,6 @@ const getCurrentUserStats = async (req, res) => {
  *                             cost:
  *                               type: integer
  *                               description: 消耗的次数或积分
- *                         download_status:
- *                           type: object
- *                           properties:
- *                             remaining_downloads:
- *                               type: integer
- *                               description: 剩余下载次数
- *                             daily_limit:
- *                               type: integer
- *                               description: 每日下载限制
  *             example:
  *               success: true
  *               message: "文件下载成功"
@@ -1151,9 +1195,6 @@ const getCurrentUserStats = async (req, res) => {
  *                 cost_info:
  *                   type: "download_count"
  *                   cost: 1
- *                 download_status:
- *                   remaining_downloads: 9
- *                   daily_limit: 10
  *       400:
  *         description: 请求参数错误
  *       401:
@@ -1224,8 +1265,7 @@ const downloadSingleFile = async (req, res) => {
           user: {
             points: user.points || 0,
             vip_level: user.vip_level || 0
-          },
-          download_status: permissionResult.finalDownloadStatus
+          }
         }
       });
     }
@@ -1253,10 +1293,10 @@ const downloadSingleFile = async (req, res) => {
     // 增加文件下载次数
     await query('UPDATE resource_files SET download_count = download_count + 1 WHERE id = $1', [file.id]);
 
-    // 获取最新的下载状态
-    const { checkAndResetDailyDownloads, getTodayConsumedDownloads } = require('../utils/downloadLimitUtils');
-    const todayConsumed = await getTodayConsumedDownloads(userId);
-    const dailyLimit = permissionResult.finalDownloadStatus?.dailyLimit || 10;
+    // 增加资源下载次数
+    await query('UPDATE resources SET download_count = download_count + 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [resource.id]);
+
+    // 下载成功，返回结果
 
     res.json({
       success: true,
@@ -1277,13 +1317,7 @@ const downloadSingleFile = async (req, res) => {
           version: file.version,
           language: file.language
         },
-        cost_info: permissionResult.costInfo,
-        download_status: {
-          remaining_downloads: Math.max(0, dailyLimit - todayConsumed),
-          daily_limit: dailyLimit,
-          today_consumed: todayConsumed,
-          can_download: todayConsumed < dailyLimit
-        }
+        cost_info: permissionResult.costInfo
       }
     });
 

@@ -23,7 +23,8 @@ class Resource {
       is_public = true,
       status = 'published',
       author_id,
-      tags = []
+      tags = [],
+      official = false
     } = resourceData;
 
     const client = await getClient();
@@ -51,10 +52,10 @@ class Resource {
       const resourceResult = await client.query(
         `INSERT INTO resources (
           title, slug, description, summary, category_id, resource_type_id,
-          cover_image_url, is_public, status, author_id, published_at
+          cover_image_url, is_public, status, author_id, published_at, official
         ) VALUES (
           $1, $2, $3, $4, $5, $6,
-          $7, $8, $9, $10, $11
+          $7, $8, $9, $10, $11, $12
         )
         RETURNING *`,
         [
@@ -68,7 +69,8 @@ class Resource {
           is_public,
           status,
           author_id,
-          new Date()
+          new Date(),
+          official
         ]
       );
 
@@ -290,7 +292,8 @@ class Resource {
       'resource_type_id',
       'cover_image_url',
       'is_public',
-      'status'
+      'status',
+      'official'
     ];
 
     const updateFields = [];

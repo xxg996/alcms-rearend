@@ -46,7 +46,8 @@ class User {
         created_at, updated_at,
         referral_code, inviter_id, invited_at,
         commission_balance, total_commission_earned,
-        points, vip_level, is_vip
+        points, vip_level, is_vip, download_count,
+        daily_download_limit, daily_downloads_used, last_download_reset_date
        FROM users WHERE id = $1`,
       [id]
     );

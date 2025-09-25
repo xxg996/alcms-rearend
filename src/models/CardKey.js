@@ -264,17 +264,17 @@ class CardKey {
         const creditsToAdd = Number(cardKey.download_credits || 0);
         const updateResult = await client.query(
           `UPDATE users
-             SET daily_download_limit = COALESCE(daily_download_limit, 0) + $2,
+             SET download_count = COALESCE(download_count, 0) + $2,
                  updated_at = CURRENT_TIMESTAMP
            WHERE id = $1
-           RETURNING daily_download_limit`,
+           RETURNING download_count`,
           [userId, creditsToAdd]
         );
 
         result.downloadResult = {
           user_id: userId,
           credits_added: creditsToAdd,
-          new_daily_limit: Number(updateResult.rows[0]?.daily_download_limit || creditsToAdd)
+          new_download_count: Number(updateResult.rows[0]?.download_count || creditsToAdd)
         };
 
         const VIP = require('./VIP');

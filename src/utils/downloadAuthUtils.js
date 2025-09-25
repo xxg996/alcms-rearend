@@ -68,14 +68,33 @@ const checkFileDownloadPermission = async (file, userId, user) => {
 
     // 情况1: 既没有积分要求也没有VIP要求 - 免费文件
     if (requiredPoints === 0 && requiredVipLevel === 0) {
-      // 免费文件，优先使用下载次数
-      if (downloadStatus.canDownload) {
-        result.finalDownloadStatus = await consumeDownload(userId);
-        result.costInfo = { type: 'download_count', cost: 1 };
+      // 检查用户VIP状态
+      const isVip = user.vip_level > 0;
+
+      if (isVip) {
+        // VIP用户：优先使用每日下载次数，不足时使用总次数
+        if (downloadStatus.canDownload) {
+          result.finalDownloadStatus = downloadStatus;
+          result.costInfo = { type: 'daily_limit', cost: 1 };
+        } else if (user.download_count > 0) {
+          // 每日次数用完，使用总次数
+          result.finalDownloadStatus = downloadStatus;
+          result.costInfo = { type: 'download_count', cost: 1 };
+        } else {
+          result.reason = `下载次数不足。每日剩余: 0 次，总次数剩余: ${user.download_count || 0} 次`;
+          return result;
+        }
       } else {
-        result.finalDownloadStatus = downloadStatus;
-        result.costInfo = { type: 'free', cost: 0 };
+        // 普通用户：只使用总下载次数
+        if (user.download_count > 0) {
+          result.finalDownloadStatus = downloadStatus;
+          result.costInfo = { type: 'download_count', cost: 1 };
+        } else {
+          result.reason = `下载次数不足，当前剩余: ${user.download_count || 0} 次`;
+          return result;
+        }
       }
+
       result.canDownload = true;
       return result;
     }
@@ -95,7 +114,7 @@ const checkFileDownloadPermission = async (file, userId, user) => {
           };
           return result;
         } else {
-          result.reason = `VIP${requiredVipLevel}用户下载次数不足，当前剩余：${downloadStatus.remaining}`;
+          result.reason = `VIP${requiredVipLevel}用户下载次数不足，当前剩余：${downloadStatus.remainingDownloads}`;
           return result;
         }
       } else {
@@ -119,7 +138,7 @@ const checkFileDownloadPermission = async (file, userId, user) => {
           };
           return result;
         } else {
-          result.reason = `VIP${requiredVipLevel}用户下载次数不足，当前剩余：${downloadStatus.remaining}`;
+          result.reason = `VIP${requiredVipLevel}用户下载次数不足，当前剩余：${downloadStatus.remainingDownloads}`;
           return result;
         }
       } else {
@@ -128,20 +147,12 @@ const checkFileDownloadPermission = async (file, userId, user) => {
       }
     }
 
-    // 情况4: 只设置了积分要求
+    // 情况4: 只设置了积分要求 - VIP和普通用户都使用积分下载
     if (requiredPoints > 0 && requiredVipLevel === 0) {
       // VIP用户享受折扣
       const discountedPoints = Math.ceil(requiredPoints * vipDiscountRate / 10);
 
-      // 优先使用下载次数
-      if (downloadStatus.canDownload) {
-        result.finalDownloadStatus = await consumeDownload(userId);
-        result.canDownload = true;
-        result.costInfo = { type: 'download_count', cost: 1 };
-        return result;
-      }
-
-      // 下载次数不足，使用积分
+      // 检查用户积分是否足够
       if (userPoints < discountedPoints) {
         const discountInfo = userVipLevel > 0 ?
           `（VIP${userVipLevel}享受${vipDiscountRate}折优惠，原价${requiredPoints}积分）` : '';
@@ -181,6 +192,21 @@ const checkFileDownloadPermission = async (file, userId, user) => {
  */
 const executeDownloadPayment = async (file, userId, costInfo) => {
   try {
+    // 免费类型，不需要扣费
+    if (costInfo.type === 'free' || costInfo.type === 'downloaded_today') {
+      // 直接记录下载记录，不扣费
+    }
+    // 如果需要扣每日下载次数或VIP下载次数
+    else if ((costInfo.type === 'daily_limit' || costInfo.type === 'vip_download_count') && costInfo.cost > 0) {
+      await consumeDownload(userId);
+    }
+    // 如果需要扣总下载次数
+    else if (costInfo.type === 'download_count' && costInfo.cost > 0) {
+      await query(`
+        UPDATE users SET download_count = download_count - $1 WHERE id = $2
+      `, [costInfo.cost, userId]);
+    }
+
     // 如果需要扣积分（包括VIP折扣积分）
     if ((costInfo.type === 'points' || costInfo.type === 'vip_discounted_points') && costInfo.cost > 0) {
       // 扣除用户积分
@@ -233,20 +259,28 @@ const executeDownloadPayment = async (file, userId, costInfo) => {
       }
     }
 
-    // 记录今日下载记录 - 根据消费类型决定记录的积分成本
+    // 记录今日下载记录 - 根据消费类型决定记录的积分成本和下载次数成本
     let actualPointsCost = 0;
+    let downloadCountCost = 0;
+
     if (costInfo.type === 'points' || costInfo.type === 'vip_discounted_points') {
       actualPointsCost = costInfo.cost;
+    } else if (costInfo.type === 'download_count' || costInfo.type === 'daily_limit' || costInfo.type === 'vip_download_count') {
+      downloadCountCost = costInfo.cost;
     }
-    // 下载次数类型记录为0积分成本
 
     await query(`
-      INSERT INTO daily_purchases (user_id, resource_id, file_id, purchase_date, points_cost)
-      VALUES ($1, $2, $3, CURRENT_DATE, $4)
-      ON CONFLICT (user_id, resource_id, purchase_date) DO UPDATE SET
+      INSERT INTO daily_purchases (
+        user_id, resource_id, file_id, purchase_date, points_cost,
+        download_type, cost_type, download_count_cost
+      )
+      VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, $6, $7)
+      ON CONFLICT (user_id, file_id, purchase_date) DO UPDATE SET
         points_cost = GREATEST(daily_purchases.points_cost, EXCLUDED.points_cost),
-        file_id = COALESCE(daily_purchases.file_id, EXCLUDED.file_id)
-    `, [userId, file.resource_id, file.id, actualPointsCost]);
+        download_count_cost = GREATEST(daily_purchases.download_count_cost, EXCLUDED.download_count_cost),
+        cost_type = EXCLUDED.cost_type,
+        resource_id = EXCLUDED.resource_id
+    `, [userId, file.resource_id, file.id, actualPointsCost, 'normal', costInfo.type, downloadCountCost]);
 
     return true;
 

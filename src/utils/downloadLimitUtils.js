@@ -7,6 +7,17 @@ const { query } = require('../config/database');
 const { logger } = require('./logger');
 
 /**
+ * 获取中国时区的当前日期字符串 (YYYY-MM-DD)
+ * @returns {string} 格式化的日期字符串
+ */
+function getChinaDateString() {
+  const now = new Date();
+  // 将UTC时间转换为中国时间 (UTC+8)
+  const chinaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+  return chinaTime.toISOString().split('T')[0];
+}
+
+/**
  * 检查并重置用户的每日下载次数
  * @param {number} userId - 用户ID
  * @returns {Promise<Object>} 用户当前下载状态
@@ -31,8 +42,13 @@ async function checkAndResetDailyDownloads(userId) {
     }
 
     const user = userResult.rows[0];
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD格式
+
+    // 获取数据库的当前日期来确保一致性
+    const dateResult = await query('SELECT CURRENT_DATE as today');
+    const today = dateResult.rows[0].today.toISOString().split('T')[0];
     const lastResetDate = user.last_download_reset_date?.toISOString().split('T')[0];
+
+    // 日期比较：使用数据库的日期来确保一致性
 
   // 如果是新的一天，根据VIP状态决定是否重置
   if (lastResetDate !== today) {
@@ -43,18 +59,28 @@ async function checkAndResetDailyDownloads(userId) {
       try {
         await client.query('BEGIN');
 
-        await client.query(`
+        // 重置每日使用次数，但不修改下载限制配额
+        logger.info(`用户${userId} VIP每日配额重置`, {
+          userId,
+          date: today
+        });
+
+        const resetResult = await client.query(`
           UPDATE users
           SET
             daily_downloads_used = 0,
-            last_download_reset_date = CURRENT_DATE
+            last_download_reset_date = $2::date
           WHERE id = $1
-        `, [userId]);
+          RETURNING last_download_reset_date
+        `, [userId, today]);
+
+        const newResetDate = resetResult.rows[0]?.last_download_reset_date;
+        logger.info(`用户 ${userId} (VIP) 的每日下载次数已重置`);
 
         const cleanupResult = await client.query(`
           DELETE FROM daily_purchases
-          WHERE user_id = $1 AND purchase_date < CURRENT_DATE
-        `, [userId]);
+          WHERE user_id = $1 AND purchase_date < $2::date
+        `, [userId, today]);
 
         await client.query('COMMIT');
 
@@ -62,7 +88,9 @@ async function checkAndResetDailyDownloads(userId) {
         user.daily_downloads_used = 0;
         user.last_download_reset_date = new Date();
 
-        logger.info(`用户 ${userId} (VIP) 的每日下载次数已重置，清理了 ${cleanupCount} 条过期购买记录`);
+        if (cleanupCount > 0) {
+          logger.info(`清理了 ${cleanupCount} 条过期购买记录`);
+        }
       } catch (error) {
         await client.query('ROLLBACK');
         logger.error(`用户 ${userId} 重置失败:`, error);
@@ -71,21 +99,25 @@ async function checkAndResetDailyDownloads(userId) {
         client.release();
       }
     } else {
-      await query(
+      const resetResult = await query(
         `UPDATE users
-            SET last_download_reset_date = CURRENT_DATE,
+            SET last_download_reset_date = $2::date,
                 updated_at = CURRENT_TIMESTAMP
-          WHERE id = $1`,
-        [userId]
+          WHERE id = $1
+          RETURNING last_download_reset_date`,
+        [userId, today]
       );
+
+      const newResetDate = resetResult.rows[0]?.last_download_reset_date;
+      logger.info(`用户 ${userId} (普通) 的每日下载记录已重置`);
 
       await query(
         `DELETE FROM daily_purchases
-          WHERE user_id = $1 AND purchase_date < CURRENT_DATE`,
-        [userId]
+          WHERE user_id = $1 AND purchase_date < $2::date`,
+        [userId, today]
       );
 
-      user.last_download_reset_date = new Date();
+      user.last_download_reset_date = newResetDate;
     }
   }
 
@@ -95,9 +127,9 @@ async function checkAndResetDailyDownloads(userId) {
     return {
       userId: user.id,
       dailyLimit: actualLimit,
-      dailyUsed: user.daily_downloads_used,
-      remainingDownloads: Math.max(0, actualLimit - user.daily_downloads_used),
-      canDownload: user.daily_downloads_used < actualLimit
+      dailyUsed: user.daily_downloads_used || 0,
+      remainingDownloads: Math.max(0, actualLimit - (user.daily_downloads_used || 0)),
+      canDownload: (user.daily_downloads_used || 0) < actualLimit
     };
 
   } catch (error) {
@@ -140,7 +172,7 @@ async function getUserActualDownloadLimit(userId, user) {
 }
 
 /**
- * 消耗一次下载次数
+ * 消耗一次每日下载配额（仅适用于VIP用户的每日配额）
  * @param {number} userId - 用户ID
  * @returns {Promise<Object>} 更新后的下载状态
  */
@@ -153,7 +185,7 @@ async function consumeDownload(userId) {
       throw new Error(`今日下载次数已用完，限制: ${downloadStatus.dailyLimit}次`);
     }
 
-    // 增加已使用次数
+    // 只增加使用统计，daily_download_limit保持为固定的每日限制总数
     await query(`
       UPDATE users
       SET daily_downloads_used = daily_downloads_used + 1
@@ -164,12 +196,12 @@ async function consumeDownload(userId) {
     return {
       ...downloadStatus,
       dailyUsed: downloadStatus.dailyUsed + 1,
-      remainingDownloads: downloadStatus.remainingDownloads - 1,
-      canDownload: downloadStatus.remainingDownloads > 1
+      remainingDownloads: downloadStatus.dailyLimit - (downloadStatus.dailyUsed + 1),
+      canDownload: (downloadStatus.dailyUsed + 1) < downloadStatus.dailyLimit
     };
 
   } catch (error) {
-    logger.error('消耗下载次数失败:', error);
+    logger.error('消耗每日下载配额失败:', error);
     throw error;
   }
 }

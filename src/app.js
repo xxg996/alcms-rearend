@@ -35,6 +35,10 @@ initializeBuckets().catch(err => {
 const { startDailyResetTask } = require('./tasks/dailyResetTask');
 const dailyResetJob = startDailyResetTask();
 
+// 启动Alist token定时刷新任务
+const { alistTokenScheduler } = require('./services/alistTokenScheduler');
+alistTokenScheduler.start();
+
 // 导入 Swagger 配置
 const { swaggerDocument, swaggerUi, swaggerOptions } = require('./config/swagger');
 
@@ -171,6 +175,7 @@ app.use('/api/admin/download', require('./routes/admin/download'));
 app.use('/api/admin/referral', require('./routes/admin/referral'));
 app.use('/api/admin/logs', require('./routes/admin/logs'));
 app.use('/api/admin/system-settings', require('./routes/admin/systemSettings'));
+app.use('/api/admin/alist', require('./routes/admin/alist'));
 app.use('/api/admin', require('./routes/admin/resourceFiles'));
 
 // 资源文件管理路由（支持作者权限，去除/admin前缀）
@@ -199,6 +204,9 @@ app.use('/api/admin/favorites', require('./routes/admin/favorites'));
 // 社区路由注册
 app.use('/api/community', require('./routes/community'));
 app.use('/api/admin/community', require('./routes/admin/community'));
+
+// Alist文件管理路由注册
+app.use('/api/alist', require('./routes/alist'));
 
 // Swagger API 文档
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));

@@ -440,7 +440,8 @@ class ResourceController {
         is_free = true,
         required_points = 0,
         status,
-        tags = []
+        tags = [],
+        official = false
       } = req.body;
 
       if (!title || resource_type_id === undefined || resource_type_id === null) {
@@ -448,6 +449,19 @@ class ResourceController {
           success: false,
           message: '标题和资源类型为必填字段'
         });
+      }
+
+      // 检查设置official字段的权限
+      if (official === true) {
+        const userPermissions = await require('../models/User').getUserPermissions(userId);
+        const canPublishOfficial = userPermissions.some(p => p.name === 'resource:publish_official');
+
+        if (!canPublishOfficial) {
+          return res.status(403).json({
+            success: false,
+            message: '无权发布官方资源'
+          });
+        }
       }
 
       const tagIds = await normalizeTagInputs(tags);
@@ -475,7 +489,8 @@ class ResourceController {
         required_points: toNonNegativeInt(required_points),
         status: status || 'published',
         author_id: userId,
-        tags: tagIds
+        tags: tagIds,
+        official: toBoolean(official, false)
       };
 
       const resource = await Resource.create(resourceData);
@@ -621,6 +636,19 @@ class ResourceController {
         });
       }
 
+      // 检查修改official字段的权限
+      if (Object.prototype.hasOwnProperty.call(updateData, 'official') && updateData.official === true) {
+        const userPermissions = await require('../models/User').getUserPermissions(userId);
+        const canPublishOfficial = userPermissions.some(p => p.name === 'resource:publish_official');
+
+        if (!canPublishOfficial) {
+          return res.status(403).json({
+            success: false,
+            message: '无权设置资源为官方资源'
+          });
+        }
+      }
+
       const sanitizedUpdate = {};
 
       if (updateData.tags) {
@@ -654,6 +682,7 @@ class ResourceController {
       assignIfPresent('is_public', (value) => toBoolean(value, resource.is_public));
       assignIfPresent('is_free', (value) => toBoolean(value, resource.is_free));
       assignIfPresent('required_points', (value) => toNonNegativeInt(value, resource.required_points || 0));
+      assignIfPresent('official', (value) => toBoolean(value, resource.official || false));
 
       if (Object.keys(sanitizedUpdate).length === 0 && !updateData.tags) {
         return res.status(400).json({
