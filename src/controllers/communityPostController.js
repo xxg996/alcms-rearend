@@ -158,7 +158,43 @@ class CommunityPostController {
   }
 
   /**
-   * 获取帖子详情
+   * @swagger
+   * /api/community/posts/{id}:
+   *   get:
+   *     summary: 获取帖子详情
+   *     description: 根据ID获取指定帖子的详细信息，包含完整内容和互动数据
+   *     tags: [社区帖子管理相关]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 帖子ID
+   *         example: 1
+   *     responses:
+   *       200:
+   *         description: 获取帖子详情成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/ApiResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/CommunityPostDetail'
+   *       404:
+   *         description: 帖子不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "帖子不存在"
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getPostById(req, res) {
     try {
@@ -308,7 +344,71 @@ class CommunityPostController {
   }
 
   /**
-   * 更新帖子
+   * @swagger
+   * /api/community/posts/{id}:
+   *   put:
+   *     summary: 更新帖子
+   *     description: 更新指定ID的帖子信息，只有帖子作者或有相应权限的管理员可以操作
+   *     tags: [社区帖子管理相关]
+   *     security:
+   *       - BearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 帖子ID
+   *         example: 1
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/UpdatePostRequest'
+   *           example:
+   *             title: "更新后的帖子标题"
+   *             content: "更新后的帖子内容..."
+   *             tags: ["技术", "讨论"]
+   *             is_pinned: false
+   *             is_featured: false
+   *             status: "published"
+   *     responses:
+   *       200:
+   *         description: 更新帖子成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/ApiResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/CommunityPost'
+   *       400:
+   *         $ref: '#/components/responses/ValidationError'
+   *       401:
+   *         $ref: '#/components/responses/UnauthorizedError'
+   *       403:
+   *         description: 没有权限编辑该帖子
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "没有权限编辑该帖子"
+   *       404:
+   *         description: 帖子不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "帖子不存在"
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async updatePost(req, res) {
     try {
@@ -340,7 +440,54 @@ class CommunityPostController {
   }
 
   /**
-   * 删除帖子
+   * @swagger
+   * /api/community/posts/{id}:
+   *   delete:
+   *     summary: 删除帖子
+   *     description: 删除指定ID的帖子，只有帖子作者或有相应权限的管理员可以操作
+   *     tags: [社区帖子管理相关]
+   *     security:
+   *       - BearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 帖子ID
+   *         example: 1
+   *     responses:
+   *       200:
+   *         description: 删除帖子成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApiResponse'
+   *             example:
+   *               success: true
+   *               message: "删除帖子成功"
+   *       401:
+   *         $ref: '#/components/responses/UnauthorizedError'
+   *       403:
+   *         description: 没有权限删除该帖子
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "没有权限删除该帖子"
+   *       404:
+   *         description: 帖子不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "帖子不存在"
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async deletePost(req, res) {
     try {

@@ -123,7 +123,43 @@ class CommunityCommentController {
   }
 
   /**
-   * 获取评论详情
+   * @swagger
+   * /api/community/comments/{id}:
+   *   get:
+   *     summary: 获取评论详情
+   *     description: 根据ID获取指定评论的详细信息
+   *     tags: [社区评论管理相关]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 评论ID
+   *         example: 1
+   *     responses:
+   *       200:
+   *         description: 获取评论详情成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/ApiResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/CommunityComment'
+   *       404:
+   *         description: 评论不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "评论不存在"
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async getCommentById(req, res) {
     try {
@@ -251,7 +287,81 @@ class CommunityCommentController {
   }
 
   /**
-   * 更新评论
+   * @swagger
+   * /api/community/comments/{id}:
+   *   put:
+   *     summary: 更新评论
+   *     description: 更新指定ID的评论内容，只有评论作者或有相应权限的管理员可以操作
+   *     tags: [社区评论管理相关]
+   *     security:
+   *       - BearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 评论ID
+   *         example: 1
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - content
+   *             properties:
+   *               content:
+   *                 type: string
+   *                 description: 评论内容
+   *                 minLength: 1
+   *                 maxLength: 2000
+   *           example:
+   *             content: "更新后的评论内容"
+   *     responses:
+   *       200:
+   *         description: 更新评论成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/ApiResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/CommunityComment'
+   *       400:
+   *         description: 评论内容不能为空
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "评论内容不能为空"
+   *       401:
+   *         $ref: '#/components/responses/UnauthorizedError'
+   *       403:
+   *         description: 没有权限编辑该评论
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "没有权限编辑该评论"
+   *       404:
+   *         description: 评论不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "评论不存在"
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async updateComment(req, res) {
     try {
@@ -284,7 +394,66 @@ class CommunityCommentController {
   }
 
   /**
-   * 删除评论
+   * @swagger
+   * /api/community/comments/{id}:
+   *   delete:
+   *     summary: 删除评论
+   *     description: 删除指定ID的评论，只有评论作者或有相应权限的管理员可以操作
+   *     tags: [社区评论管理相关]
+   *     security:
+   *       - BearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 评论ID
+   *         example: 1
+   *     requestBody:
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               reason:
+   *                 type: string
+   *                 description: 删除原因（可选，管理员删除时可提供）
+   *                 maxLength: 200
+   *           example:
+   *             reason: "违反社区规定"
+   *     responses:
+   *       200:
+   *         description: 删除评论成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApiResponse'
+   *             example:
+   *               success: true
+   *               message: "删除评论成功"
+   *       401:
+   *         $ref: '#/components/responses/UnauthorizedError'
+   *       403:
+   *         description: 没有权限删除该评论
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "没有权限删除该评论"
+   *       404:
+   *         description: 评论不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "评论不存在"
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async deleteComment(req, res) {
     try {

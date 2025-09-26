@@ -214,7 +214,70 @@ class CommunityBoardController {
   }
 
   /**
-   * 更新板块
+   * @swagger
+   * /api/community/boards/{id}:
+   *   put:
+   *     summary: 更新板块
+   *     description: 更新指定ID的社区板块信息，只有管理员可以操作
+   *     tags: [社区板块管理相关]
+   *     security:
+   *       - BearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 板块ID
+   *         example: 1
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/UpdateBoardRequest'
+   *           example:
+   *             display_name: "技术讨论区"
+   *             description: "专业技术话题讨论和交流"
+   *             icon_url: "https://example.com/new-tech-icon.png"
+   *             sort_order: 2
+   *             is_active: true
+   *     responses:
+   *       200:
+   *         description: 更新板块成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/ApiResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       $ref: '#/components/schemas/CommunityBoard'
+   *       400:
+   *         description: 请求参数错误或板块名称已存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "板块名称已存在"
+   *       401:
+   *         $ref: '#/components/responses/UnauthorizedError'
+   *       403:
+   *         $ref: '#/components/responses/ForbiddenError'
+   *       404:
+   *         description: 板块不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "板块不存在"
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async updateBoard(req, res) {
     try {
@@ -243,7 +306,56 @@ class CommunityBoardController {
   }
 
   /**
-   * 删除板块
+   * @swagger
+   * /api/community/boards/{id}:
+   *   delete:
+   *     summary: 删除板块
+   *     description: 删除指定的社区板块，只有管理员可以操作
+   *     tags: [社区板块管理相关]
+   *     security:
+   *       - BearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 板块ID
+   *         example: 1
+   *     responses:
+   *       200:
+   *         description: 删除板块成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApiResponse'
+   *             example:
+   *               success: true
+   *               message: "删除板块成功"
+   *       400:
+   *         description: 该板块下还有帖子，无法删除
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "该板块下还有帖子，无法删除"
+   *       404:
+   *         description: 板块不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *             example:
+   *               success: false
+   *               message: "板块不存在"
+   *       401:
+   *         $ref: '#/components/responses/UnauthorizedError'
+   *       403:
+   *         $ref: '#/components/responses/ForbiddenError'
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
    */
   static async deleteBoard(req, res) {
     try {
