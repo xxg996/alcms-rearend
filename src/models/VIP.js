@@ -13,7 +13,11 @@ class VIP {
    */
   static async getAllLevels(includeInactive = false) {
     let queryStr = `
-      SELECT * FROM vip_levels
+      SELECT
+        id, level, name, display_name, description, benefits, price,
+        quarterly_price, yearly_price, is_active, daily_download_limit,
+        points_discount_rate, created_at, updated_at
+      FROM vip_levels
     `;
 
     if (!includeInactive) {
@@ -31,7 +35,11 @@ class VIP {
    */
   static async getLevelById(level) {
     const queryStr = `
-      SELECT * FROM vip_levels 
+      SELECT
+        id, level, name, display_name, description, benefits, price,
+        quarterly_price, yearly_price, is_active, daily_download_limit,
+        points_discount_rate, created_at, updated_at
+      FROM vip_levels
       WHERE level = $1 AND is_active = true
     `;
     const result = await query(queryStr, [level]);
@@ -48,16 +56,15 @@ class VIP {
       display_name,
       description,
       benefits,
-      price,
-      duration_days
+      price
     } = levelData;
 
     const queryStr = `
-      INSERT INTO vip_levels (level, name, display_name, description, benefits, price, duration_days)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO vip_levels (level, name, display_name, description, benefits, price)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
-    const values = [level, name, display_name, description, benefits, price, duration_days];
+    const values = [level, name, display_name, description, benefits, price];
     const result = await query(queryStr, values);
     return result.rows[0];
   }
@@ -84,8 +91,8 @@ class VIP {
 
     values.push(level);
     const queryStr = `
-      UPDATE vip_levels 
-      SET ${fields.join(', ')}
+      UPDATE vip_levels
+      SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
       WHERE level = $${paramCount}
       RETURNING *
     `;

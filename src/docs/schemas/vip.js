@@ -9,7 +9,6 @@
  *         - name
  *         - display_name
  *         - price
- *         - duration_days
  *         - created_at
  *         - updated_at
  *       properties:
@@ -55,18 +54,13 @@
  *           nullable: true
  *           description: 年度价格（12个月）
  *           example: 179.99
- *         discount_rate:
- *           type: number
- *           format: decimal
- *           nullable: true
- *           minimum: 0
- *           maximum: 1
- *           description: 折扣率（0-1之间，如0.8表示8折）
- *           example: 0.85
- *         duration_days:
+ *         points_discount_rate:
  *           type: integer
- *           description: VIP有效期（天数），0表示永久
- *           example: 30
+ *           nullable: true
+ *           minimum: 1
+ *           maximum: 10
+ *           description: 积分折扣率（1-10，如8表示8折）
+ *           example: 8
  *         daily_download_limit:
  *           type: integer
  *           description: 每日下载次数限制
@@ -142,18 +136,12 @@
  *           minimum: 0
  *           description: 年度价格（12个月，可选）
  *           example: 359.99
- *         discount_rate:
- *           type: number
- *           format: decimal
- *           minimum: 0
- *           maximum: 1
- *           description: 折扣率（0-1之间，如0.8表示8折，可选）
- *           example: 0.85
- *         duration_days:
+ *         points_discount_rate:
  *           type: integer
- *           minimum: 0
- *           description: VIP有效期（天数），0表示永久
- *           example: 90
+ *           minimum: 1
+ *           maximum: 10
+ *           description: 积分折扣率（1-10，如8表示8折，可选）
+ *           example: 8
  * 
  *     UpdateVIPLevelRequest:
  *       type: object
@@ -197,18 +185,12 @@
  *           minimum: 0
  *           description: 年度价格（12个月）
  *           example: 299.99
- *         discount_rate:
- *           type: number
- *           format: decimal
- *           minimum: 0
- *           maximum: 1
- *           description: 折扣率（0-1之间，如0.8表示8折）
- *           example: 0.85
- *         duration_days:
+ *         points_discount_rate:
  *           type: integer
- *           minimum: 0
- *           description: VIP有效期（天数）
- *           example: 60
+ *           minimum: 1
+ *           maximum: 10
+ *           description: 积分折扣率（1-10，如8表示8折）
+ *           example: 8
  *         is_active:
  *           type: boolean
  *           description: 是否启用该等级

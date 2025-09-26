@@ -46,7 +46,6 @@ const { logger } = require('../utils/logger');
  *                     download_limit: 100
  *                     ad_free: true
  *                   price: 19.99
- *                   duration_days: 30
  *                   is_active: true
  *       500:
  *         $ref: '#/components/responses/ServerError'
@@ -111,7 +110,6 @@ const getAllLevels = async (req, res) => {
  *                   ad_free: true
  *                   priority_support: false
  *                 price: "19.99"
- *                 duration_days: 30
  *                 is_active: true
  *                 created_at: "2025-09-13T17:27:05.489Z"
  *                 updated_at: "2025-09-13T17:27:05.489Z"
@@ -181,8 +179,7 @@ const getLevelById = async (req, res) => {
  *             price: 39.99
  *             quarterly_price: 99.99
  *             yearly_price: 359.99
- *             discount_rate: 0.85
- *             duration_days: 90
+ *             points_discount_rate: 8
  *     responses:
  *       201:
  *         description: VIP等级创建成功
@@ -210,7 +207,6 @@ const getLevelById = async (req, res) => {
  *                   priority_support: true
  *                   exclusive_content: true
  *                 price: "39.99"
- *                 duration_days: 90
  *                 is_active: true
  *                 created_at: "2025-09-13T17:27:05.489Z"
  *                 updated_at: "2025-09-13T17:27:05.489Z"
@@ -248,8 +244,7 @@ const createLevel = async (req, res) => {
       display_name,
       description,
       benefits,
-      price,
-      duration_days
+      price
     } = req.body;
 
     // 验证必填字段
@@ -274,8 +269,7 @@ const createLevel = async (req, res) => {
       display_name,
       description,
       benefits: benefits || {},
-      price: parseFloat(price) || 0,
-      duration_days: parseInt(duration_days) || 30
+      price: parseFloat(price) || 0
     });
     
     res.status(201).json({
@@ -332,8 +326,7 @@ const createLevel = async (req, res) => {
  *             price: 29.99
  *             quarterly_price: 79.99
  *             yearly_price: 299.99
- *             discount_rate: 0.85
- *             duration_days: 60
+ *             points_discount_rate: 8
  *     responses:
  *       200:
  *         description: VIP等级更新成功
@@ -360,7 +353,6 @@ const createLevel = async (req, res) => {
  *                   ad_free: true
  *                   priority_support: true
  *                 price: "29.99"
- *                 duration_days: 60
  *                 is_active: true
  *                 created_at: "2025-09-13T17:27:05.489Z"
  *                 updated_at: "2025-09-13T17:35:12.123Z"
