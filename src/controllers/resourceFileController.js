@@ -4,7 +4,24 @@
  */
 
 const ResourceFile = require('../models/ResourceFile');
+const AuditLog = require('../models/AuditLog');
 const { logger } = require('../utils/logger');
+
+const getRequestMeta = (req) => ({
+  ipAddress: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip,
+  userAgent: req.get('user-agent') || ''
+});
+
+const recordSystemLog = async (req, payload) => {
+  const operatorId = req.user?.id || null;
+  const { ipAddress, userAgent } = getRequestMeta(req);
+  await AuditLog.createSystemLog({
+    operatorId,
+    ipAddress,
+    userAgent,
+    ...payload
+  });
+};
 
 /**
  * @swagger
@@ -213,6 +230,18 @@ const createResourceFile = async (req, res) => {
 
     const file = await ResourceFile.create(fileData);
 
+    await recordSystemLog(req, {
+      targetType: 'resource_file',
+      targetId: file?.id || null,
+      action: 'resource_file_create',
+      summary: `新增资源文件 ${name}`,
+      detail: {
+        resourceId: fileData.resourceId,
+        requiredPoints: fileData.requiredPoints,
+        requiredVipLevel: fileData.requiredVipLevel
+      }
+    });
+
     res.status(201).json({
       success: true,
       message: '资源文件添加成功',
@@ -220,6 +249,16 @@ const createResourceFile = async (req, res) => {
     });
   } catch (error) {
     logger.error('创建资源文件失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'resource_file',
+      targetId: null,
+      action: 'resource_file_create_failed',
+      summary: '创建资源文件失败',
+      detail: {
+        resourceId: parseInt(req.params?.resourceId, 10) || null,
+        error: error.message
+      }
+    });
     res.status(500).json({
       success: false,
       message: '创建资源文件失败'
@@ -317,11 +356,30 @@ const updateResourceFile = async (req, res) => {
     const file = await ResourceFile.update(parseInt(fileId), mappedData);
 
     if (!file) {
+      await recordSystemLog(req, {
+        targetType: 'resource_file',
+        targetId: parseInt(fileId, 10) || null,
+        action: 'resource_file_update_failed',
+        summary: '更新资源文件失败，目标不存在',
+        detail: {
+          updateKeys: Object.keys(mappedData)
+        }
+      });
       return res.status(404).json({
         success: false,
         message: '文件不存在'
       });
     }
+
+    await recordSystemLog(req, {
+      targetType: 'resource_file',
+      targetId: file.id,
+      action: 'resource_file_update',
+      summary: `更新资源文件 ${file.name || fileId}`,
+      detail: {
+        updateKeys: Object.keys(mappedData)
+      }
+    });
 
     res.json({
       success: true,
@@ -330,6 +388,13 @@ const updateResourceFile = async (req, res) => {
     });
   } catch (error) {
     logger.error('更新资源文件失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'resource_file',
+      targetId: parseInt(req.params?.fileId, 10) || null,
+      action: 'resource_file_update_failed',
+      summary: '更新资源文件失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '更新资源文件失败'
@@ -394,11 +459,27 @@ const deleteResourceFile = async (req, res) => {
     const file = await ResourceFile.softDelete(parseInt(fileId));
 
     if (!file) {
+      await recordSystemLog(req, {
+        targetType: 'resource_file',
+        targetId: parseInt(fileId, 10) || null,
+        action: 'resource_file_delete_failed',
+        summary: '删除资源文件失败，目标不存在'
+      });
       return res.status(404).json({
         success: false,
         message: '文件不存在'
       });
     }
+
+    await recordSystemLog(req, {
+      targetType: 'resource_file',
+      targetId: file.id,
+      action: 'resource_file_delete',
+      summary: `删除资源文件 ${file.name || file.id}`,
+      detail: {
+        resourceId: file.resource_id || file.resourceId || null
+      }
+    });
 
     res.json({
       success: true,
@@ -406,6 +487,13 @@ const deleteResourceFile = async (req, res) => {
     });
   } catch (error) {
     logger.error('删除资源文件失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'resource_file',
+      targetId: parseInt(req.params?.fileId, 10) || null,
+      action: 'resource_file_delete_failed',
+      summary: '删除资源文件失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '删除资源文件失败'
@@ -503,6 +591,16 @@ const updateFileSort = async (req, res) => {
 
     const files = await ResourceFile.updateSortOrder(parseInt(resourceId), sort_data);
 
+    await recordSystemLog(req, {
+      targetType: 'resource_file',
+      targetId: parseInt(resourceId, 10) || null,
+      action: 'resource_file_sort_update',
+      summary: `更新资源 ${resourceId} 的文件排序`,
+      detail: {
+        count: sort_data.length
+      }
+    });
+
     res.json({
       success: true,
       message: '文件排序更新成功',
@@ -510,6 +608,13 @@ const updateFileSort = async (req, res) => {
     });
   } catch (error) {
     logger.error('更新文件排序失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'resource_file',
+      targetId: parseInt(req.params?.resourceId, 10) || null,
+      action: 'resource_file_sort_update_failed',
+      summary: '更新文件排序失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '更新文件排序失败'
@@ -824,6 +929,18 @@ const batchDeleteResourceFiles = async (req, res) => {
       results[index].status === 'rejected' || !results[index].value
     );
 
+    await recordSystemLog(req, {
+      targetType: 'resource_file',
+      targetId: null,
+      action: 'resource_file_batch_delete',
+      summary: `批量删除资源文件 ${deletedCount} 个`,
+      detail: {
+        fileIds: file_ids,
+        failedIds,
+        deletedCount
+      }
+    });
+
     res.json({
       success: true,
       message: `批量删除文件成功，共删除${deletedCount}个文件`,
@@ -834,6 +951,13 @@ const batchDeleteResourceFiles = async (req, res) => {
     });
   } catch (error) {
     logger.error('批量删除资源文件失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'resource_file',
+      targetId: null,
+      action: 'resource_file_batch_delete_failed',
+      summary: '批量删除资源文件失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '批量删除资源文件失败'
@@ -1011,6 +1135,17 @@ const batchUpdateResourceFiles = async (req, res) => {
       })
       .filter(Boolean);
 
+    await recordSystemLog(req, {
+      targetType: 'resource_file',
+      targetId: null,
+      action: 'resource_file_batch_update',
+      summary: `批量更新资源文件 ${successfulUpdates.length} 个`,
+      detail: {
+        successIds: successfulUpdates.map(item => item.value.id),
+        failed: failedUpdates
+      }
+    });
+
     res.json({
       success: true,
       message: `批量更新文件成功，共更新${successfulUpdates.length}个文件`,
@@ -1021,6 +1156,13 @@ const batchUpdateResourceFiles = async (req, res) => {
     });
   } catch (error) {
     logger.error('批量更新资源文件失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'resource_file',
+      targetId: null,
+      action: 'resource_file_batch_update_failed',
+      summary: '批量更新资源文件失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '批量更新资源文件失败'

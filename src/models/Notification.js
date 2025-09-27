@@ -460,7 +460,7 @@ class Notification {
         vo.payment_method,
         vo.created_at,
         vo.updated_at
-      FROM vip_orders vo
+      FROM orders vo
       WHERE vo.id = $1
     `;
 

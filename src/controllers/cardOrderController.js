@@ -201,7 +201,7 @@ class CardOrderController {
       // 获取总数
       const countQuery = `
         SELECT COUNT(*) as total
-        FROM vip_orders vo
+        FROM orders vo
         WHERE ${whereClause}
       `;
       const countResult = await query(countQuery, values);
@@ -228,7 +228,7 @@ class CardOrderController {
           rc.event_type as commission_event_type,
           rc.status as commission_status,
           inviter.username as inviter_username
-        FROM vip_orders vo
+        FROM orders vo
         LEFT JOIN card_keys ck ON vo.card_key_code = ck.code
         LEFT JOIN referral_commissions rc ON rc.order_id = vo.id
         LEFT JOIN users inviter ON rc.inviter_id = inviter.id
@@ -286,7 +286,7 @@ class CardOrderController {
           SUM(vo.price) as total_amount,
           SUM(CASE WHEN vo.vip_level > 0 THEN vo.price ELSE 0 END) as vip_total_amount,
           SUM(CASE WHEN vo.vip_level = 0 THEN vo.price ELSE 0 END) as points_total_amount
-        FROM vip_orders vo
+        FROM orders vo
         WHERE vo.user_id = $1 AND vo.payment_method = 'card_key'
       `;
       const statsResult = await query(statsQuery, [userId]);
@@ -373,7 +373,7 @@ class CardOrderController {
           inviter.id as inviter_id,
           inviter.username as inviter_username,
           inviter.nickname as inviter_nickname
-        FROM vip_orders vo
+        FROM orders vo
         LEFT JOIN card_keys ck ON vo.card_key_code = ck.code
         LEFT JOIN referral_commissions rc ON rc.order_id = vo.id
         LEFT JOIN users inviter ON rc.inviter_id = inviter.id

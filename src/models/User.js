@@ -461,7 +461,7 @@ class User {
       await client.query('DELETE FROM resource_comments WHERE user_id = $1', [userId]);
 
       // 3. 删除VIP相关数据
-      await client.query('DELETE FROM vip_orders WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM orders WHERE user_id = $1', [userId]);
 
       // 4. 删除社区相关数据
       await client.query('DELETE FROM community_favorites WHERE user_id = $1', [userId]);

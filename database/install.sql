@@ -571,8 +571,8 @@ CREATE TABLE vip_levels (
     daily_download_limit INTEGER DEFAULT 50
 );
 
--- VIP订单表
-CREATE TABLE vip_orders (
+-- 订单表（包含VIP订单与卡密订单等）
+CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id),
     vip_level INTEGER NOT NULL,
@@ -593,7 +593,7 @@ CREATE TABLE referral_commissions (
     id SERIAL PRIMARY KEY,
     inviter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     invitee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    order_id INTEGER NOT NULL REFERENCES vip_orders(id) ON DELETE CASCADE,
+    order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     order_amount DECIMAL(12,2) NOT NULL,
     commission_amount DECIMAL(12,2) NOT NULL,
     commission_rate DECIMAL(6,4) NOT NULL,
@@ -877,9 +877,9 @@ CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 CREATE INDEX idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
 
 -- VIP订单索引
-CREATE INDEX idx_vip_orders_user_id ON vip_orders(user_id);
-CREATE INDEX idx_vip_orders_status ON vip_orders(status);
-CREATE INDEX idx_vip_orders_order_no ON vip_orders(order_no);
+CREATE INDEX idx_orders_user_id ON orders(user_id);
+CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_order_no ON orders(order_no);
 
 -- 社区相关索引
 CREATE INDEX idx_community_posts_board_id ON community_posts(board_id);

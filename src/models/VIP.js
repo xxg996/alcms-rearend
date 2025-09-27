@@ -320,7 +320,7 @@ class VIP {
     }
 
     const queryStr = `
-      INSERT INTO vip_orders 
+      INSERT INTO orders 
       (user_id, vip_level, price, duration_days, expire_at, payment_method, order_no, card_key_code)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
@@ -335,7 +335,7 @@ class VIP {
    */
   static async updateOrderStatus(orderId, status) {
     const queryStr = `
-      UPDATE vip_orders 
+      UPDATE orders 
       SET status = $2
       WHERE id = $1
       RETURNING *

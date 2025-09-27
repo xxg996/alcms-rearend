@@ -45,7 +45,7 @@ class HealthChecker {
     try {
       const requiredTables = [
         'users', 'roles', 'permissions', 'role_permissions', 'user_roles',
-        'vip_levels', 'vip_orders', 'card_keys',
+        'vip_levels', 'orders', 'card_keys',
         'points_records', 'checkin_configs', 'user_checkins'
       ];
 

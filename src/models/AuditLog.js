@@ -180,6 +180,57 @@ class AuditLog {
   }
 
   /**
+   * 清理审计日志
+   * @param {Object} options
+   * @param {string} options.logType - system | login | points | all
+   * @param {string|null} options.beforeDate - ISO日期字符串，早于该时间的日志将被清理
+   * @returns {Promise<Object>} 清理结果，包含各类型删除数量
+   */
+  static async clearLogs({ logType = 'system', beforeDate = null } = {}) {
+    const tableConfig = {
+      system: { table: 'system_operation_logs', dateColumn: 'created_at' },
+      login: { table: 'user_login_logs', dateColumn: 'login_at' },
+      points: { table: 'points_audit_logs', dateColumn: 'created_at' }
+    };
+
+    const normalizedType = logType.toLowerCase();
+    const targetTypes = normalizedType === 'all'
+      ? Object.keys(tableConfig)
+      : tableConfig[normalizedType]
+        ? [normalizedType]
+        : null;
+
+    if (!targetTypes) {
+      throw new Error('不支持的日志类型');
+    }
+
+    const result = {
+      clearedTypes: targetTypes,
+      beforeDate: beforeDate ? new Date(beforeDate).toISOString() : null,
+      counts: {},
+      total: 0
+    };
+
+    for (const type of targetTypes) {
+      const { table, dateColumn } = tableConfig[type];
+      let sql = `DELETE FROM ${table}`;
+      const params = [];
+
+      if (beforeDate) {
+        sql += ` WHERE ${dateColumn} < $1`;
+        params.push(beforeDate);
+      }
+
+      const deleteResult = await query(sql, params);
+      const deletedCount = deleteResult.rowCount || 0;
+      result.counts[type] = deletedCount;
+      result.total += deletedCount;
+    }
+
+    return result;
+  }
+
+  /**
    * 查询系统操作日志
    */
   static async getSystemLogs(filters = {}) {
@@ -388,6 +439,12 @@ class AuditLog {
     if (filters.targetType) {
       conditions.push(`target_type = $${index}`);
       values.push(filters.targetType);
+      index += 1;
+    }
+
+    if (filters.targetId !== undefined && filters.targetId !== null) {
+      conditions.push(`target_id = $${index}`);
+      values.push(Number(filters.targetId));
       index += 1;
     }
 

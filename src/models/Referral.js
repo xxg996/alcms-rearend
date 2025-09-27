@@ -231,7 +231,7 @@ class Referral {
     const params = [userId];
     let queryStr = `
       SELECT COUNT(*)::INTEGER AS order_count
-      FROM vip_orders
+      FROM orders
       WHERE user_id = $1
         AND payment_method = 'card_key'
         AND status = 'paid'

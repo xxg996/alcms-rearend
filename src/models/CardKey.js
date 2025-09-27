@@ -199,12 +199,15 @@ class CardKey {
         const user = await VIP.getUserVIPInfo(userId);
 
         let vipOperationResult;
+        let vipAction;
         if (user.is_vip && user.vip_level >= cardKey.vip_level) {
           // 如果用户已经是VIP且等级不低于卡密等级，则延长时间
           vipOperationResult = await VIP.extendUserVIP(userId, cardKey.vip_days);
+          vipAction = 'vip_user_extend';
         } else {
           // 设置新的VIP等级
           vipOperationResult = await VIP.setUserVIP(userId, cardKey.vip_level, cardKey.vip_days);
+          vipAction = 'vip_user_set';
         }
 
         // 过滤敏感信息，只返回必要的字段
@@ -231,6 +234,7 @@ class CardKey {
         };
         const createdOrder = await VIP.createOrder(orderData);
         result.order = await VIP.updateOrderStatus(createdOrder.id, 'paid');
+        result.vipAction = vipAction;
       }
 
       if (cardKey.type === 'points' && cardKey.points > 0) {

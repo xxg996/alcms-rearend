@@ -5,7 +5,24 @@
 
 const corsCache = require('../../utils/corsCache');
 const { cache } = require('../../utils/cache');
+const AuditLog = require('../../models/AuditLog');
 const { logger } = require('../../utils/logger');
+
+const getRequestMeta = (req) => ({
+  ipAddress: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip,
+  userAgent: req.get('user-agent') || ''
+});
+
+const recordSystemLog = async (req, payload) => {
+  const operatorId = req.user?.id || null;
+  const { ipAddress, userAgent } = getRequestMeta(req);
+  await AuditLog.createSystemLog({
+    operatorId,
+    ipAddress,
+    userAgent,
+    ...payload
+  });
+};
 
 /**
  * @swagger
@@ -155,6 +172,17 @@ const clearAllCache = async (req, res) => {
       timestamp: new Date().toISOString()
     });
 
+    await recordSystemLog(req, {
+      targetType: 'system_cache',
+      targetId: null,
+      action: 'cache_clear',
+      summary: `清理缓存 ${clearedItems.length} 项`,
+      detail: {
+        clearedItems,
+        duration
+      }
+    });
+
     res.json({
       success: true,
       message: `缓存清理完成，共清理 ${clearedItems.length} 项`,
@@ -172,6 +200,13 @@ const clearAllCache = async (req, res) => {
 
   } catch (error) {
     logger.error('缓存清理操作失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'system_cache',
+      targetId: null,
+      action: 'cache_clear_failed',
+      summary: '缓存清理失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '缓存清理失败',

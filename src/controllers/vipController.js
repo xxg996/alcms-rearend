@@ -9,7 +9,23 @@
  */
 
 const VIP = require('../models/VIP');
+const AuditLog = require('../models/AuditLog');
 const { logger } = require('../utils/logger');
+
+const getRequestMeta = (req) => ({
+  ipAddress: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip,
+  userAgent: req.get('user-agent') || ''
+});
+
+const recordVipLog = async (req, payload) => {
+  const { ipAddress, userAgent } = getRequestMeta(req);
+  await AuditLog.createSystemLog({
+    operatorId: req.user?.id || null,
+    ipAddress,
+    userAgent,
+    ...payload
+  });
+};
 
 /**
  * @swagger
@@ -271,7 +287,19 @@ const createLevel = async (req, res) => {
       benefits: benefits || {},
       price: parseFloat(price) || 0
     });
-    
+
+    await recordVipLog(req, {
+      targetType: 'vip_level',
+      targetId: newLevel?.id || parseInt(level),
+      action: 'vip_level_create',
+      summary: `创建VIP等级 ${level}`,
+      detail: {
+        level: parseInt(level),
+        name,
+        displayName: display_name
+      }
+    });
+
     res.status(201).json({
       success: true,
       message: 'VIP等级创建成功',
@@ -280,11 +308,25 @@ const createLevel = async (req, res) => {
   } catch (error) {
     logger.error('创建VIP等级失败:', error);
     if (error.code === '23505') { // 唯一约束违反
+      await recordVipLog(req, {
+        targetType: 'vip_level',
+        targetId: req.body?.level ? parseInt(req.body.level, 10) : null,
+        action: 'vip_level_create_failed',
+        summary: '创建VIP等级失败 - 等级已存在',
+        detail: { error: error.message }
+      });
       return res.status(400).json({
         success: false,
         message: '该VIP等级已存在'
       });
     }
+    await recordVipLog(req, {
+      targetType: 'vip_level',
+      targetId: req.body?.level ? parseInt(req.body.level, 10) : null,
+      action: 'vip_level_create_failed',
+      summary: '创建VIP等级失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '创建VIP等级失败'
@@ -383,12 +425,27 @@ const updateLevel = async (req, res) => {
     const updatedLevel = await VIP.updateLevel(parseInt(level), updateData);
     
     if (!updatedLevel) {
+      await recordVipLog(req, {
+        targetType: 'vip_level',
+        targetId: parseInt(level),
+        action: 'vip_level_update_failed',
+        summary: `更新VIP等级失败，未找到等级 ${level}`,
+        detail: { updateKeys: Object.keys(updateData || {}) }
+      });
       return res.status(404).json({
         success: false,
         message: 'VIP等级不存在'
       });
     }
-    
+
+    await recordVipLog(req, {
+      targetType: 'vip_level',
+      targetId: updatedLevel.id || parseInt(level),
+      action: 'vip_level_update',
+      summary: `更新VIP等级 ${level}`,
+      detail: { updateKeys: Object.keys(updateData || {}) }
+    });
+
     res.json({
       success: true,
       message: 'VIP等级更新成功',
@@ -396,6 +453,13 @@ const updateLevel = async (req, res) => {
     });
   } catch (error) {
     logger.error('更新VIP等级失败:', error);
+    await recordVipLog(req, {
+      targetType: 'vip_level',
+      targetId: parseInt(req.params?.level, 10) || null,
+      action: 'vip_level_update_failed',
+      summary: '更新VIP等级失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '更新VIP等级失败'
@@ -465,12 +529,25 @@ const deleteLevel = async (req, res) => {
     const deletedLevel = await VIP.deleteLevel(parseInt(level));
     
     if (!deletedLevel) {
+      await recordVipLog(req, {
+        targetType: 'vip_level',
+        targetId: parseInt(level),
+        action: 'vip_level_delete_failed',
+        summary: `删除VIP等级失败，未找到等级 ${level}`
+      });
       return res.status(404).json({
         success: false,
         message: 'VIP等级不存在'
       });
     }
-    
+
+    await recordVipLog(req, {
+      targetType: 'vip_level',
+      targetId: deletedLevel.id || parseInt(level),
+      action: 'vip_level_delete',
+      summary: `删除VIP等级 ${level}`
+    });
+
     res.json({
       success: true,
       message: 'VIP等级删除成功',
@@ -478,6 +555,13 @@ const deleteLevel = async (req, res) => {
     });
   } catch (error) {
     logger.error('删除VIP等级失败:', error);
+    await recordVipLog(req, {
+      targetType: 'vip_level',
+      targetId: parseInt(req.params?.level, 10) || null,
+      action: 'vip_level_delete_failed',
+      summary: '删除VIP等级失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '删除VIP等级失败'
@@ -770,6 +854,18 @@ const setUserVIP = async (req, res) => {
       vip_activated_at: result.vip_activated_at
     };
 
+    await recordVipLog(req, {
+      targetType: 'vip_user',
+      targetId: parseInt(userId),
+      action: 'vip_user_set',
+      summary: `设置用户 ${userId} VIP 等级 ${vip_level}`,
+      detail: {
+        vipLevel: vip_level,
+        days: days || 30,
+        vipExpireAt: result.vip_expire_at
+      }
+    });
+
     res.json({
       success: true,
       message: 'VIP设置成功',
@@ -780,6 +876,13 @@ const setUserVIP = async (req, res) => {
     });
   } catch (error) {
     logger.error('设置用户VIP失败:', error);
+    await recordVipLog(req, {
+      targetType: 'vip_user',
+      targetId: parseInt(req.params?.userId, 10) || null,
+      action: 'vip_user_set_failed',
+      summary: '设置用户VIP失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '设置用户VIP失败'
@@ -872,6 +975,17 @@ const extendUserVIP = async (req, res) => {
       vip_activated_at: result.vip_activated_at
     };
 
+    await recordVipLog(req, {
+      targetType: 'vip_user',
+      targetId: parseInt(userId),
+      action: 'vip_user_extend',
+      summary: `延长用户 ${userId} VIP ${days || 30} 天`,
+      detail: {
+        extendDays: days || 30,
+        vipExpireAt: result.vip_expire_at
+      }
+    });
+
     res.json({
       success: true,
       message: days === 0 ? 'VIP设置为永久成功' : 'VIP延长成功',
@@ -879,6 +993,13 @@ const extendUserVIP = async (req, res) => {
     });
   } catch (error) {
     logger.error('延长用户VIP失败:', error);
+    await recordVipLog(req, {
+      targetType: 'vip_user',
+      targetId: parseInt(req.params?.userId, 10) || null,
+      action: 'vip_user_extend_failed',
+      summary: '延长用户VIP失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '延长用户VIP失败'
@@ -945,6 +1066,13 @@ const cancelUserVIP = async (req, res) => {
       vip_expire_at: result.vip_expire_at
     };
 
+    await recordVipLog(req, {
+      targetType: 'vip_user',
+      targetId: parseInt(userId),
+      action: 'vip_user_cancel',
+      summary: `取消用户 ${userId} 的VIP`
+    });
+
     res.json({
       success: true,
       message: 'VIP取消成功',
@@ -952,6 +1080,13 @@ const cancelUserVIP = async (req, res) => {
     });
   } catch (error) {
     logger.error('取消用户VIP失败:', error);
+    await recordVipLog(req, {
+      targetType: 'vip_user',
+      targetId: parseInt(req.params?.userId, 10) || null,
+      action: 'vip_user_cancel_failed',
+      summary: '取消用户VIP失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '取消用户VIP失败'
@@ -1021,7 +1156,17 @@ const cancelUserVIP = async (req, res) => {
 const updateExpiredVIP = async (req, res) => {
   try {
     const expiredUsers = await VIP.updateExpiredVIP();
-    
+
+    await recordVipLog(req, {
+      targetType: 'vip_user',
+      targetId: null,
+      action: 'vip_user_expired_update',
+      summary: `批量更新过期VIP，共${expiredUsers.length}人`,
+      detail: {
+        updatedCount: expiredUsers.length
+      }
+    });
+
     res.json({
       success: true,
       message: `成功更新${expiredUsers.length}个过期VIP用户`,
@@ -1029,6 +1174,13 @@ const updateExpiredVIP = async (req, res) => {
     });
   } catch (error) {
     logger.error('更新过期VIP失败:', error);
+    await recordVipLog(req, {
+      targetType: 'vip_user',
+      targetId: null,
+      action: 'vip_user_expired_update_failed',
+      summary: '批量更新过期VIP失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '更新过期VIP失败'

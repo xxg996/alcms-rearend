@@ -9,8 +9,25 @@
  */
 
 const CardKey = require('../models/CardKey');
+const AuditLog = require('../models/AuditLog');
 const { logger } = require('../utils/logger');
 const { services } = require('../services');
+
+const getRequestMeta = (req) => ({
+  ipAddress: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip,
+  userAgent: req.get('user-agent') || ''
+});
+
+const recordSystemLog = async (req, payload) => {
+  const operatorId = req.user?.id || null;
+  const { ipAddress, userAgent } = getRequestMeta(req);
+  await AuditLog.createSystemLog({
+    operatorId,
+    ipAddress,
+    userAgent,
+    ...payload
+  });
+};
 
 /**
  * @swagger
@@ -156,6 +173,21 @@ const generateSingleCard = async (req, res) => {
       value_amount: value_amount ? parseFloat(value_amount) : null
     }, req.user.id);
 
+    await recordSystemLog(req, {
+      targetType: 'card_key',
+      targetId: cardKey?.id || null,
+      action: 'card_key_generate',
+      summary: '生成单个卡密',
+      detail: {
+        type,
+        vipLevel: vip_level,
+        vipDays: vip_days,
+        points,
+        downloadCredits: download_credits,
+        expireAt: expire_at
+      }
+    });
+
     res.status(201).json({
       success: true,
       message: '卡密生成成功',
@@ -163,6 +195,13 @@ const generateSingleCard = async (req, res) => {
     });
   } catch (error) {
     logger.error('生成卡密失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'card_key',
+      targetId: null,
+      action: 'card_key_generate_failed',
+      summary: '生成单个卡密失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '生成卡密失败'
@@ -294,6 +333,22 @@ const generateBatchCards = async (req, res) => {
       value_amount: value_amount ? parseFloat(value_amount) : null
     }, parseInt(count), req.user.id);
 
+    await recordSystemLog(req, {
+      targetType: 'card_key_batch',
+      targetId: result.batch_id || null,
+      action: 'card_key_batch_generate',
+      summary: `批量生成卡密 ${result.count} 个`,
+      detail: {
+        type,
+        count: result.count,
+        vipLevel: vip_level,
+        vipDays: vip_days,
+        points,
+        downloadCredits: download_credits,
+        expireAt: expire_at
+      }
+    });
+
     res.status(201).json({
       success: true,
       message: `批量生成${result.count}个卡密成功`,
@@ -305,6 +360,13 @@ const generateBatchCards = async (req, res) => {
     });
   } catch (error) {
     logger.error('批量生成卡密失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'card_key_batch',
+      targetId: null,
+      action: 'card_key_batch_generate_failed',
+      summary: '批量生成卡密失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '批量生成卡密失败'
@@ -422,20 +484,58 @@ const redeemCard = async (req, res) => {
       }
     } else if (result.cardKey.type === 'points') {
       responseMessage += `，获得${result.cardKey.points}积分`;
+    } else if (result.cardKey.type === 'download') {
+      responseMessage += `，获得下载次数${result.cardKey.download_credits}次`;
+    }
+
+    const responseData = {
+      card_type: result.cardKey.type,
+      vip_level: result.cardKey.type === 'vip' ? result.cardKey.vip_level : null,
+      vip_days: result.cardKey.type === 'vip' ? result.cardKey.vip_days : null,
+      points: result.cardKey.type === 'points' ? result.cardKey.points : null,
+      download_credits: result.cardKey.type === 'download' ? result.cardKey.download_credits : null,
+      vip_result: result.vipResult || null,
+      points_result: result.pointsResult || null,
+      download_result: result.downloadResult || null,
+      order: result.order,
+      commission: commissionRecord,
+      vip_action: result.vipAction || null
+    };
+
+    await recordSystemLog(req, {
+      targetType: 'card_key',
+      targetId: result.cardKey?.id || null,
+      action: 'card_key_redeem',
+      summary: `用户${req.user.id} 兑换卡密 ${result.cardKey?.code || code}`,
+      detail: {
+        cardType: responseData.card_type,
+        vipLevel: responseData.vip_level,
+        vipDays: responseData.vip_days,
+        points: responseData.points,
+        downloadCredits: responseData.download_credits,
+        orderId: responseData.order?.id || null
+      }
+    });
+
+    if (responseData.card_type === 'vip') {
+      await recordSystemLog(req, {
+        targetType: 'vip_user',
+        targetId: responseData.vip_result?.id || req.user.id,
+        action: responseData.vip_action || 'vip_user_set',
+        summary: `用户${req.user.id} 通过卡密 ${result.cardKey?.code || code} ${responseData.vip_action === 'vip_user_extend' ? '延长VIP' : '获得VIP'}`,
+        detail: {
+          vipLevel: responseData.vip_level,
+          vipDays: responseData.vip_days,
+          vipExpireAt: responseData.vip_result?.vip_expire_at || null,
+          orderId: responseData.order?.id || null
+        }
+      });
     }
 
     res.json({
       success: true,
       message: responseMessage,
-      data: {
-        card_type: result.cardKey.type,
-        vip_level: result.cardKey.vip_level,
-        vip_days: result.cardKey.vip_days,
-        points: result.cardKey.points,
-        vip_result: result.vipResult,
-        order: result.order,
-        commission: commissionRecord
-      }
+      data: responseData
     });
   } catch (error) {
     logger.error('兑换卡密失败:', error);
@@ -448,7 +548,18 @@ const redeemCard = async (req, res) => {
     };
 
     const message = errorMessages[error.message] || '兑换卡密失败';
-    
+
+    await recordSystemLog(req, {
+      targetType: 'card_key',
+      targetId: null,
+      action: 'card_key_redeem_failed',
+      summary: `用户${req.user.id} 兑换卡密失败`,
+      detail: {
+        code,
+        error: error.message
+      }
+    });
+
     res.status(400).json({
       success: false,
       message
@@ -902,11 +1013,26 @@ const updateCardStatus = async (req, res) => {
     const updatedCard = await CardKey.updateStatus(parseInt(cardId), status);
 
     if (!updatedCard) {
+      await recordSystemLog(req, {
+        targetType: 'card_key',
+        targetId: parseInt(cardId, 10) || null,
+        action: 'card_key_status_update_failed',
+        summary: '卡密状态更新失败，目标不存在',
+        detail: { status }
+      });
       return res.status(404).json({
         success: false,
         message: '卡密不存在'
       });
     }
+
+    await recordSystemLog(req, {
+      targetType: 'card_key',
+      targetId: updatedCard.id,
+      action: 'card_key_status_update',
+      summary: `更新卡密状态为 ${status}`,
+      detail: { status }
+    });
 
     res.json({
       success: true,
@@ -915,6 +1041,13 @@ const updateCardStatus = async (req, res) => {
     });
   } catch (error) {
     logger.error('更新卡密状态失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'card_key',
+      targetId: parseInt(req.params?.cardId, 10) || null,
+      action: 'card_key_status_update_failed',
+      summary: '卡密状态更新失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '更新卡密状态失败'
@@ -989,11 +1122,28 @@ const deleteCard = async (req, res) => {
     const deletedCard = await CardKey.deleteCardKey(parseInt(cardId));
 
     if (!deletedCard) {
+      await recordSystemLog(req, {
+        targetType: 'card_key',
+        targetId: parseInt(cardId, 10) || null,
+        action: 'card_key_delete_failed',
+        summary: '删除卡密失败，目标不存在或状态不允许'
+      });
       return res.status(404).json({
         success: false,
         message: '卡密不存在或无法删除（只能删除未使用的卡密）'
       });
     }
+
+    await recordSystemLog(req, {
+      targetType: 'card_key',
+      targetId: deletedCard.id,
+      action: 'card_key_delete',
+      summary: '删除单个卡密',
+      detail: {
+        code: deletedCard.code,
+        type: deletedCard.type
+      }
+    });
 
     res.json({
       success: true,
@@ -1002,6 +1152,13 @@ const deleteCard = async (req, res) => {
     });
   } catch (error) {
     logger.error('删除卡密失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'card_key',
+      targetId: parseInt(req.params?.cardId, 10) || null,
+      action: 'card_key_delete_failed',
+      summary: '删除卡密失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '删除卡密失败'
@@ -1065,6 +1222,16 @@ const deleteBatch = async (req, res) => {
     const { batchId } = req.params;
     const deletedCards = await CardKey.deleteBatch(batchId);
 
+    await recordSystemLog(req, {
+      targetType: 'card_key_batch',
+      targetId: batchId,
+      action: 'card_key_batch_delete',
+      summary: `删除卡密批次 ${batchId}`,
+      detail: {
+        deletedCount: deletedCards.length
+      }
+    });
+
     res.json({
       success: true,
       message: `批次删除成功，删除了${deletedCards.length}个未使用的卡密`,
@@ -1075,6 +1242,13 @@ const deleteBatch = async (req, res) => {
     });
   } catch (error) {
     logger.error('删除批次失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'card_key_batch',
+      targetId: req.params?.batchId || null,
+      action: 'card_key_batch_delete_failed',
+      summary: '删除卡密批次失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '删除批次失败'

@@ -89,6 +89,21 @@ class AuditLogService extends BaseService {
     });
   }
 
+  /**
+   * 清理审计日志
+   */
+  async clearLogs(payload = {}) {
+    return this.withPerformanceMonitoring('clearLogs', async () => {
+      try {
+        const { logType, beforeDate } = this.#normalizeClearParams(payload);
+        const clearResult = await AuditLog.clearLogs({ logType, beforeDate });
+        return this.formatSuccessResponse(clearResult, '日志清理成功');
+      } catch (error) {
+        this.handleError(error, 'clearLogs');
+      }
+    });
+  }
+
   #buildLoginFilters(query, pagination = {}) {
     const filters = { ...pagination };
 
@@ -143,6 +158,14 @@ class AuditLogService extends BaseService {
 
     if (query.target_type) {
       filters.targetType = query.target_type.trim();
+    }
+
+    if (query.target_id) {
+      const targetId = Number(query.target_id);
+      if (Number.isNaN(targetId)) {
+        throw new Error('目标ID格式不正确');
+      }
+      filters.targetId = targetId;
     }
 
     if (query.action) {
@@ -216,6 +239,106 @@ class AuditLogService extends BaseService {
     }
 
     return filters;
+  }
+
+  /**
+   * 查询用户VIP变更日志
+   */
+  async getVipChangeLogs(query = {}) {
+    return this.withPerformanceMonitoring('getVipChangeLogs', async () => {
+      try {
+        const { page, limit, offset } = this.normalizePaginationParams(query.page, query.limit);
+        const normalizedQuery = { ...query };
+        normalizedQuery.target_type = normalizedQuery.target_type || 'vip_user';
+
+        if (normalizedQuery.user_id && !normalizedQuery.target_id) {
+          const targetId = Number(normalizedQuery.user_id);
+          if (Number.isNaN(targetId)) {
+            throw new Error('用户ID格式不正确');
+          }
+          normalizedQuery.target_id = targetId;
+        }
+
+        const filters = this.#buildSystemFilters(normalizedQuery, { limit, offset });
+
+        const [items, total, summary] = await Promise.all([
+          AuditLog.getSystemLogs(filters),
+          AuditLog.countSystemLogs(filters),
+          AuditLog.getSystemLogSummary(filters)
+        ]);
+
+        const response = this.formatPaginatedResponse(items, { page, limit }, total);
+        response.data.summary = summary;
+
+        return response;
+      } catch (error) {
+        this.handleError(error, 'getVipChangeLogs');
+      }
+    });
+  }
+
+  /**
+   * 查询卡密使用日志
+   */
+  async getCardKeyUsageLogs(query = {}) {
+    return this.withPerformanceMonitoring('getCardKeyUsageLogs', async () => {
+      try {
+        const { page, limit, offset } = this.normalizePaginationParams(query.page, query.limit);
+        const normalizedQuery = { ...query };
+        normalizedQuery.target_type = normalizedQuery.target_type || 'card_key';
+
+        if (!normalizedQuery.action) {
+          normalizedQuery.action = 'card_key_redeem';
+        }
+
+        if (normalizedQuery.user_id && !normalizedQuery.operator_id) {
+          const operatorId = Number(normalizedQuery.user_id);
+          if (Number.isNaN(operatorId)) {
+            throw new Error('用户ID格式不正确');
+          }
+          normalizedQuery.operator_id = operatorId;
+        }
+
+        const filters = this.#buildSystemFilters(normalizedQuery, { limit, offset });
+
+        const [items, total, summary] = await Promise.all([
+          AuditLog.getSystemLogs(filters),
+          AuditLog.countSystemLogs(filters),
+          AuditLog.getSystemLogSummary(filters)
+        ]);
+
+        const response = this.formatPaginatedResponse(items, { page, limit }, total);
+        response.data.summary = summary;
+
+        return response;
+      } catch (error) {
+        this.handleError(error, 'getCardKeyUsageLogs');
+      }
+    });
+  }
+
+  #normalizeClearParams(params = {}) {
+    const rawType = params.log_type || params.logType || 'system';
+    const normalizedType = String(rawType).toLowerCase();
+    const supportedTypes = ['system', 'login', 'points', 'all'];
+
+    if (!supportedTypes.includes(normalizedType)) {
+      throw new Error('不支持的日志类型，请传入 system、login、points 或 all');
+    }
+
+    let beforeDate = params.before_date || params.beforeDate || null;
+    if (beforeDate) {
+      const date = new Date(beforeDate);
+      if (Number.isNaN(date.getTime())) {
+        throw new Error('before_date 参数格式不正确，应为合法日期');
+      }
+      beforeDate = date.toISOString();
+    }
+
+    return {
+      logType: normalizedType,
+      beforeDate
+    };
   }
 }
 

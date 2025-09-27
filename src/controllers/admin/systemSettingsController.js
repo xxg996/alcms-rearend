@@ -4,8 +4,25 @@
  */
 
 const SystemSetting = require('../../models/SystemSetting');
+const AuditLog = require('../../models/AuditLog');
 const { logger } = require('../../utils/logger');
 const { testEmailConnection, sendRegistrationCode } = require('../../utils/emailService');
+
+const getRequestMeta = (req) => ({
+  ipAddress: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip,
+  userAgent: req.get('user-agent') || ''
+});
+
+const recordSystemLog = async (req, payload) => {
+  const operatorId = req.user?.id || null;
+  const { ipAddress, userAgent } = getRequestMeta(req);
+  await AuditLog.createSystemLog({
+    operatorId,
+    ipAddress,
+    userAgent,
+    ...payload
+  });
+};
 
 /**
  * 获取所有系统设置
@@ -81,6 +98,17 @@ const upsertSetting = async (req, res) => {
 
     const result = await SystemSetting.upsertSetting(key, value, description, updatedBy);
 
+    await recordSystemLog(req, {
+      targetType: 'system_setting',
+      targetId: key,
+      action: 'setting_upsert',
+      summary: `更新系统设置 ${key}`,
+      detail: {
+        value,
+        description: description || null
+      }
+    });
+
     res.json({
       success: true,
       message: '更新系统设置成功',
@@ -88,6 +116,13 @@ const upsertSetting = async (req, res) => {
     });
   } catch (error) {
     logger.error('更新系统设置失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'system_setting',
+      targetId: req.params?.key || null,
+      action: 'setting_upsert_failed',
+      summary: '更新系统设置失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '更新系统设置失败',
@@ -113,6 +148,14 @@ const deleteSetting = async (req, res) => {
       });
     }
 
+    await recordSystemLog(req, {
+      targetType: 'system_setting',
+      targetId: key,
+      action: 'setting_delete',
+      summary: `删除系统设置 ${key}`,
+      detail: result.rows[0]
+    });
+
     res.json({
       success: true,
       message: '删除系统设置成功',
@@ -120,6 +163,13 @@ const deleteSetting = async (req, res) => {
     });
   } catch (error) {
     logger.error('删除系统设置失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'system_setting',
+      targetId: req.params?.key || null,
+      action: 'setting_delete_failed',
+      summary: '删除系统设置失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '删除系统设置失败',
@@ -153,6 +203,17 @@ const batchUpdateSettings = async (req, res) => {
       }
     }
 
+    await recordSystemLog(req, {
+      targetType: 'system_setting',
+      targetId: null,
+      action: 'setting_batch_update',
+      summary: `批量更新系统设置 ${results.length} 项`,
+      detail: settings.map(item => ({
+        key: item.key,
+        hasDescription: !!item.description
+      }))
+    });
+
     res.json({
       success: true,
       message: `批量更新 ${results.length} 个系统设置成功`,
@@ -160,6 +221,13 @@ const batchUpdateSettings = async (req, res) => {
     });
   } catch (error) {
     logger.error('批量更新系统设置失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'system_setting',
+      targetId: null,
+      action: 'setting_batch_update_failed',
+      summary: '批量更新系统设置失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '批量更新系统设置失败',
@@ -230,6 +298,14 @@ const resetToDefault = async (req, res) => {
       updatedBy
     );
 
+    await recordSystemLog(req, {
+      targetType: 'system_setting',
+      targetId: key,
+      action: 'setting_reset_default',
+      summary: `重置系统设置 ${key} 为默认值`,
+      detail: defaultSettings[key]
+    });
+
     res.json({
       success: true,
       message: '重置系统设置成功',
@@ -237,6 +313,13 @@ const resetToDefault = async (req, res) => {
     });
   } catch (error) {
     logger.error('重置系统设置失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'system_setting',
+      targetId: req.params?.key || null,
+      action: 'setting_reset_default_failed',
+      summary: '重置系统设置失败',
+      detail: { error: error.message }
+    });
     res.status(500).json({
       success: false,
       message: '重置系统设置失败',
@@ -399,6 +482,19 @@ const testEmailService = async (req, res) => {
       // 测试SMTP连接
       const connectionResult = await testEmailConnection();
       if (!connectionResult.success) {
+        await recordSystemLog(req, {
+          targetType: 'system_setting',
+          targetId: 'smtp_config',
+          action: 'smtp_test_connection_failed',
+          summary: 'SMTP连接测试失败',
+          detail: {
+            message: connectionResult.message,
+            error: connectionResult.error,
+            code: connectionResult.code,
+            errno: connectionResult.errno
+          }
+        });
+
         return res.status(500).json({
           success: false,
           message: connectionResult.message,
@@ -409,7 +505,19 @@ const testEmailService = async (req, res) => {
         });
       }
 
-      res.json({
+      await recordSystemLog(req, {
+        targetType: 'system_setting',
+        targetId: 'smtp_config',
+        action: 'smtp_test_connection',
+        summary: 'SMTP连接测试成功',
+        detail: {
+          email,
+          host: result.smtp_config.host,
+          port: result.smtp_config.port
+        }
+      });
+
+      return res.json({
         success: true,
         message: connectionResult.message,
         data: result
@@ -429,6 +537,17 @@ const testEmailService = async (req, res) => {
       }
 
       if (!emailSent) {
+        await recordSystemLog(req, {
+          targetType: 'system_setting',
+          targetId: 'smtp_config',
+          action: 'smtp_test_send_failed',
+          summary: 'SMTP测试邮件发送失败',
+          detail: {
+            email,
+            emailType: email_type
+          }
+        });
+
         return res.status(500).json({
           success: false,
           message: '邮件发送失败，请检查SMTP配置'
@@ -438,7 +557,18 @@ const testEmailService = async (req, res) => {
       result.verification_code = verificationCode;
       result.email_type = email_type;
 
-      res.json({
+      await recordSystemLog(req, {
+        targetType: 'system_setting',
+        targetId: 'smtp_config',
+        action: 'smtp_test_send',
+        summary: `${email_type === 'register' ? '注册' : '密码重置'}验证码邮件发送成功`,
+        detail: {
+          email,
+          emailType: email_type
+        }
+      });
+
+      return res.json({
         success: true,
         message: `${email_type === 'register' ? '注册' : '密码重置'}验证码邮件发送成功`,
         data: result
@@ -455,6 +585,17 @@ const testEmailService = async (req, res) => {
 
   } catch (error) {
     logger.error('邮件服务测试失败:', error);
+    await recordSystemLog(req, {
+      targetType: 'system_setting',
+      targetId: 'smtp_config',
+      action: 'smtp_test_failed',
+      summary: '邮件服务测试失败',
+      detail: {
+        email: req.body?.email,
+        testType: req.body?.test_type,
+        error: error.message
+      }
+    });
     res.status(500).json({
       success: false,
       message: '邮件服务测试失败',

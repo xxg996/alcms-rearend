@@ -28,4 +28,25 @@ router.get('/points',
   auditLogController.getPointsLogs
 );
 
+// VIP 变更日志
+router.get('/vip',
+  authenticateToken,
+  requireRole('admin'),
+  auditLogController.getVipChangeLogs
+);
+
+// 卡密使用日志
+router.get('/card-keys',
+  authenticateToken,
+  requireRole('admin'),
+  auditLogController.getCardKeyUsageLogs
+);
+
+// 一键清理日志
+router.post('/clear',
+  authenticateToken,
+  requireRole('admin'),
+  auditLogController.clearLogs
+);
+
 module.exports = router;
