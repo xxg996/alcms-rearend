@@ -532,6 +532,53 @@ class CardKey {
     const result = await query(queryStr, [batchId]);
     return result.rows;
   }
+
+  /**
+   * 获取卡密订单销售统计
+   */
+  static async getOrderSalesSummary() {
+    const sql = `
+      SELECT
+        SUM(CASE WHEN o.created_at >= CURRENT_DATE THEN 1 ELSE 0 END)::INTEGER AS today_orders,
+        COALESCE(SUM(CASE WHEN o.created_at >= CURRENT_DATE THEN o.price ELSE 0 END), 0) AS today_sales,
+
+        SUM(CASE WHEN o.created_at >= CURRENT_DATE - INTERVAL '1 day' AND o.created_at < CURRENT_DATE THEN 1 ELSE 0 END)::INTEGER AS yesterday_orders,
+        COALESCE(SUM(CASE WHEN o.created_at >= CURRENT_DATE - INTERVAL '1 day' AND o.created_at < CURRENT_DATE THEN o.price ELSE 0 END), 0) AS yesterday_sales,
+
+        SUM(CASE WHEN date_trunc('month', o.created_at) = date_trunc('month', CURRENT_DATE) THEN 1 ELSE 0 END)::INTEGER AS current_month_orders,
+        COALESCE(SUM(CASE WHEN date_trunc('month', o.created_at) = date_trunc('month', CURRENT_DATE) THEN o.price ELSE 0 END), 0) AS current_month_sales,
+
+        SUM(CASE WHEN date_trunc('month', o.created_at) = date_trunc('month', CURRENT_DATE - INTERVAL '1 month') THEN 1 ELSE 0 END)::INTEGER AS previous_month_orders,
+        COALESCE(SUM(CASE WHEN date_trunc('month', o.created_at) = date_trunc('month', CURRENT_DATE - INTERVAL '1 month') THEN o.price ELSE 0 END), 0) AS previous_month_sales
+      FROM orders o
+      WHERE o.payment_method = 'card_key'
+        AND o.status = 'paid'
+    `;
+
+    const result = await query(sql);
+    const row = result.rows[0] || {};
+
+    const toNumber = (value) => Number(value || 0);
+
+    return {
+      today: {
+        orders: Number(row.today_orders || 0),
+        sales: toNumber(row.today_sales)
+      },
+      yesterday: {
+        orders: Number(row.yesterday_orders || 0),
+        sales: toNumber(row.yesterday_sales)
+      },
+      current_month: {
+        orders: Number(row.current_month_orders || 0),
+        sales: toNumber(row.current_month_sales)
+      },
+      previous_month: {
+        orders: Number(row.previous_month_orders || 0),
+        sales: toNumber(row.previous_month_sales)
+      }
+    };
+  }
 }
 
 module.exports = CardKey;

@@ -1256,6 +1256,112 @@ const deleteBatch = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/admin/card-keys/orders/overview:
+ *   get:
+ *     tags: [卡密管理]
+ *     summary: 获取卡密订单销售概览
+ *     description: 统计卡密订单在今日、昨日、本月、上月的订单量与销售额（仅统计支付成功的卡密订单）。
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         today:
+ *                           type: object
+ *                           properties:
+ *                             orders:
+ *                               type: integer
+ *                               example: 12
+ *                             sales:
+ *                               type: number
+ *                               format: decimal
+ *                               example: 199.99
+ *                         yesterday:
+ *                           type: object
+ *                           properties:
+ *                             orders:
+ *                               type: integer
+ *                               example: 8
+ *                             sales:
+ *                               type: number
+ *                               format: decimal
+ *                               example: 149.90
+ *                         current_month:
+ *                           type: object
+ *                           properties:
+ *                             orders:
+ *                               type: integer
+ *                             sales:
+ *                               type: number
+ *                               format: decimal
+ *                         previous_month:
+ *                           type: object
+ *                           properties:
+ *                             orders:
+ *                               type: integer
+ *                             sales:
+ *                               type: number
+ *                               format: decimal
+ *             example:
+ *               success: true
+ *               message: "获取卡密订单销售统计成功"
+ *               data:
+ *                 today:
+ *                   orders: 5
+ *                   sales: 99.95
+ *                 yesterday:
+ *                   orders: 3
+ *                   sales: 59.97
+ *                 current_month:
+ *                   orders: 128
+ *                   sales: 2588.40
+ *                 previous_month:
+ *                   orders: 96
+ *                   sales: 1980.00
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const getCardKeyOrderOverview = async (req, res) => {
+  try {
+    const summary = await CardKey.getOrderSalesSummary();
+
+    await recordSystemLog(req, {
+      targetType: 'card_key_order',
+      targetId: null,
+      action: 'card_key_order_summary',
+      summary: '查询卡密订单销售统计'
+    });
+
+    res.json({
+      success: true,
+      message: '获取卡密订单销售统计成功',
+      data: summary
+    });
+  } catch (error) {
+    logger.error('获取卡密订单销售统计失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取卡密订单销售统计失败'
+    });
+  }
+};
+
 module.exports = {
   generateSingleCard,
   generateBatchCards,
@@ -1267,5 +1373,6 @@ module.exports = {
   getBatchDetails,
   updateCardStatus,
   deleteCard,
-  deleteBatch
+  deleteBatch,
+  getCardKeyOrderOverview
 };

@@ -40,6 +40,13 @@ router.get('/statistics',
   cardKeyController.getCardsStatistics
 );
 
+// 订单销售概览
+router.get('/orders/overview',
+  authenticateToken,
+  requirePermission('card_key:statistics'),
+  cardKeyController.getCardKeyOrderOverview
+);
+
 // 获取批次列表
 router.get('/batches',
   authenticateToken,
