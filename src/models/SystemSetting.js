@@ -124,6 +124,38 @@ class SystemSetting {
       card_type_rates: sanitizedCardTypeRates
     };
   }
+
+  /**
+   * 获取资源售卖分成配置
+   * 默认平台分成10%，返回值已做数值校验并带内存缓存
+   */
+  static async getResourceSaleFeeConfig(forceRefresh = false) {
+    const cacheTTL = 5 * 60 * 1000; // 5分钟缓存
+    const now = Date.now();
+
+    if (!forceRefresh && this._resourceSaleFeeCache && (now - this._resourceSaleFeeCache.timestamp) < cacheTTL) {
+      return this._resourceSaleFeeCache.value;
+    }
+
+    const defaultConfig = { fee_rate: 0.10 };
+    const stored = await this.getSetting('resource_sale_fee', defaultConfig);
+
+    const rawRate = stored && Object.prototype.hasOwnProperty.call(stored, 'fee_rate')
+      ? Number(stored.fee_rate)
+      : defaultConfig.fee_rate;
+
+    const sanitizedRate = Number.isFinite(rawRate) && rawRate >= 0 && rawRate <= 1
+      ? rawRate
+      : defaultConfig.fee_rate;
+
+    const value = { fee_rate: sanitizedRate };
+    this._resourceSaleFeeCache = {
+      value,
+      timestamp: now
+    };
+
+    return value;
+  }
 }
 
 module.exports = SystemSetting;

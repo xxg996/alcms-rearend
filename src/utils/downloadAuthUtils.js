@@ -6,6 +6,7 @@
 const { query } = require('../config/database');
 const { logger } = require('./logger');
 const { checkAndResetDailyDownloads, consumeDownload } = require('./downloadLimitUtils');
+const SystemSetting = require('../models/SystemSetting');
 
 /**
  * 检查文件下载权限
@@ -105,7 +106,14 @@ const checkFileDownloadPermission = async (file, userId, user) => {
       if (userVipLevel >= requiredVipLevel) {
         // VIP等级满足，需要扣下载次数
         if (downloadStatus.canDownload) {
-          result.finalDownloadStatus = await consumeDownload(userId);
+          const projectedStatus = {
+            ...downloadStatus,
+            dailyUsed: downloadStatus.dailyUsed + 1,
+            remainingDownloads: Math.max(0, downloadStatus.remainingDownloads - 1),
+            canDownload: downloadStatus.remainingDownloads - 1 > 0
+          };
+
+          result.finalDownloadStatus = projectedStatus;
           result.canDownload = true;
           result.costInfo = {
             type: 'vip_download_count',
@@ -129,7 +137,14 @@ const checkFileDownloadPermission = async (file, userId, user) => {
       if (userVipLevel >= requiredVipLevel) {
         // VIP等级满足，需要扣下载次数
         if (downloadStatus.canDownload) {
-          result.finalDownloadStatus = await consumeDownload(userId);
+          const projectedStatus = {
+            ...downloadStatus,
+            dailyUsed: downloadStatus.dailyUsed + 1,
+            remainingDownloads: Math.max(0, downloadStatus.remainingDownloads - 1),
+            canDownload: downloadStatus.remainingDownloads - 1 > 0
+          };
+
+          result.finalDownloadStatus = projectedStatus;
           result.canDownload = true;
           result.costInfo = {
             type: 'vip_download_count',
@@ -235,7 +250,7 @@ const executeDownloadPayment = async (file, userId, costInfo) => {
 
       if (authorId && authorId !== userId) {
         // 获取平台分成比例
-        const platformFeeRate = 0.10; // TODO: 从系统设置中获取
+        const { fee_rate: platformFeeRate } = await SystemSetting.getResourceSaleFeeConfig();
 
         // 作者分成基于折扣后的积分计算，然后扣除手续费
         const authorEarning = Math.floor(costInfo.cost * (1 - platformFeeRate));
