@@ -122,7 +122,7 @@ class Points {
   /**
    * 扣除用户积分
    */
-  static async deductPoints(userId, amount, source, description = '', relatedId = null, relatedType = null, operatorId = null) {
+  static async deductPoints(userId, amount, source, description = '', relatedId = null, relatedType = null, operatorId = null, clientArg = null) {
     if (typeof amount === 'object' && amount !== null) {
       const opts = amount;
       return this.deductPoints(
@@ -130,15 +130,25 @@ class Points {
         opts.points,
         opts.source,
         opts.description || '',
-        opts.reference_id || null,
-        opts.reference_type || null,
-        opts.operator_id || operatorId || null
+        opts.reference_id || opts.related_id || null,
+        opts.reference_type || opts.related_type || null,
+        opts.operator_id || operatorId || null,
+        opts.client || clientArg || null
       );
     }
-    const client = await getClient();
+
+    let client = clientArg;
+    let releaseClient = false;
+
+    if (!client) {
+      client = await getClient();
+      releaseClient = true;
+    }
     
     try {
-      await client.query('BEGIN');
+      if (releaseClient) {
+        await client.query('BEGIN');
+      }
 
       // 获取当前积分
       const userQuery = 'SELECT points FROM users WHERE id = $1';
@@ -196,17 +206,23 @@ class Points {
         relatedType
       }, client);
 
-      await client.query('COMMIT');
+      if (releaseClient) {
+        await client.query('COMMIT');
+      }
       
       return {
         user: updateResult.rows[0],
         record: recordResult.rows[0]
       };
     } catch (error) {
-      await client.query('ROLLBACK');
+      if (releaseClient) {
+        await client.query('ROLLBACK');
+      }
       throw error;
     } finally {
-      client.release();
+      if (releaseClient) {
+        client.release();
+      }
     }
   }
 

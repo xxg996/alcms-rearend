@@ -673,9 +673,22 @@ CREATE TABLE points_products (
     is_active BOOLEAN DEFAULT TRUE,
     image_url VARCHAR(255),
     details JSON DEFAULT '{}'::json,
+    tags TEXT[] DEFAULT '{}'::text[],
     created_by INTEGER REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE virtual_product_items (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL REFERENCES points_products(id) ON DELETE CASCADE,
+    code VARCHAR(255) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'available' CHECK (status IN ('available','reserved','used','disabled')),
+    redeemed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    redeemed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (product_id, code)
 );
 
 -- 积分兑换记录表
@@ -905,6 +918,12 @@ CREATE INDEX idx_user_points_created_at ON user_points(created_at);
 CREATE INDEX idx_points_products_active ON points_products(is_active);
 CREATE INDEX idx_points_products_type ON points_products(type);
 CREATE INDEX idx_points_products_cost ON points_products(points_cost);
+CREATE INDEX idx_points_products_tags ON points_products USING GIN (tags);
+CREATE INDEX idx_virtual_product_items_product_status ON virtual_product_items(product_id, status);
+
+CREATE TRIGGER update_virtual_product_items_updated_at
+  BEFORE UPDATE ON virtual_product_items
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE INDEX idx_points_records_user_id ON points_records(user_id);
 CREATE INDEX idx_points_records_type ON points_records(type);
 CREATE INDEX idx_points_records_source ON points_records(source);

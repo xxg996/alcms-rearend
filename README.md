@@ -101,162 +101,53 @@
 - **进程管理**：PM2 集群模式
 - **性能监控**：自定义中间件
 
-### 📁 项目结构
+### 📁 项目结构概览
 ```
 alcms-rearend/
-├── src/                    # 🎯 源代码目录
-│   ├── app.js             # 🚀 应用入口文件
-│   ├── cluster.js         # ⚡ 集群模式启动文件
-│   ├── config/            # ⚙️ 配置文件目录
-│   │   ├── database.js    # 🗄️ 数据库配置
-│   │   ├── minio.js       # 📦 MinIO 对象存储配置
-│   │   └── swagger.js     # 📚 API文档配置
-│   ├── controllers/       # 🎮 控制器层 (业务逻辑入口)
-│   │   ├── authController.js              # 🔐 用户认证控制器
-│   │   ├── userController.js              # 👥 用户管理控制器
-│   │   ├── vipController.js               # 💎 VIP会员系统控制器
-│   │   ├── cardKeyController.js           # 🎫 卡密系统控制器
-│   │   ├── pointsController.js            # 🎯 积分系统控制器
-│   │   ├── checkinController.js           # ✅ 签到系统控制器
-│   │   ├── favoriteController.js          # ⭐ 收藏系统控制器
-│   │   ├── resourceController.js          # 📄 资源管理控制器
-│   │   ├── categoryController.js          # 📂 分类管理控制器
-│   │   ├── tagController.js               # 🏷️ 标签管理控制器
-│   │   ├── rolePermissionController.js    # 🛡️ 角色权限管理控制器
-│   │   ├── uploadController.js            # 📤 文件上传控制器
-│   │   ├── presignedUploadController.js   # 🔗 预签名上传控制器
-│   │   ├── communityBoardController.js    # 💬 社区板块管理控制器
-│   │   ├── communityPostController.js     # 📝 社区帖子管理控制器
-│   │   ├── communityCommentController.js  # 💭 社区评论管理控制器
-│   │   └── communityInteractionController.js # 👍 社区互动功能控制器
-│   ├── middleware/        # 🔧 中间件目录
-│   │   ├── auth.js        # 🔑 JWT认证中间件
-│   │   ├── authOptimized.js # ⚡ 优化认证中间件
-│   │   ├── cacheMiddleware.js # 💾 缓存中间件
-│   │   ├── errorHandler.js    # ❌ 错误处理中间件
-│   │   ├── httpCache.js       # 🌐 HTTP缓存中间件
-│   │   ├── performance.js     # 📊 性能监控中间件
-│   │   ├── permission.js      # 🛡️ 权限检查中间件
-│   │   ├── rateLimitAdvanced.js # ⏱️ 高级限流中间件
-│   │   ├── security.js        # 🔒 安全防护中间件
-│   │   └── validation.js      # ✅ 输入验证中间件
-│   ├── models/            # 📊 数据模型层
-│   │   ├── User.js        # 👥 用户数据模型
-│   │   ├── VIP.js         # 💎 VIP会员数据模型
-│   │   ├── CardKey.js     # 🎫 卡密数据模型
-│   │   ├── Points.js      # 🎯 积分数据模型
-│   │   ├── Checkin.js     # ✅ 签到数据模型
-│   │   ├── Favorite.js    # ⭐ 收藏数据模型
-│   │   ├── Resource.js    # 📄 资源数据模型
-│   │   ├── Category.js    # 📂 分类数据模型
-│   │   ├── Tag.js         # 🏷️ 标签数据模型
-│   │   ├── Role.js        # 🎭 角色数据模型
-│   │   ├── Permission.js  # 🛡️ 权限数据模型
-│   │   ├── CommunityBoard.js      # 💬 社区板块数据模型
-│   │   ├── CommunityPost.js       # 📝 社区帖子数据模型
-│   │   ├── CommunityComment.js    # 💭 社区评论数据模型
-│   │   └── CommunityInteraction.js # 👍 社区互动数据模型
-│   ├── routes/            # 🛤️ 路由定义层
-│   │   ├── auth.js        # 🔐 用户认证路由
-│   │   ├── users.js       # 👥 用户管理路由
-│   │   ├── vip.js         # 💎 VIP会员路由
-│   │   ├── cardKey.js     # 🎫 卡密管理路由
-│   │   ├── points.js      # 🎯 积分系统路由
-│   │   ├── checkin.js     # ✅ 签到系统路由
-│   │   ├── favorites.js   # ⭐ 收藏系统路由
-│   │   ├── resources.js   # 📄 资源管理路由
-│   │   ├── categories.js  # 📂 分类管理路由
-│   │   ├── tags.js        # 🏷️ 标签管理路由
-│   │   ├── rolePermissions.js # 🛡️ 角色权限路由
-│   │   ├── upload.js      # 📤 文件上传路由
-│   │   ├── presignedUpload.js # 🔗 预签名上传路由
-│   │   └── community.js   # 💬 社区功能路由
-│   ├── services/          # 🏗️ 业务逻辑服务层
-│   │   ├── index.js       # 📋 服务层入口
-│   │   ├── BaseService.js # 🏛️ 基础服务类
-│   │   ├── AuthService.js # 🔐 认证业务服务
-│   │   ├── UserService.js # 👥 用户业务服务
-│   │   ├── VipService.js  # 💎 VIP业务服务
-│   │   ├── CardKeyService.js      # 🎫 卡密业务服务
-│   │   ├── PointsService.js       # 🎯 积分业务服务
-│   │   ├── CheckinService.js      # ✅ 签到业务服务
-│   │   ├── FavoriteService.js     # ⭐ 收藏业务服务
-│   │   ├── ResourceService.js     # 📄 资源业务服务
-│   │   ├── CategoryService.js     # 📂 分类业务服务
-│   │   ├── TagService.js          # 🏷️ 标签业务服务
-│   │   ├── CommunityService.js    # 💬 社区业务服务
-│   │   ├── UploadService.js       # 📤 上传业务服务
-│   │   ├── PresignedUploadService.js # 🔗 预签名上传服务
-│   │   └── ServiceFactory.js      # 🏭 服务工厂类
-│   ├── docs/              # 📖 API文档Schema定义
-│   │   └── schemas/       # 📋 Swagger Schema 定义
-│   │       ├── common.js  # 🔗 通用Schema定义
-│   │       ├── auth.js    # 🔐 认证Schema定义
-│   │       ├── user.js    # 👥 用户Schema定义
-│   │       ├── vip.js     # 💎 VIP Schema定义
-│   │       ├── cardkey.js # 🎫 卡密Schema定义
-│   │       ├── points.js  # 🎯 积分Schema定义
-│   │       ├── checkin.js # ✅ 签到Schema定义
-│   │       ├── favorite.js # ⭐ 收藏Schema定义
-│   │       ├── resource.js # 📄 资源Schema定义
-│   │       ├── category.js # 📂 分类Schema定义
-│   │       ├── tag.js     # 🏷️ 标签Schema定义
-│   │       ├── rolePermission.js # 🛡️ 角色权限Schema定义
-│   │       ├── upload.js  # 📤 上传Schema定义
-│   │       └── community.js # 💬 社区Schema定义
-│   └── utils/             # 🛠️ 工具函数目录
-│       ├── jwt.js         # 🎫 JWT令牌工具
-│       ├── secureJwt.js   # 🔒 安全JWT工具
-│       ├── password.js    # 🔑 密码加密工具
-│       ├── logger.js      # 📝 日志记录工具
-│       ├── cache.js       # 💾 缓存管理工具
-│       ├── downloadUtils.js # 📥 资源下载工具
-│       ├── downloadUtilsBatch.js # 📦 批量下载工具
-│       ├── batchLoader.js # ⚡ 批量数据加载器
-│       ├── queryOptimizer.js # 🚀 查询优化器
-│       └── responseHelper.js # 📤 响应格式化助手
-├── database/              # 🗄️ 数据库相关文件
-│   ├── migrations/        # 📋 数据库迁移文件
-│   │   ├── 001_create_tables.sql      # 👥 用户权限表结构
-│   │   ├── 002_insert_default_data.sql # 👤 默认用户数据
-│   │   ├── 003_create_cms_tables.sql   # 📄 CMS核心表结构
-│   │   ├── 004_insert_cms_default_data.sql # 📊 CMS默认数据
-│   │   ├── 005_create_community_tables.sql # 💬 社区表结构
-│   │   ├── 006_insert_community_default_data.sql # 💬 社区默认数据
-│   │   ├── 007_add_vip_card_system.sql # 💎 VIP卡密系统扩展
-│   │   ├── 008_add_points_checkin_system.sql # 🎯 积分签到系统扩展
-│   │   ├── 009_add_vip_points_permissions.sql # 🛡️ VIP积分权限扩展
-│   │   └── 010_add_permission_active_status.sql # ✅ 权限激活状态扩展
-│   ├── scripts/           # 🔧 数据库管理脚本
-│   │   ├── backup.js      # 💾 数据库备份脚本
-│   │   ├── restore.js     # ♻️ 数据库恢复脚本
-│   │   └── cleanup.js     # 🧹 数据清理脚本
-│   ├── check-tables-dynamic.js # 🔍 动态表检查工具
-│   ├── install-full.js    # 🚀 完整安装脚本
-│   └── optimize-database.sql # ⚡ 数据库优化SQL
-├── logs/                  # 📋 日志文件目录
-│   ├── access/           # 🌐 访问日志
-│   ├── error/            # ❌ 错误日志
-│   ├── performance/      # 📊 性能日志
-│   └── security/         # 🔒 安全日志
-├── scripts/               # 🛠️ 系统管理脚本
-│   ├── create-admin.js    # 👑 创建管理员账户
-│   ├── system-health-check.js # 🏥 系统健康检查
-│   └── replace-console-logs.js # 🔄 日志替换工具
-├── docs/                  # 📚 项目文档目录
-│   └── *.md              # 📖 各类文档文件
-├── package.json           # 📦 项目依赖配置
-├── package-lock.json      # 🔒 依赖版本锁定
-├── .env.example          # ⚙️ 环境变量模板
-├── .gitignore            # 🚫 Git忽略文件配置
-├── ecosystem.config.js    # 🔄 PM2进程管理配置
-├── setup-database.sql     # 🗄️ 数据库初始化脚本
-├── CLAUDE.md             # 🤖 Claude AI工作指导文档
-├── README.md             # 📖 项目说明文档
-├── jwt优化.md            # 🔐 JWT优化文档
-└── redis优化.md          # 💾 Redis优化文档
+├── README.md                  # 📚 项目说明文档
+├── package.json               # 📦 项目依赖与脚本
+├── database/                  # 🗄️ 数据库脚本与初始化数据
+│   ├── install.sql            #     初始化数据库结构（含 orders、audit 日志等）
+│   └── ...
+├── scripts/                   # 🛠️ 运维工具脚本
+│   └── system-health-check.js #     综合健康检查脚本
+└── src/                       # 🎯 应用源码
+    ├── app.js                 # 🚀 Express 启动入口
+    ├── cluster.js             # ⚡ PM2/Cluster 启动文件
+    ├── config/                # ⚙️ 配置模块
+    │   ├── database.js        #     PostgreSQL 连接池与监控
+    │   ├── minio.js           #     对象存储客户端配置
+    │   └── swagger.js         #     OpenAPI/Swagger 配置
+    ├── controllers/           # 🎮 控制器层（REST 入口）
+    │   ├── admin/             #     管理端控制器（系统设置、缓存、Alist 等）
+    │   ├── cardKeyController.js      # 🎫 卡密业务控制
+    │   ├── cardOrderController.js    # 🧾 卡密订单与兑换记录
+    │   ├── auditLogController.js     # 📝 审计日志查询
+    │   ├── vipController.js          # 💎 VIP 会员管理
+    │   └── ...（用户、资源、社区、下载等控制器）
+    ├── routes/                # 🛤️ 路由定义
+    │   ├── admin/             #     管理端路由（与 controllers/admin 配套）
+    │   ├── cardKey.js         #     用户端卡密接口
+    │   ├── admin/cardKeys.js  #     管理端卡密接口（包含统计概览）
+    │   └── ...（认证、资源、社区、下载等路由）
+    ├── models/                # 🧱 数据访问层
+    │   ├── CardKey.js         #     卡密与订单统计逻辑
+    │   ├── VIP.js             #     VIP 等级与订单模型
+    │   ├── AuditLog.js        #     系统操作日志模型
+    │   └── ...（User、Resource、Community 等模型）
+    ├── services/              # 🏗️ 业务服务层
+    │   ├── BaseService.js     #     服务基类（统一日志/分页/缓存）
+    │   ├── AuditLogService.js #     审计日志查询服务
+    │   ├── CardKeyService.js  #     卡密管理服务
+    │   └── ...（Auth、User、Resource、Community 等服务）
+    ├── middleware/            # 🔧 中间件（认证、权限、缓存、安全、限流等）
+    ├── docs/                  # 📖 OpenAPI/Swagger Schema 定义
+    │   └── schemas/           #     业务模块的请求/响应模型
+    ├── tasks/                 # ⏰ 定时任务与后台批处理（如 VIP 过期处理）
+    └── utils/                 # 🧰 工具库（日志、缓存、下载鉴权、JWT 等）
 ```
 
+> 📌 **注意**：`orders` 表统一记录 VIP 购买与卡密兑换订单，所有统计/API（例如卡密销售概览、审计日志）均已接入该表。README 中的目录说明与最新代码保持一致，便于快速定位模块。
 ## 🚀 快速开始
 
 ### 1. 环境要求

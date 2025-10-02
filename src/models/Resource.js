@@ -460,6 +460,56 @@ class Resource {
 
     return result.rows;
   }
+
+  /**
+   * 随机获取指定类型的公开已发布资源
+   * @param {string} typeName 资源类型名称（resource_types.name）
+   * @param {number} limit 返回数量，范围1-50
+   * @returns {Promise<Array>} 资源列表
+   */
+  static async getRandomPublishedResourcesByType(typeName = 'video', limit = 6) {
+    const resolvedType = typeof typeName === 'string' && typeName.trim()
+      ? typeName.trim().toLowerCase()
+      : 'video';
+
+    const resolvedLimit = Math.min(Math.max(parseInt(limit, 10) || 6, 1), 50);
+
+    const result = await query(
+      `SELECT
+         r.id,
+         r.title,
+         r.slug,
+         r.summary,
+         r.description,
+         r.cover_image_url,
+         r.view_count,
+         r.download_count,
+         r.like_count,
+         r.created_at,
+         r.published_at,
+         r.author_id,
+         r.category_id,
+         rt.id AS resource_type_id,
+         rt.name AS resource_type_name,
+         rt.display_name AS resource_type_display_name,
+         c.name AS category_name,
+         c.display_name AS category_display_name,
+         u.username AS author_username,
+         u.nickname AS author_nickname
+       FROM resources r
+       JOIN resource_types rt ON r.resource_type_id = rt.id
+       LEFT JOIN categories c ON r.category_id = c.id
+       LEFT JOIN users u ON r.author_id = u.id
+       WHERE r.status = 'published'
+         AND r.is_public = TRUE
+         AND rt.name = $1
+       ORDER BY RANDOM()
+       LIMIT $2`,
+      [resolvedType, resolvedLimit]
+    );
+
+    return result.rows;
+  }
 }
 
 module.exports = Resource;

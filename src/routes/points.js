@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const pointsController = require('../controllers/pointsController');
+const pointsProductController = require('../controllers/pointsProductController');
 const { authenticateToken, requireRole, requireAdmin, requirePermission } = require('../middleware/auth');
 
 // 用户功能路由
@@ -21,6 +22,27 @@ router.get('/my-records',
   authenticateToken,
   requirePermission('points:read'),
   pointsController.getMyPointsRecords
+);
+
+// 获取可兑换虚拟商品列表
+router.get('/products',
+  authenticateToken,
+  requirePermission('points:read'),
+  pointsProductController.getProducts
+);
+
+// 兑换虚拟商品
+router.post('/products/:productId/redeem',
+  authenticateToken,
+  requirePermission('points:read'),
+  pointsProductController.redeemProduct
+);
+
+// 获取兑换记录
+router.get('/products/exchanges',
+  authenticateToken,
+  requirePermission('points:read'),
+  pointsProductController.getMyExchanges
 );
 
 // 获取当前用户积分排名

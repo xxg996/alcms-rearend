@@ -156,6 +156,34 @@ class SystemSetting {
 
     return value;
   }
+
+  /**
+   * 获取前端轮播图配置
+   * 采用 system_settings.frontend_banners 中存储的JSON数组
+   */
+  static async getFrontendBanners() {
+    const stored = await this.getSetting('frontend_banners', []);
+
+    if (!Array.isArray(stored)) {
+      return [];
+    }
+
+    return stored
+      .map(item => {
+        const imageUrl = typeof item?.image_url === 'string' ? item.image_url.trim() : '';
+        const linkUrl = typeof item?.link_url === 'string' ? item.link_url.trim() : '';
+        const title = typeof item?.title === 'string' ? item.title.trim() : null;
+        const titleColor = typeof item?.title_color === 'string' ? item.title_color.trim() : null;
+
+        return {
+          image_url: imageUrl,
+          link_url: linkUrl,
+          title: title || null,
+          title_color: titleColor || null
+        };
+      })
+      .filter(item => item.image_url);
+  }
 }
 
 module.exports = SystemSetting;

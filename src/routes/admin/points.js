@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const pointsController = require('../../controllers/pointsController');
+const pointsProductController = require('../../controllers/pointsProductController');
 const {
   authenticateToken,
   requirePermission
@@ -45,6 +46,43 @@ router.get('/statistics',
   authenticateToken,
   requirePermission('points:statistics'),
   pointsController.getPointsStatistics
+);
+
+// 虚拟商品管理
+router.get('/products',
+  authenticateToken,
+  requirePermission('points:statistics'),
+  pointsProductController.adminGetProducts
+);
+
+router.post('/products',
+  authenticateToken,
+  requirePermission('points:grant'),
+  pointsProductController.createProduct
+);
+
+router.put('/products/:productId',
+  authenticateToken,
+  requirePermission('points:grant'),
+  pointsProductController.updateProduct
+);
+
+router.post('/products/:productId/inventory',
+  authenticateToken,
+  requirePermission('points:grant'),
+  pointsProductController.addInventory
+);
+
+router.get('/products/:productId/inventory',
+  authenticateToken,
+  requirePermission('points:statistics'),
+  pointsProductController.getInventory
+);
+
+router.get('/products/exchanges',
+  authenticateToken,
+  requirePermission('points:statistics'),
+  pointsProductController.adminGetExchanges
 );
 
 module.exports = router;

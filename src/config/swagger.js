@@ -114,6 +114,20 @@ const swaggerDefinition = {
     {
       BearerAuth: []
     }
+  ],
+  tags: [
+    {
+      name: '前端调用',
+      description: '前台展示所需的无鉴权接口'
+    },
+    {
+      name: '积分商城',
+      description: '积分虚拟商品用户接口'
+    },
+    {
+      name: '积分商城管理',
+      description: '积分商城管理员接口（商品配置、库存管理）'
+    }
   ]
 };
 
