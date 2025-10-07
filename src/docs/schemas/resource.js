@@ -56,6 +56,10 @@
  *           nullable: true
  *           description: 资源类型显示名称
  *           example: "文章"
+ *         official:
+ *           type: boolean
+ *           description: 是否为官方资源
+ *           example: false
  *         category_id:
  *           type: integer
  *           nullable: true

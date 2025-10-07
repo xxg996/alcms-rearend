@@ -233,7 +233,7 @@ class Resource {
     const resourcesQuery = `
       SELECT
         r.id, r.title, r.slug, r.description, r.summary, r.cover_image_url,
-        r.is_public, r.view_count, r.download_count, r.like_count, r.created_at, r.published_at,
+        r.is_public, r.official, r.view_count, r.download_count, r.like_count, r.created_at, r.published_at,
         rt.name as resource_type_name, rt.display_name as resource_type_display_name,
         c.name as category_name, c.display_name as category_display_name,
         u.username as author_username, u.nickname as author_nickname
