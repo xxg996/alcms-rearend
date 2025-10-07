@@ -10,11 +10,11 @@ const { logger } = require('../utils/logger');
 const FrontendContentController = {
   /**
    * @swagger
-   * /api/frontend/banners:
+   * /api/resources/frontend-random:
    *   get:
    *     tags: [前端调用]
-   *     summary: 获取首页轮播图
-   *     description: 返回系统配置中定义的轮播图列表，供前端展示使用。
+   *     summary: 获取首页随机资源
+   *     description: 返回系统配置中定义的前端展示条目（如轮播图）。
    *     responses:
    *       200:
    *         description: 获取成功
@@ -26,7 +26,7 @@ const FrontendContentController = {
       const banners = await SystemSetting.getFrontendBanners();
       res.json({
         success: true,
-        message: '获取轮播图成功',
+        message: '获取前端展示资源成功',
         data: banners
       });
     } catch (error) {
@@ -40,10 +40,10 @@ const FrontendContentController = {
 
   /**
    * @swagger
-   * /api/frontend/resources/random-video:
+   * /api/resources/frontend:
    *   get:
    *     tags: [前端调用]
-   *     summary: 随机获取视频资源
+   *     summary: 获取随机视频资源
    *     description: 随机返回指定数量的公开视频资源，供前端模块展示。
    *     parameters:
    *       - in: query
@@ -66,7 +66,7 @@ const FrontendContentController = {
 
       res.json({
         success: true,
-        message: '获取随机视频资源成功',
+        message: '获取前端资源成功',
         data: resources
       });
     } catch (error) {

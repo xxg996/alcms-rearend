@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const ResourceController = require('../controllers/resourceController');
+const FrontendContentController = require('../controllers/frontendContentController');
 const { authenticateToken, requirePermission, optionalAuth } = require('../middleware/auth');
 const { resourceListCache, resourceDetailCache, statsCache, clearResourceCache } = require('../middleware/cacheMiddleware');
 const { logger } = require('../utils/logger');
@@ -14,6 +15,10 @@ const { logger } = require('../utils/logger');
 
 // 获取公开资源列表（添加缓存）
 router.get('/', optionalAuth, resourceListCache, ResourceController.getResources);
+
+// 前端展示资源
+router.get('/frontend-random', FrontendContentController.getHomepageBanners);
+router.get('/frontend', FrontendContentController.getRandomVideoResources);
 
 // 获取单个资源详情（添加缓存）
 router.get('/:id', optionalAuth, resourceDetailCache, ResourceController.getResource);
