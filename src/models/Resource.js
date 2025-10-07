@@ -167,6 +167,7 @@ class Resource {
     const conditions = [];
     const values = [];
     let paramIndex = 1;
+    const sanitizedSearch = typeof search === 'string' ? search.trim() : '';
 
     // 构建查询条件
 
@@ -199,15 +200,19 @@ class Resource {
       values.push(is_public);
       paramIndex++;
     }
+    if (sanitizedSearch) {
+      const tsQueryParamIndex = paramIndex;
+      const fuzzyParamIndex = paramIndex + 1;
 
-
-    if (search) {
       conditions.push(`(
-        r.title ILIKE $${paramIndex} OR
-        r.description ILIKE $${paramIndex}
+        to_tsvector('simple', coalesce(r.title, '') || ' ' || coalesce(r.description, '')) @@ websearch_to_tsquery('simple', $${tsQueryParamIndex})
+        OR r.title ILIKE $${fuzzyParamIndex}
+        OR r.description ILIKE $${fuzzyParamIndex}
       )`);
-      values.push(`%${search}%`);
-      paramIndex++;
+
+      values.push(sanitizedSearch);
+      values.push(`%${sanitizedSearch}%`);
+      paramIndex += 2;
     }
 
     // 标签过滤
@@ -433,37 +438,6 @@ class Resource {
     await this.incrementDownloadCount(resourceId);
 
     return result.rows[0];
-  }
-
-  /**
-   * 全文搜索
-   * @param {string} searchTerm - 搜索词
-   * @param {Object} options - 搜索选项
-   * @returns {Promise<Array>} 搜索结果
-   */
-  static async fullTextSearch(searchTerm, options = {}) {
-    const { limit = 20, offset = 0 } = options;
-
-    // 使用简单的 ILIKE 搜索来支持中文内容
-    const result = await query(
-      `SELECT
-        r.id, r.title, r.slug, r.description, r.summary, r.cover_image_url,
-        r.view_count, r.download_count, r.created_at,
-        rt.display_name as resource_type_display_name,
-        c.display_name as category_display_name,
-        u.nickname as author_nickname
-      FROM resources r
-      LEFT JOIN resource_types rt ON r.resource_type_id = rt.id
-      LEFT JOIN categories c ON r.category_id = c.id
-      LEFT JOIN users u ON r.author_id = u.id
-      WHERE (r.title ILIKE $1 OR r.description ILIKE $1)
-      AND r.status = 'published' AND r.is_public = true
-      ORDER BY r.created_at DESC
-      LIMIT $2 OFFSET $3`,
-      [`%${searchTerm}%`, limit, offset]
-    );
-
-    return result.rows;
   }
 
   /**

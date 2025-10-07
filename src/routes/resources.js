@@ -19,9 +19,6 @@ router.get('/', optionalAuth, resourceListCache, ResourceController.getResources
 // 前端展示资源
 router.get('/frontend', FrontendContentController.getRandomVideoResources);
 
-// 搜索资源（不缓存，因为查询结果变化大）
-router.get('/search/query', ResourceController.searchResources);
-
 // 获取单个资源详情（添加缓存）
 router.get('/:id', optionalAuth, resourceDetailCache, ResourceController.getResource);
 

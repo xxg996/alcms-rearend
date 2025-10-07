@@ -43,6 +43,7 @@ class ResourceController {
    *       **默认过滤：**
    *       - 默认只返回已发布的资源（status='published'）
    *       - 使用 include_all=true 可以返回所有状态的资源（需要相应权限）
+   *       - 搜索关键词启用 PostgreSQL 全文检索，自动匹配标题和描述
    *
    *     security:
  *       - BearerAuth: []
@@ -96,7 +97,7 @@ class ResourceController {
    *         name: search
    *         schema:
    *           type: string
-   *         description: 搜索关键词
+   *         description: 搜索关键词（使用 PostgreSQL 全文检索匹配标题和描述）
    *       - in: query
    *         name: tags
    *         schema:
@@ -858,126 +859,6 @@ class ResourceController {
   }
 
   // 注意：下载功能已迁移到 /api/admin/resources/:id/files 和 /api/user/download/:fileId
-
-  /**
-   * @swagger
-   * /api/resources/search:
-   *   get:
-   *     tags: [资源管理相关]
-   *     summary: 搜索资源
-   *     description: 使用关键词进行全文搜索资源
-   *     security:
-   *       - BearerAuth: []
-   *     parameters:
-   *       - in: query
-   *         name: q
-   *         required: true
-   *         schema:
-   *           type: string
-   *           minLength: 1
-   *         description: 搜索关键词
-   *         example: "Vue"
-   *       - in: query
-   *         name: page
-   *         schema:
-   *           type: integer
-   *           default: 1
-   *         description: 页码
-   *       - in: query
-   *         name: limit
-   *         schema:
-   *           type: integer
-   *           default: 20
-   *         description: 每页数量
-   *       - in: query
-   *         name: type
-   *         schema:
-   *           type: string
-   *         description: 搜索类型过滤
-   *     responses:
-   *       200:
-   *         description: 搜索成功
-   *         content:
-   *           application/json:
-   *             schema:
-   *               allOf:
-   *                 - $ref: '#/components/schemas/SuccessResponse'
-   *                 - type: object
-   *                   properties:
-   *                     data:
-   *                       type: object
-   *                       properties:
-   *                         resources:
-   *                           type: array
-   *                           items:
-   *                             $ref: '#/components/schemas/Resource'
-   *                         query:
-   *                           type: string
-   *                           description: 搜索关键词
-   *                         pagination:
-   *                           $ref: '#/components/schemas/Pagination'
-   *             example:
-   *               success: true
-   *               data:
-   *                 resources: []
-   *                 query: "Vue"
-   *                 pagination:
-   *                   page: 1
-   *                   limit: 20
-   *                   total: 0
-   *       400:
-   *         description: 搜索关键词为空
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/ErrorResponse'
-   *             example:
-   *               success: false
-   *               message: "搜索关键词不能为空"
-   *       500:
-   *         $ref: '#/components/responses/ServerError'
-   */
-  static async searchResources(req, res) {
-    try {
-      const { q: query, page = 1, limit = 20, type } = req.query;
-
-      if (!query || query.trim().length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: '搜索关键词不能为空'
-        });
-      }
-
-      const currentPage = Math.max(parseInt(page, 10) || 1, 1);
-      const currentLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
-      const offset = (currentPage - 1) * currentLimit;
-
-      const searchResults = await Resource.fullTextSearch(query.trim(), {
-        limit: currentLimit,
-        offset
-      });
-
-      res.json({
-        success: true,
-        data: {
-          resources: searchResults,
-          query: query.trim(),
-          pagination: {
-            page: currentPage,
-            limit: currentLimit,
-            total: searchResults.length
-          }
-        }
-      });
-    } catch (error) {
-      logger.error('搜索资源失败:', error);
-      res.status(500).json({
-        success: false,
-        message: '搜索失败',
-        error: error.message
-      });
-    }
-  }
 
   /**
    * @swagger
