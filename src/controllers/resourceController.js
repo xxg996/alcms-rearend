@@ -100,12 +100,8 @@ class ResourceController {
    *       - in: query
    *         name: tags
    *         schema:
-   *           type: array
-   *           items:
-   *             type: string
-   *         style: form
-   *         explode: true
-   *         description: 标签过滤
+   *           type: string
+   *         description: 标签ID列表，逗号分隔，例如 "1,2,3"
    *       - in: query
    *         name: sort_by
    *         schema:
@@ -166,7 +162,17 @@ class ResourceController {
         sort_order
       } = req.query;
 
-      const tagArray = tags ? (Array.isArray(tags) ? tags : String(tags).split(',')) : undefined;
+      const rawTags = tags ? (Array.isArray(tags) ? tags : String(tags).split(',')) : [];
+      const tagIds = rawTags
+        .map(tag => {
+          if (typeof tag === 'number') return tag;
+          if (typeof tag === 'string' && tag.trim() !== '') {
+            const parsed = parseInt(tag.trim(), 10);
+            return Number.isFinite(parsed) ? parsed : null;
+          }
+          return null;
+        })
+        .filter(id => Number.isFinite(id));
 
       const includeAll = String(req.query.include_all || '').toLowerCase() === 'true';
       const resolvedStatus = includeAll ? undefined : (status ?? 'published');
@@ -180,7 +186,7 @@ class ResourceController {
         status: resolvedStatus,
         is_public: is_public !== undefined ? toBoolean(is_public, true) : undefined,
         search,
-        tags: tagArray,
+        tags: tagIds.length > 0 ? tagIds : undefined,
         sort_by,
         sort_order
       };

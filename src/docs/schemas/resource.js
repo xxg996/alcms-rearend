@@ -199,11 +199,9 @@
  *               description: 搜索关键词
  *               example: "Vue"
  *             tags:
- *               type: array
- *               items:
- *                 type: string
- *               description: 标签过滤
- *               example: ["vue", "javascript"]
+ *               type: string
+ *               description: 标签ID列表，逗号分隔
+ *               example: "1,2,3"
  *             sort_by:
  *               type: string
  *               enum: [created_at, updated_at, published_at, view_count, download_count, like_count]

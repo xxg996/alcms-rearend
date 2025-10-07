@@ -213,13 +213,18 @@ class Resource {
     // 标签过滤
     let tagJoin = '';
     if (tags && tags.length > 0) {
+      const numericTags = tags
+        .map(tag => Number(tag))
+        .filter(value => Number.isFinite(value));
+
+      if (numericTags.length > 0) {
       tagJoin = `
         JOIN resource_tags rt_filter ON r.id = rt_filter.resource_id
-        JOIN tags t_filter ON rt_filter.tag_id = t_filter.id
       `;
-      conditions.push(`t_filter.name = ANY($${paramIndex})`);
-      values.push(tags);
+      conditions.push(`rt_filter.tag_id = ANY($${paramIndex})`);
+      values.push(numericTags);
       paramIndex++;
+      }
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
