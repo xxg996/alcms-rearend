@@ -10,10 +10,10 @@ const { logger } = require('../utils/logger');
 const FrontendContentController = {
   /**
    * @swagger
-   * /api/resources/frontend-random:
+   * /api/frontend/carousel:
    *   get:
    *     tags: [前端调用]
-   *     summary: 获取首页随机资源
+   *     summary: 获取首页轮播内容
    *     description: 返回系统配置中定义的前端展示条目（如轮播图）。
    *     responses:
    *       200:
@@ -26,7 +26,7 @@ const FrontendContentController = {
       const banners = await SystemSetting.getFrontendBanners();
       res.json({
         success: true,
-        message: '获取前端展示资源成功',
+        message: '获取首页轮播内容成功',
         data: banners
       });
     } catch (error) {

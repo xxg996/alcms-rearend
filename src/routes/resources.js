@@ -17,7 +17,6 @@ const { logger } = require('../utils/logger');
 router.get('/', optionalAuth, resourceListCache, ResourceController.getResources);
 
 // 前端展示资源
-router.get('/frontend-random', FrontendContentController.getHomepageBanners);
 router.get('/frontend', FrontendContentController.getRandomVideoResources);
 
 // 获取单个资源详情（添加缓存）
