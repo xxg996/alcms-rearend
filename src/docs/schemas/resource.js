@@ -87,6 +87,11 @@
  *           type: string
  *           description: 作者昵称
  *           example: "管理员"
+ *         author_avatar_url:
+ *           type: string
+ *           format: uri
+ *           description: 作者头像地址（若缺失则为自动生成的 UI Avatars 链接）
+ *           example: "https://ui-avatars.com/api/?name=管理员&background=random&size=128"
  *         is_public:
  *           type: boolean
  *           description: 是否公开

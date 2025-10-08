@@ -202,6 +202,19 @@ class ResourceController {
           result.resources, 
           req.user?.id
         );
+
+        result.resources = result.resources.map(resource => {
+          const displayName = resource.author_nickname || resource.author_username || '未知用户';
+          const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&size=128`;
+          const rawAvatar = typeof resource.author_avatar_url === 'string' ? resource.author_avatar_url.trim() : '';
+          const normalizedAvatar = rawAvatar.toLowerCase();
+          const hasValidAvatar = rawAvatar && normalizedAvatar !== 'null' && normalizedAvatar !== 'undefined';
+
+          return {
+            ...resource,
+            author_avatar_url: hasValidAvatar ? rawAvatar : fallbackUrl
+          };
+        });
       }
 
       res.json({
