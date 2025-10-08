@@ -919,6 +919,9 @@ CREATE INDEX idx_points_products_active ON points_products(is_active);
 CREATE INDEX idx_points_products_type ON points_products(type);
 CREATE INDEX idx_points_products_cost ON points_products(points_cost);
 CREATE INDEX idx_points_products_tags ON points_products USING GIN (tags);
+CREATE INDEX idx_resources_fulltext ON resources USING GIN (
+  to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(description, ''))
+);
 CREATE INDEX idx_virtual_product_items_product_status ON virtual_product_items(product_id, status);
 
 CREATE TRIGGER update_virtual_product_items_updated_at
