@@ -138,7 +138,7 @@ class UserService extends BaseService {
       try {
         this.validateRequired({ userId }, ['userId']);
 
-        const cacheKey = `user:${userId}:profile`;
+        const cacheKey = `user:${userId}:profile:v2`;
         
         return await this.getCached(cacheKey, async () => {
           const user = await User.findById(userId);

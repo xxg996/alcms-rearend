@@ -229,6 +229,10 @@ const changePassword = async (req, res) => {
  *                 bio: null
  *                 role: "user"
  *                 status: "active"
+ *                 download_stats:
+ *                   daily_limit: 10
+ *                   today_consumed: 3
+ *                   remaining_downloads: 7
  *                 last_login_at: "2025-09-12T08:00:00.000Z"
  *                 created_at: "2025-09-11T10:00:00.000Z"
  *                 updated_at: "2025-09-12T08:00:00.000Z"

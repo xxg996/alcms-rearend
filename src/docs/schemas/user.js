@@ -76,6 +76,22 @@
  *           type: integer
  *           description: 用户累计积分
  *           example: 3000
+ *         download_stats:
+ *           type: object
+ *           description: 用户当日下载统计数据
+ *           properties:
+ *             daily_limit:
+ *               type: integer
+ *               description: 当日允许下载次数
+ *               example: 10
+ *             today_consumed:
+ *               type: integer
+ *               description: 当日已使用次数
+ *               example: 3
+ *             remaining_downloads:
+ *               type: integer
+ *               description: 当日剩余次数
+ *               example: 7
  *         is_vip:
  *           type: boolean
  *           description: 是否为VIP用户

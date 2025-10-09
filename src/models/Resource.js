@@ -108,11 +108,11 @@ class Resource {
         r.*,
         rt.name as resource_type_name,
         rt.display_name as resource_type_display_name,
-        rt.is_streamable,
         c.name as category_name,
         c.display_name as category_display_name,
         u.username as author_username,
         u.nickname as author_nickname,
+        u.avatar_url as author_avatar_url,
         CASE WHEN f.id IS NOT NULL THEN true ELSE false END as is_favorited
       FROM resources r
       LEFT JOIN resource_types rt ON r.resource_type_id = rt.id

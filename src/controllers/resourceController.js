@@ -274,32 +274,34 @@ class ResourceController {
    *                       $ref: '#/components/schemas/Resource'
    *             example:
    *               success: true
-   *               data:
-   *                 id: 1
-   *                 title: "Vue.js 完整教程"
-   *                 slug: "vue-complete-tutorial"
-   *                 description: "从基础到高级的 Vue.js 学习教程"
-   *                 author_id: 1
-   *                 author_username: "admin"
-   *                 status: "published"
-   *                 is_public: true
-   *                 is_free: false
-   *                 required_points: 100
-   *                 view_count: 1251
-   *                 download_count: 89
-   *                 like_count: 45
-   *                 created_at: "2025-09-11T10:00:00.000Z"
-   *                 updated_at: "2025-09-12T08:00:00.000Z"
-   *                 user_download_status:
-   *                   daily_limit: 50
-   *                   daily_used: 15
-   *                   remaining_downloads: 35
-   *                   can_download: true
-   *                   purchased_today: false
-   *                   download_cost:
-   *                     type: "download_count"
-   *                     cost: 1
-   *                   purchased_info: null
+ *               data:
+ *                 id: 1
+ *                 title: "Vue.js 完整教程"
+ *                 slug: "vue-complete-tutorial"
+ *                 description: "从基础到高级的 Vue.js 学习教程"
+ *                 summary: "适合初学者的 Vue.js 教程"
+ *                 category_id: 3
+ *                 category_name: "frontend"
+ *                 category_display_name: "前端开发"
+ *                 author_id: 1
+ *                 author_username: "admin"
+ *                 author_nickname: "管理员"
+ *                 author_avatar_url: "https://ui-avatars.com/api/?name=admin&background=random&size=128"
+ *                 status: "published"
+ *                 is_public: true
+ *                 is_free: false
+ *                 official: false
+ *                 required_points: 100
+ *                 view_count: 1251
+ *                 download_count: 89
+ *                 like_count: 45
+ *                 created_at: "2025-09-11T10:00:00.000Z"
+ *                 updated_at: "2025-09-12T08:00:00.000Z"
+ *                 tags:
+ *                   - id: 5
+ *                     name: "vue"
+ *                     display_name: "Vue.js"
+ *                     color: "#42b883"
    *       400:
    *         $ref: '#/components/responses/BadRequest'
    *       401:
@@ -361,6 +363,14 @@ class ResourceController {
 
       // 生成安全的资源信息（隐藏真实下载链接）
       const secureResource = await generateSecureResourceInfo(resource, userId);
+
+      const displayName = secureResource.author_nickname || secureResource.author_username || '未知用户';
+      const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&size=128`;
+      const rawAvatar = typeof secureResource.author_avatar_url === 'string' ? secureResource.author_avatar_url.trim() : '';
+      const normalizedAvatar = rawAvatar.toLowerCase();
+      const hasValidAvatar = rawAvatar && normalizedAvatar !== 'null' && normalizedAvatar !== 'undefined';
+
+      secureResource.author_avatar_url = hasValidAvatar ? rawAvatar : fallbackAvatar;
 
 
       res.json({

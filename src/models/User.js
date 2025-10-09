@@ -42,13 +42,32 @@ class User {
   static async findById(id) {
     const result = await query(
       `SELECT
-        id, username, email, nickname, avatar_url, bio, status,
-        created_at, updated_at,
-        referral_code, inviter_id, invited_at,
-        commission_balance, total_commission_earned,
-        points, vip_level, is_vip, download_count,
-        daily_download_limit, daily_downloads_used, last_download_reset_date
-       FROM users WHERE id = $1`,
+        u.id, u.username, u.email, u.nickname, u.avatar_url, u.bio, u.status,
+        u.created_at, u.updated_at,
+        u.referral_code, u.inviter_id, u.invited_at,
+        u.commission_balance, u.total_commission_earned,
+        u.points, u.total_points,
+        u.vip_level, u.is_vip, u.vip_expire_at, u.vip_activated_at,
+        u.download_count,
+        u.daily_download_limit, u.daily_downloads_used, u.last_download_reset_date,
+        vl.name AS vip_level_name,
+        vl.display_name AS vip_level_display_name,
+        COALESCE(vl.daily_download_limit, u.daily_download_limit, 10) AS actual_daily_limit,
+        COALESCE(
+          (
+            SELECT COUNT(*) FROM daily_purchases dp
+            WHERE dp.user_id = u.id
+              AND dp.purchase_date = CURRENT_DATE
+              AND dp.points_cost = 0
+          ),
+          CASE
+            WHEN u.last_download_reset_date::date < CURRENT_DATE THEN 0
+            ELSE u.daily_downloads_used
+          END
+        ) AS today_consumed
+       FROM users u
+       LEFT JOIN vip_levels vl ON u.vip_level = vl.level AND vl.is_active = TRUE
+       WHERE u.id = $1`,
       [id]
     );
     return result.rows[0] || null;
