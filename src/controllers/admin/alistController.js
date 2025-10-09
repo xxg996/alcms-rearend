@@ -441,6 +441,100 @@ const deleteAlistResource = async (req, res) => {
 
 /**
  * @swagger
+ * /api/admin/alist/resources/items/{alistResourceId}:
+ *   delete:
+ *     summary: 删除单个Alist文件关联
+ *     description: 根据 alist_resources 表的ID删除单条关联记录
+ *     tags: [Alist管理相关]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: alistResourceId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: alist_resources表中关联记录的ID
+ *         example: 12
+ *     responses:
+ *       200:
+ *         description: 删除成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *             example:
+ *               success: true
+ *               message: "单个Alist文件关联删除成功"
+ *       404:
+ *         description: 关联记录不存在
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "指定的Alist关联记录不存在"
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const deleteAlistResourceById = async (req, res) => {
+  try {
+    const alistResourceId = parseInt(req.params.alistResourceId, 10);
+
+    if (!alistResourceId) {
+      return res.status(400).json({
+        success: false,
+        message: '请提供有效的关联记录ID'
+      });
+    }
+
+    const deletedRecord = await AlistResource.deleteById(alistResourceId);
+
+    if (!deletedRecord) {
+      return res.status(404).json({
+        success: false,
+        message: '指定的Alist关联记录不存在'
+      });
+    }
+
+    const remainingResult = await query(
+      'SELECT COUNT(*) FROM alist_resources WHERE resource_id = $1',
+      [deletedRecord.resource_id]
+    );
+
+    const remainingCount = parseInt(remainingResult.rows[0].count, 10);
+
+    if (remainingCount === 0) {
+      await query(
+        'UPDATE resources SET official = false WHERE id = $1',
+        [deletedRecord.resource_id]
+      );
+    }
+
+    logger.info('管理员删除单个Alist资源关联', {
+      adminId: req.user.id,
+      alistResourceId,
+      resourceId: deletedRecord.resource_id,
+      alistPath: deletedRecord.alist_path,
+      remainingCount
+    });
+
+    res.json({
+      success: true,
+      message: '单个Alist文件关联删除成功'
+    });
+  } catch (error) {
+    logger.error('删除单个Alist资源关联失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '删除关联失败'
+    });
+  }
+};
+
+/**
+ * @swagger
  * /api/admin/alist/stats:
  *   get:
  *     summary: 获取Alist系统统计信息
@@ -590,6 +684,7 @@ module.exports = {
   getAlistResources,
   addAlistResource,
   deleteAlistResource,
+  deleteAlistResourceById,
   getAlistStats,
   refreshAlistToken,
   getAlistTokenStatus

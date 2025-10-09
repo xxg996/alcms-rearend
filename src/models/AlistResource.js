@@ -157,6 +157,25 @@ class AlistResource {
   }
 
   /**
+   * 根据ID删除Alist资源关联
+   * @param {number} id - alist_resources表ID
+   * @returns {Promise<Object|null>} 被删除的记录
+   */
+  static async deleteById(id) {
+    try {
+      const result = await query(
+        'DELETE FROM alist_resources WHERE id = $1 RETURNING *',
+        [id]
+      );
+
+      return result.rows[0] || null;
+    } catch (error) {
+      logger.error('根据ID删除Alist资源关联失败:', error);
+      throw error;
+    }
+  }
+
+  /**
    * 删除指定路径的Alist资源关联
    */
   static async deleteByPath(resourceId, alistPath) {

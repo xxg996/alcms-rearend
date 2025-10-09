@@ -11,6 +11,7 @@ const {
   getAlistResources,
   addAlistResource,
   deleteAlistResource,
+  deleteAlistResourceById,
   getAlistStats,
   refreshAlistToken,
   getAlistTokenStatus
@@ -46,6 +47,11 @@ router.post('/resources/:resourceId', addAlistResource);
  * 删除资源的Alist文件关联
  */
 router.delete('/resources/:resourceId', deleteAlistResource);
+
+/**
+ * 删除单个Alist文件关联
+ */
+router.delete('/resources/items/:alistResourceId', deleteAlistResourceById);
 
 /**
  * 获取Alist系统统计信息
