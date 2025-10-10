@@ -12,9 +12,18 @@ const { logger } = require('./logger');
  */
 function getChinaDateString() {
   const now = new Date();
-  // 将UTC时间转换为中国时间 (UTC+8)
   const chinaTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
   return chinaTime.toISOString().split('T')[0];
+}
+
+function normalizeDateToLocalString(value) {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  const normalized = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return normalized.toISOString().split('T')[0];
 }
 
 /**
@@ -45,8 +54,8 @@ async function checkAndResetDailyDownloads(userId) {
 
     // 获取数据库的当前日期来确保一致性
     const dateResult = await query('SELECT CURRENT_DATE as today');
-    const today = dateResult.rows[0].today.toISOString().split('T')[0];
-    const lastResetDate = user.last_download_reset_date?.toISOString().split('T')[0];
+    const today = normalizeDateToLocalString(dateResult.rows[0].today);
+    const lastResetDate = normalizeDateToLocalString(user.last_download_reset_date);
 
     // 日期比较：使用数据库的日期来确保一致性
 
@@ -86,7 +95,7 @@ async function checkAndResetDailyDownloads(userId) {
 
         const cleanupCount = cleanupResult.rowCount || 0;
         user.daily_downloads_used = 0;
-        user.last_download_reset_date = new Date();
+        user.last_download_reset_date = newResetDate || dateResult.rows[0].today;
 
         if (cleanupCount > 0) {
           logger.info(`清理了 ${cleanupCount} 条过期购买记录`);
@@ -117,7 +126,7 @@ async function checkAndResetDailyDownloads(userId) {
         [userId, today]
       );
 
-      user.last_download_reset_date = newResetDate;
+      user.last_download_reset_date = newResetDate || dateResult.rows[0].today;
     }
   }
 
