@@ -49,7 +49,12 @@ router.delete('/:id',
   ResourceController.deleteResource
 );
 
-// 资源点赞功能
+// 资源点赞状态与操作
+router.get('/:id/like',
+  optionalAuth,
+  ResourceController.getResourceLikeStatus
+);
+
 router.post('/:id/like',
   authenticateToken,
   ResourceController.toggleLike

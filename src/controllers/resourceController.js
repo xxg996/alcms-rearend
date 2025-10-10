@@ -1124,7 +1124,7 @@ class ResourceController {
    *         description: 资源不存在
    *       500:
    *         description: 服务器错误
-   */
+  */
   static async toggleLike(req, res) {
     try {
       const resourceId = parseInt(req.params.id, 10);
@@ -1148,6 +1148,99 @@ class ResourceController {
     } catch (error) {
       logger.error('切换资源点赞状态失败:', error);
       return errorResponse(res, '操作失败', 500);
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/resources/{id}/like:
+   *   get:
+   *     tags: [资源管理相关]
+   *     summary: 检查资源点赞状态
+   *     description: 返回当前用户对指定资源的点赞状态以及资源的总点赞数
+   *     security:
+   *       - BearerAuth: []
+   *       - {}
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 资源ID
+   *     responses:
+   *       200:
+   *         description: 获取点赞状态成功
+   *         content:
+   *           application/json:
+   *             schema:
+   *               allOf:
+   *                 - $ref: '#/components/schemas/SuccessResponse'
+   *                 - type: object
+   *                   properties:
+   *                     data:
+   *                       type: object
+   *                       properties:
+   *                         resource_id:
+   *                           type: integer
+   *                           description: 资源ID
+   *                         is_liked:
+   *                           type: boolean
+   *                           description: 当前用户是否已点赞
+   *                         like_count:
+   *                           type: integer
+   *                           description: 资源总点赞数
+   *             example:
+   *               success: true
+   *               data:
+   *                 resource_id: 1
+   *                 is_liked: true
+   *                 like_count: 42
+   *       400:
+   *         $ref: '#/components/responses/BadRequest'
+   *       404:
+   *         description: 资源不存在
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
+   */
+  static async getResourceLikeStatus(req, res) {
+    try {
+      const resourceId = parseInt(req.params.id, 10);
+
+      if (Number.isNaN(resourceId) || resourceId <= 0) {
+        return errorResponse(res, '资源ID格式不正确', 400);
+      }
+
+      const resourceResult = await query(
+        'SELECT like_count FROM resources WHERE id = $1',
+        [resourceId]
+      );
+
+      if (resourceResult.rows.length === 0) {
+        return errorResponse(res, '资源不存在', 404);
+      }
+
+      const userId = req.user?.id;
+      let isLiked = false;
+
+      if (userId) {
+        isLiked = await ResourceInteraction.isLiked(userId, resourceId);
+      }
+
+      const likeCount = parseInt(resourceResult.rows[0].like_count || 0, 10);
+
+      return successResponse(res, '获取点赞状态成功', {
+        resource_id: resourceId,
+        is_liked: isLiked,
+        like_count: likeCount
+      });
+    } catch (error) {
+      logger.error('获取资源点赞状态失败:', error);
+      return errorResponse(res, '获取点赞状态失败', 500);
     }
   }
 
