@@ -23,13 +23,13 @@ const { query } = require('../config/database');
  *       - 提供文件大小格式化显示
  *       - 减少对Alist服务器的请求压力
  *
- *       **权限要求：**
- *       - 需要用户登录认证
+ *       **权限说明：**
+ *       - 未登录亦可查看文件列表（仅展示基础信息）
+ *       - 登录后返回个人下载额度、积分与当日购买记录
  *       - 资源必须是官方资源(official=true)
  *       - 资源必须已关联Alist路径
  *     tags: [Alist文件管理]
- *     security:
- *       - BearerAuth: []
+ *     security: []
  *     parameters:
  *       - in: path
  *         name: resourceId
@@ -61,16 +61,23 @@ const { query } = require('../config/database');
  *                           example: "官方软件包"
  *                         user_download_status:
  *                           type: object
- *                           description: 用户下载状态信息
+ *                           description: 当前用户下载状态信息（未登录时部分字段为null，requires_login=true）
  *                           properties:
+ *                             requires_login:
+ *                               type: boolean
+ *                               description: 是否需要登录才能查看完整下载额度
+ *                               example: false
  *                             remaining_daily_downloads:
  *                               type: integer
+ *                               nullable: true
  *                               description: 当前用户剩余每日下载次数
  *                             remaining_total_downloads:
  *                               type: integer
+ *                               nullable: true
  *                               description: 当前用户剩余总下载次数
  *                             remaining_points:
  *                               type: integer
+ *                               nullable: true
  *                               description: 当前用户剩余积分
  *                             purchased_today:
  *                               type: boolean
@@ -160,6 +167,7 @@ const { query } = require('../config/database');
  *                     resource_id: 123
  *                     resource_title: "官方软件包"
  *                     user_download_status:
+ *                       requires_login: false
  *                       remaining_daily_downloads: 8
  *                       remaining_total_downloads: 50
  *                       remaining_points: 120
@@ -188,6 +196,7 @@ const { query } = require('../config/database');
  *                     resource_id: 124
  *                     resource_title: "官方文档包"
  *                     user_download_status:
+ *                       requires_login: false
  *                       remaining_daily_downloads: 5
  *                       remaining_total_downloads: 35
  *                       remaining_points: 80
@@ -216,6 +225,35 @@ const { query } = require('../config/database');
  *                         name: "readme.pdf"
  *                         size: 2097152
  *                         size_formatted: "2.00 MB"
+ *                         mime_type: "application/pdf"
+ *                         is_folder: false
+ *                         folder_size: 0
+ *                         file_count: 0
+ *                         last_sync_at: "2025-09-25T05:30:00.000Z"
+ *                         created_at: "2025-09-20T10:00:00.000Z"
+ *                         updated_at: "2025-09-25T05:30:00.000Z"
+ *               guest_view:
+ *                 summary: 未登录访客查看
+ *                 value:
+ *                   success: true
+ *                   message: "获取文件详情成功"
+ *                   data:
+ *                     resource_id: 125
+ *                     resource_title: "官方资源示例"
+ *                     user_download_status:
+ *                       requires_login: true
+ *                       remaining_daily_downloads: null
+ *                       remaining_total_downloads: null
+ *                       remaining_points: null
+ *                       purchased_today: false
+ *                       has_files: true
+ *                       purchased_info: null
+ *                     files:
+ *                       - id: 8
+ *                         path: "/official/demo/file.pdf"
+ *                         name: "file.pdf"
+ *                         size: 1048576
+ *                         size_formatted: "1.00 MB"
  *                         mime_type: "application/pdf"
  *                         is_folder: false
  *                         folder_size: 0
@@ -254,10 +292,8 @@ const { query } = require('../config/database');
  *                 value:
  *                   success: false
  *                   message: "该资源未关联任何Alist文件"
- *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
- *       500:
- *         $ref: '#/components/responses/ServerError'
+*       500:
+*         $ref: '#/components/responses/ServerError'
  */
 const getResourceFileInfo = async (req, res) => {
   try {
@@ -318,35 +354,31 @@ const getResourceFileInfo = async (req, res) => {
       updated_at: file.updated_at
     }));
 
-    // 获取用户下载状态信息
-    const userId = req.user.id;
-    const { checkAndResetDailyDownloads } = require('../utils/downloadLimitUtils');
-    const downloadStatus = await checkAndResetDailyDownloads(userId);
+    const userId = req.user?.id;
+    let userDownloadStatus = null;
 
-    // 获取用户详细信息
-    const userQuery = await query(`
-      SELECT points, download_count FROM users WHERE id = $1
-    `, [userId]);
+    if (userId) {
+      const { checkAndResetDailyDownloads } = require('../utils/downloadLimitUtils');
+      const downloadStatus = await checkAndResetDailyDownloads(userId);
 
-    const user = userQuery.rows[0];
+      const userQuery = await query(`
+        SELECT points, download_count FROM users WHERE id = $1
+      `, [userId]);
 
-    // 检查今日是否已购买过该资源
-    const purchaseCheck = await query(`
-      SELECT id, points_cost, download_count_cost, cost_type, file_id, alist_resource_id
-      FROM daily_purchases
-      WHERE user_id = $1 AND resource_id = $2 AND purchase_date = CURRENT_DATE
-      LIMIT 1
-    `, [userId, resourceId]);
+      const user = userQuery.rows[0];
 
-    const hasPurchasedToday = purchaseCheck.rows.length > 0;
-    const purchase = purchaseCheck.rows[0];
+      const purchaseCheck = await query(`
+        SELECT id, points_cost, download_count_cost, cost_type, file_id, alist_resource_id
+        FROM daily_purchases
+        WHERE user_id = $1 AND resource_id = $2 AND purchase_date = CURRENT_DATE
+        LIMIT 1
+      `, [userId, resourceId]);
 
-    // 准备响应数据
-    const responseData = {
-      resource_id: resourceId,
-      resource_title: resource.title,
-      files: detailedFiles,
-      user_download_status: {
+      const hasPurchasedToday = purchaseCheck.rows.length > 0;
+      const purchase = purchaseCheck.rows[0];
+
+      userDownloadStatus = {
+        requires_login: false,
         remaining_daily_downloads: downloadStatus.remainingDownloads,
         remaining_total_downloads: user.download_count,
         remaining_points: user.points,
@@ -358,15 +390,36 @@ const getResourceFileInfo = async (req, res) => {
           alist_resource_id: purchase.alist_resource_id,
           file_id: purchase.file_id
         } : null
-      }
-    };
+      };
 
-    // 记录访问日志
-    logger.info('用户获取Alist文件详情', {
-      userId: req.user.id,
-      resourceId,
-      fileCount: detailedFiles.length
-    });
+      logger.info('用户获取Alist文件详情', {
+        userId,
+        resourceId,
+        fileCount: detailedFiles.length
+      });
+    } else {
+      userDownloadStatus = {
+        requires_login: true,
+        remaining_daily_downloads: null,
+        remaining_total_downloads: null,
+        remaining_points: null,
+        purchased_today: false,
+        has_files: detailedFiles.length > 0,
+        purchased_info: null
+      };
+
+      logger.info('访客查看Alist文件详情', {
+        resourceId,
+        fileCount: detailedFiles.length
+      });
+    }
+
+    const responseData = {
+      resource_id: resourceId,
+      resource_title: resource.title,
+      files: detailedFiles,
+      user_download_status: userDownloadStatus
+    };
 
     res.json({
       success: true,
