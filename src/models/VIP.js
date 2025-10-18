@@ -15,7 +15,7 @@ class VIP {
     let queryStr = `
       SELECT
         id, level, name, display_name, description, benefits, price,
-        quarterly_price, yearly_price, is_active, daily_download_limit,
+        quarterly_price, yearly_price, purchase_url, is_active, daily_download_limit,
         points_discount_rate, created_at, updated_at
       FROM vip_levels
     `;
@@ -37,7 +37,7 @@ class VIP {
     const queryStr = `
       SELECT
         id, level, name, display_name, description, benefits, price,
-        quarterly_price, yearly_price, is_active, daily_download_limit,
+        quarterly_price, yearly_price, purchase_url, is_active, daily_download_limit,
         points_discount_rate, created_at, updated_at
       FROM vip_levels
       WHERE level = $1 AND is_active = true
@@ -50,21 +50,43 @@ class VIP {
    * 创建VIP等级配置
    */
   static async createLevel(levelData) {
-    const {
-      level,
-      name,
-      display_name,
-      description,
-      benefits,
-      price
-    } = levelData;
+    const payload = {
+      level: parseInt(levelData.level, 10),
+      name: levelData.name,
+      display_name: levelData.display_name,
+      description: levelData.description ?? null,
+      benefits: levelData.benefits ?? {},
+      price: levelData.price !== undefined ? parseFloat(levelData.price) : 0,
+      quarterly_price: levelData.quarterly_price !== undefined ? parseFloat(levelData.quarterly_price) : undefined,
+      yearly_price: levelData.yearly_price !== undefined ? parseFloat(levelData.yearly_price) : undefined,
+      points_discount_rate: levelData.points_discount_rate !== undefined ? parseInt(levelData.points_discount_rate, 10) : undefined,
+      daily_download_limit: levelData.daily_download_limit !== undefined ? parseInt(levelData.daily_download_limit, 10) : undefined,
+      purchase_url: levelData.purchase_url !== undefined ? levelData.purchase_url : undefined
+    };
+
+    const columns = [];
+    const placeholders = [];
+    const values = [];
+    let index = 1;
+
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined) {
+        columns.push(key);
+        placeholders.push(`$${index}`);
+        values.push(value);
+        index++;
+      }
+    });
+
+    if (!columns.length) {
+      throw new Error('缺少必要的VIP等级数据');
+    }
 
     const queryStr = `
-      INSERT INTO vip_levels (level, name, display_name, description, benefits, price)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO vip_levels (${columns.join(', ')})
+      VALUES (${placeholders.join(', ')})
       RETURNING *
     `;
-    const values = [level, name, display_name, description, benefits, price];
     const result = await query(queryStr, values);
     return result.rows[0];
   }

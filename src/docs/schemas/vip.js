@@ -42,6 +42,12 @@
  *           format: decimal
  *           description: VIP价格（月价格）
  *           example: 19.99
+ *         purchase_url:
+ *           type: string
+ *           format: uri
+ *           nullable: true
+ *           description: 前端购买入口链接
+ *           example: "https://example.com/vip/purchase?v=1"
  *         quarterly_price:
  *           type: number
  *           format: decimal
@@ -124,6 +130,12 @@
  *           minimum: 0
  *           description: VIP价格（月价格）
  *           example: 39.99
+ *         purchase_url:
+ *           type: string
+ *           format: uri
+ *           maxLength: 500
+ *           description: 前端购买入口链接（可选）
+ *           example: "https://example.com/vip/buy?v=2"
  *         quarterly_price:
  *           type: number
  *           format: decimal
@@ -173,6 +185,12 @@
  *           minimum: 0
  *           description: VIP价格（月价格）
  *           example: 29.99
+ *         purchase_url:
+ *           type: string
+ *           format: uri
+ *           maxLength: 500
+ *           description: 前端购买入口链接
+ *           example: "https://example.com/vip/buy?v=1"
  *         quarterly_price:
  *           type: number
  *           format: decimal

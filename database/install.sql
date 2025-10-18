@@ -564,6 +564,7 @@ CREATE TABLE vip_levels (
     description TEXT,
     benefits JSON DEFAULT '{}'::json,
     price NUMERIC DEFAULT 0.00,
+    purchase_url VARCHAR(500),
     duration_days INTEGER DEFAULT 30,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

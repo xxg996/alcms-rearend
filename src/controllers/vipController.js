@@ -62,6 +62,7 @@ const recordVipLog = async (req, payload) => {
  *                     download_limit: 100
  *                     ad_free: true
  *                   price: 19.99
+ *                   purchase_url: "https://example.com/vip/buy/1"
  *                   is_active: true
  *       500:
  *         $ref: '#/components/responses/ServerError'
@@ -126,6 +127,7 @@ const getAllLevels = async (req, res) => {
  *                   ad_free: true
  *                   priority_support: false
  *                 price: "19.99"
+ *                 purchase_url: "https://example.com/vip/buy/1"
  *                 is_active: true
  *                 created_at: "2025-09-13T17:27:05.489Z"
  *                 updated_at: "2025-09-13T17:27:05.489Z"
@@ -196,6 +198,7 @@ const getLevelById = async (req, res) => {
  *             quarterly_price: 99.99
  *             yearly_price: 359.99
  *             points_discount_rate: 8
+ *             purchase_url: "https://example.com/vip/buy/2"
  *     responses:
  *       201:
  *         description: VIP等级创建成功
@@ -260,7 +263,12 @@ const createLevel = async (req, res) => {
       display_name,
       description,
       benefits,
-      price
+      price,
+      quarterly_price,
+      yearly_price,
+      points_discount_rate,
+      daily_download_limit,
+      purchase_url
     } = req.body;
 
     // 验证必填字段
@@ -279,13 +287,31 @@ const createLevel = async (req, res) => {
       });
     }
 
+    let sanitizedPurchaseUrl;
+    if (purchase_url !== undefined) {
+      sanitizedPurchaseUrl = String(purchase_url).trim();
+      if (sanitizedPurchaseUrl.length === 0) {
+        sanitizedPurchaseUrl = null;
+      } else if (sanitizedPurchaseUrl.length > 500) {
+        return res.status(400).json({
+          success: false,
+          message: '购买链接长度不能超过500字符'
+        });
+      }
+    }
+
     const newLevel = await VIP.createLevel({
-      level: parseInt(level),
+      level: parseInt(level, 10),
       name,
       display_name,
       description,
       benefits: benefits || {},
-      price: parseFloat(price) || 0
+      price: price !== undefined ? parseFloat(price) : undefined,
+      quarterly_price: quarterly_price !== undefined ? parseFloat(quarterly_price) : undefined,
+      yearly_price: yearly_price !== undefined ? parseFloat(yearly_price) : undefined,
+      points_discount_rate: points_discount_rate !== undefined ? parseInt(points_discount_rate, 10) : undefined,
+      daily_download_limit: daily_download_limit !== undefined ? parseInt(daily_download_limit, 10) : undefined,
+      purchase_url: sanitizedPurchaseUrl
     });
 
     await recordVipLog(req, {
@@ -369,6 +395,7 @@ const createLevel = async (req, res) => {
  *             quarterly_price: 79.99
  *             yearly_price: 299.99
  *             points_discount_rate: 8
+ *             purchase_url: "https://example.com/vip/buy/1"
  *     responses:
  *       200:
  *         description: VIP等级更新成功
@@ -395,6 +422,7 @@ const createLevel = async (req, res) => {
  *                   ad_free: true
  *                   priority_support: true
  *                 price: "29.99"
+ *                 purchase_url: "https://example.com/vip/buy/1"
  *                 is_active: true
  *                 created_at: "2025-09-13T17:27:05.489Z"
  *                 updated_at: "2025-09-13T17:35:12.123Z"
@@ -417,10 +445,23 @@ const createLevel = async (req, res) => {
 const updateLevel = async (req, res) => {
   try {
     const { level } = req.params;
-    const updateData = req.body;
+    const updateData = { ...req.body };
 
     // 移除level字段，防止更新主键
     delete updateData.level;
+
+    if (updateData.purchase_url !== undefined) {
+      let sanitized = String(updateData.purchase_url).trim();
+      if (sanitized.length === 0) {
+        sanitized = null;
+      } else if (sanitized.length > 500) {
+        return res.status(400).json({
+          success: false,
+          message: '购买链接长度不能超过500字符'
+        });
+      }
+      updateData.purchase_url = sanitized;
+    }
 
     const updatedLevel = await VIP.updateLevel(parseInt(level), updateData);
     
