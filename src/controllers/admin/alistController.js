@@ -4,11 +4,13 @@
  */
 
 const AlistResource = require('../../models/AlistResource');
+const AlistIngestSetting = require('../../models/AlistIngestSetting');
 const { alistClient } = require('../../utils/alistClient');
 const SystemSetting = require('../../models/SystemSetting');
 const { logger } = require('../../utils/logger');
 const { query } = require('../../config/database');
 const { alistTokenScheduler } = require('../../services/alistTokenScheduler');
+const AlistIngestService = require('../../services/alistIngestService');
 
 /**
  * @swagger
@@ -142,6 +144,424 @@ const updateAlistConfig = async (req, res) => {
     res.status(500).json({
       success: false,
       message: '更新配置失败'
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /api/admin/alist/ingest/settings:
+ *   get:
+ *     summary: 获取Alist入库配置列表
+ *     description: 返回已配置的Alist入库规则，可根据启用状态筛选
+ *     tags: [Alist管理相关]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: is_active
+ *         schema:
+ *           type: boolean
+ *         description: 是否仅获取启用的配置
+ *         example: true
+ *     responses:
+ *       200:
+ *         description: 获取配置成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           title:
+ *                             type: string
+ *                           alist_root_path:
+ *                             type: string
+ *                           category_id:
+ *                             type: integer
+ *                           resource_type_id:
+ *                             type: integer
+ *                           author_id:
+ *                             type: integer
+ *                           is_active:
+ *                             type: boolean
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const getAlistIngestSettings = async (req, res) => {
+  try {
+    const { is_active } = req.query;
+
+    const settings = await AlistIngestSetting.findAll({
+      is_active: is_active === undefined ? undefined : String(is_active).toLowerCase() === 'true'
+    });
+
+    res.json({
+      success: true,
+      message: '获取入库配置成功',
+      data: settings
+    });
+  } catch (error) {
+    logger.error('获取Alist入库配置失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取入库配置失败'
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /api/admin/alist/ingest/settings:
+ *   post:
+ *     summary: 创建Alist入库配置
+ *     description: 新增Alist目录入库规则，包含路径、分类、类型和作者绑定信息
+ *     tags: [Alist管理相关]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title, alist_root_path, author_id, resource_type_id]
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: 配置名称
+ *               alist_root_path:
+ *                 type: string
+ *                 description: 需要扫描的Alist目录路径
+ *                 example: "/official/resources"
+ *               category_id:
+ *                 type: integer
+ *                 nullable: true
+ *                 description: 入库资源默认分类ID
+ *               resource_type_id:
+ *                 type: integer
+ *                 description: 入库资源默认类型ID
+ *               author_id:
+ *                 type: integer
+ *                 description: 入库资源作者ID
+ *               is_active:
+ *                 type: boolean
+ *                 description: 是否启用该配置
+ *     responses:
+ *       201:
+ *         description: 配置创建成功
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const createAlistIngestSetting = async (req, res) => {
+  try {
+    const {
+      title,
+      alist_root_path,
+      category_id,
+      resource_type_id,
+      author_id,
+      is_active
+    } = req.body;
+
+    if (!title || !alist_root_path) {
+      return res.status(400).json({
+        success: false,
+        message: '配置名称与Alist路径为必填项'
+      });
+    }
+
+    if (!resource_type_id || !author_id) {
+      return res.status(400).json({
+        success: false,
+        message: '资源类型ID与作者ID为必填项'
+      });
+    }
+
+    const payload = {
+      title: String(title).trim(),
+      alist_root_path,
+      category_id: category_id ? parseInt(category_id, 10) : null,
+      resource_type_id: parseInt(resource_type_id, 10),
+      author_id: parseInt(author_id, 10),
+      is_active: is_active === undefined ? true : Boolean(is_active)
+    };
+
+    const setting = await AlistIngestSetting.create(payload);
+
+    logger.info('创建Alist入库配置', {
+      adminId: req.user.id,
+      settingId: setting.id,
+      path: setting.alist_root_path
+    });
+
+    res.status(201).json({
+      success: true,
+      message: '入库配置创建成功',
+      data: setting
+    });
+  } catch (error) {
+    logger.error('创建Alist入库配置失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '创建入库配置失败'
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /api/admin/alist/ingest/settings/{id}:
+ *   put:
+ *     summary: 更新Alist入库配置
+ *     description: 修改已存在的Alist入库规则
+ *     tags: [Alist管理相关]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 入库配置ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               alist_root_path:
+ *                 type: string
+ *               category_id:
+ *                 type: integer
+ *               resource_type_id:
+ *                 type: integer
+ *               author_id:
+ *                 type: integer
+ *               is_active:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: 配置更新成功
+ *       404:
+ *         description: 配置不存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const updateAlistIngestSetting = async (req, res) => {
+  try {
+    const settingId = parseInt(req.params.id, 10);
+
+    if (!Number.isFinite(settingId)) {
+      return res.status(400).json({
+        success: false,
+        message: '配置ID无效'
+      });
+    }
+
+    const payload = { ...req.body };
+
+    if (payload.category_id !== undefined) {
+      payload.category_id = payload.category_id ? parseInt(payload.category_id, 10) : null;
+    }
+    if (payload.resource_type_id !== undefined) {
+      payload.resource_type_id = payload.resource_type_id ? parseInt(payload.resource_type_id, 10) : null;
+    }
+    if (payload.author_id !== undefined) {
+      payload.author_id = payload.author_id ? parseInt(payload.author_id, 10) : null;
+    }
+    if (payload.is_active !== undefined) {
+      payload.is_active = Boolean(payload.is_active);
+    }
+
+    const updated = await AlistIngestSetting.update(settingId, payload);
+
+    if (!updated) {
+      return res.status(404).json({
+        success: false,
+        message: '入库配置不存在'
+      });
+    }
+
+    logger.info('更新Alist入库配置', {
+      adminId: req.user.id,
+      settingId
+    });
+
+    res.json({
+      success: true,
+      message: '入库配置更新成功',
+      data: updated
+    });
+  } catch (error) {
+    logger.error('更新Alist入库配置失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '更新入库配置失败'
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /api/admin/alist/ingest/settings/{id}:
+ *   delete:
+ *     summary: 删除Alist入库配置
+ *     description: 移除指定的Alist入库配置，相关记录将同步删除
+ *     tags: [Alist管理相关]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 入库配置ID
+ *     responses:
+ *       200:
+ *         description: 删除成功
+ *       404:
+ *         description: 配置不存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const deleteAlistIngestSetting = async (req, res) => {
+  try {
+    const settingId = parseInt(req.params.id, 10);
+
+    if (!Number.isFinite(settingId)) {
+      return res.status(400).json({
+        success: false,
+        message: '配置ID无效'
+      });
+    }
+
+    const deleted = await AlistIngestSetting.delete(settingId);
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: '入库配置不存在'
+      });
+    }
+
+    logger.info('删除Alist入库配置', {
+      adminId: req.user.id,
+      settingId
+    });
+
+    res.json({
+      success: true,
+      message: '入库配置删除成功'
+    });
+  } catch (error) {
+    logger.error('删除Alist入库配置失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '删除入库配置失败'
+    });
+  }
+};
+
+/**
+ * @swagger
+ * /api/admin/alist/ingest/settings/{id}/scan:
+ *   post:
+ *     summary: 手动扫描并入库Alist目录
+ *     description: 根据入库配置扫描对应Alist路径下的子目录，将文件夹批量入库为资源并自动绑定文件
+ *     tags: [Alist管理相关]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 入库配置ID
+ *     responses:
+ *       200:
+ *         description: 扫描完成
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         totalFolders:
+ *                           type: integer
+ *                         created:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                         updated:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                         skipped:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                         errors:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *       404:
+ *         description: 配置不存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const scanAlistIngestSetting = async (req, res) => {
+  try {
+    const settingId = parseInt(req.params.id, 10);
+
+    if (!Number.isFinite(settingId)) {
+      return res.status(400).json({
+        success: false,
+        message: '配置ID无效'
+      });
+    }
+
+    const setting = await AlistIngestSetting.findById(settingId);
+    if (!setting) {
+      return res.status(404).json({
+        success: false,
+        message: '入库配置不存在'
+      });
+    }
+
+    const result = await AlistIngestService.scanSetting(settingId, {});
+
+    res.json({
+      success: true,
+      message: 'Alist目录扫描完成',
+      data: result
+    });
+  } catch (error) {
+    logger.error('执行Alist入库扫描失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '执行扫描失败',
+      error: error.message
     });
   }
 };
@@ -681,6 +1101,11 @@ const getAlistTokenStatus = async (req, res) => {
 module.exports = {
   getAlistConfig,
   updateAlistConfig,
+  getAlistIngestSettings,
+  createAlistIngestSetting,
+  updateAlistIngestSetting,
+  deleteAlistIngestSetting,
+  scanAlistIngestSetting,
   getAlistResources,
   addAlistResource,
   deleteAlistResource,

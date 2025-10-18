@@ -8,6 +8,11 @@ const { authenticateToken, requireRole } = require('../../middleware/auth');
 const {
   getAlistConfig,
   updateAlistConfig,
+  getAlistIngestSettings,
+  createAlistIngestSetting,
+  updateAlistIngestSetting,
+  deleteAlistIngestSetting,
+  scanAlistIngestSetting,
   getAlistResources,
   addAlistResource,
   deleteAlistResource,
@@ -32,6 +37,15 @@ router.get('/config', getAlistConfig);
  * 更新Alist系统配置
  */
 router.put('/config', updateAlistConfig);
+
+/**
+ * 入库配置管理
+ */
+router.get('/ingest/settings', getAlistIngestSettings);
+router.post('/ingest/settings', createAlistIngestSetting);
+router.put('/ingest/settings/:id', updateAlistIngestSetting);
+router.delete('/ingest/settings/:id', deleteAlistIngestSetting);
+router.post('/ingest/settings/:id/scan', scanAlistIngestSetting);
 
 /**
  * 获取Alist资源关联列表

@@ -572,6 +572,34 @@ CREATE TABLE vip_levels (
     daily_download_limit INTEGER DEFAULT 50
 );
 
+CREATE TABLE alist_ingest_settings (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    alist_root_path TEXT NOT NULL,
+    category_id INTEGER REFERENCES categories(id),
+    resource_type_id INTEGER REFERENCES resource_types(id),
+    author_id INTEGER REFERENCES users(id),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(alist_root_path)
+);
+
+CREATE TABLE alist_ingest_records (
+    id SERIAL PRIMARY KEY,
+    setting_id INTEGER NOT NULL REFERENCES alist_ingest_settings(id) ON DELETE CASCADE,
+    folder_name TEXT NOT NULL,
+    folder_path TEXT NOT NULL,
+    folder_modified_at TIMESTAMP,
+    resource_id INTEGER REFERENCES resources(id) ON DELETE SET NULL,
+    ingested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(setting_id, folder_path)
+);
+
+CREATE INDEX idx_alist_ingest_settings_active ON alist_ingest_settings(is_active);
+CREATE INDEX idx_alist_ingest_records_setting ON alist_ingest_records(setting_id);
+
 -- 订单表（包含VIP订单与卡密订单等）
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
