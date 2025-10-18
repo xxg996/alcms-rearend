@@ -150,6 +150,66 @@ const updateAlistConfig = async (req, res) => {
 
 /**
  * @swagger
+ * /api/admin/alist/ingest/settings/{id}/scantest:
+ *   get:
+ *     summary: 模拟Alist目录扫描（仅预览）
+ *     description: 返回即将扫描的子目录、文件以及 Markdown/图片等信息，不进行实际入库
+ *     tags: [Alist管理相关]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 入库配置ID
+ *     responses:
+ *       200:
+ *         description: 预览成功
+ *       404:
+ *         description: 入库配置不存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const scanTestAlistIngestSetting = async (req, res) => {
+  try {
+    const settingId = parseInt(req.params.id, 10);
+
+    if (!Number.isFinite(settingId)) {
+      return res.status(400).json({
+        success: false,
+        message: '配置ID无效'
+      });
+    }
+
+    const setting = await AlistIngestSetting.findById(settingId);
+    if (!setting) {
+      return res.status(404).json({
+        success: false,
+        message: '入库配置不存在'
+      });
+    }
+
+    const result = await AlistIngestService.scanTest(setting, {});
+
+    res.json({
+      success: true,
+      message: 'Alist目录模拟完成',
+      data: result
+    });
+  } catch (error) {
+    logger.error('执行Alist扫描模拟失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '执行模拟失败',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @swagger
  * /api/admin/alist/ingest/settings:
  *   get:
  *     summary: 获取Alist入库配置列表
@@ -1106,6 +1166,7 @@ module.exports = {
   updateAlistIngestSetting,
   deleteAlistIngestSetting,
   scanAlistIngestSetting,
+  scanTestAlistIngestSetting,
   getAlistResources,
   addAlistResource,
   deleteAlistResource,

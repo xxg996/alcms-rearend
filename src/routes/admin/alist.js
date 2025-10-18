@@ -13,6 +13,7 @@ const {
   updateAlistIngestSetting,
   deleteAlistIngestSetting,
   scanAlistIngestSetting,
+  scanTestAlistIngestSetting,
   getAlistResources,
   addAlistResource,
   deleteAlistResource,
@@ -46,6 +47,7 @@ router.post('/ingest/settings', createAlistIngestSetting);
 router.put('/ingest/settings/:id', updateAlistIngestSetting);
 router.delete('/ingest/settings/:id', deleteAlistIngestSetting);
 router.post('/ingest/settings/:id/scan', scanAlistIngestSetting);
+router.get('/ingest/settings/:id/scantest', scanTestAlistIngestSetting);
 
 /**
  * 获取Alist资源关联列表

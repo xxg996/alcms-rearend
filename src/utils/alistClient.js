@@ -407,8 +407,11 @@ class AlistClient {
 
   /**
    * 获取文件扩展名
-   */
+  */
   static getFileExtension(filename) {
+    if (!filename || filename.lastIndexOf('.') === -1) {
+      return '';
+    }
     return filename.toLowerCase().substring(filename.lastIndexOf('.'));
   }
 
@@ -417,7 +420,15 @@ class AlistClient {
    */
   isExtensionAllowed(filename) {
     const extension = AlistClient.getFileExtension(filename);
-    return this.config.allowed_extensions.includes(extension);
+    const allowed = Array.isArray(this.config?.allowed_extensions)
+      ? this.config.allowed_extensions.map((item) => item.toLowerCase())
+      : null;
+
+    if (!allowed || allowed.length === 0) {
+      return true;
+    }
+
+    return allowed.includes(extension);
   }
 
   /**
@@ -425,6 +436,29 @@ class AlistClient {
    */
   isFileSizeAllowed(fileSize) {
     return fileSize <= this.config.max_file_size;
+  }
+
+  /**
+   * 获取文件原始内容
+   * @param {string} path 文件在Alist中的路径
+   * @param {string} [encoding='utf-8'] 返回内容编码
+   * @returns {Promise<string|Buffer>}
+   */
+  async getFileContent(path, encoding = 'utf-8') {
+    await this.initialize();
+
+    const fileInfo = await this.getFileInfo(path);
+
+    if (!fileInfo.raw_url) {
+      throw new Error('该文件无法获取原始内容链接');
+    }
+
+    const response = await this.client.get(fileInfo.raw_url, {
+      responseType: 'arraybuffer'
+    });
+
+    const buffer = Buffer.from(response.data);
+    return encoding ? buffer.toString(encoding) : buffer;
   }
 }
 

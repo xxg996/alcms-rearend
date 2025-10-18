@@ -600,6 +600,33 @@ CREATE TABLE alist_ingest_records (
 CREATE INDEX idx_alist_ingest_settings_active ON alist_ingest_settings(is_active);
 CREATE INDEX idx_alist_ingest_records_setting ON alist_ingest_records(setting_id);
 
+CREATE TABLE alist_ingest_uploads (
+    id SERIAL PRIMARY KEY,
+    setting_id INTEGER NOT NULL REFERENCES alist_ingest_settings(id) ON DELETE CASCADE,
+    resource_id INTEGER NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    folder_path TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    alist_file_path TEXT NOT NULL,
+    file_size BIGINT DEFAULT 0,
+    file_modified_at TIMESTAMP,
+    bucket VARCHAR(100) NOT NULL,
+    object_name TEXT NOT NULL,
+    file_url TEXT NOT NULL,
+    upload_url TEXT,
+    upload_method VARCHAR(10) DEFAULT 'PUT',
+    content_type VARCHAR(100),
+    upload_headers JSONB,
+    status VARCHAR(20) DEFAULT 'pending',
+    retry_count INTEGER DEFAULT 0,
+    last_error TEXT,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(setting_id, alist_file_path)
+);
+
+CREATE INDEX idx_alist_ingest_uploads_status ON alist_ingest_uploads(status);
+
 -- 订单表（包含VIP订单与卡密订单等）
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
