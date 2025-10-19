@@ -8,6 +8,34 @@ const swaggerJSDoc = require('swagger-jsdoc');
 const path = require('path');
 
 // Swagger JSDoc 配置
+const resolveServerUrl = () => {
+  const configuredUrl = process.env.SWAGGER_SERVER_URL && process.env.SWAGGER_SERVER_URL.trim();
+
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://api.example.com';
+  }
+
+  return `http://localhost:${process.env.PORT || 3000}`;
+};
+
+const isSwaggerDocsEnabled = () => {
+  if (process.env.NODE_ENV !== 'production') {
+    return true;
+  }
+
+  const flag = process.env.SWAGGER_DOCS_ENABLED;
+  if (typeof flag === 'string') {
+    const normalized = flag.trim().toLowerCase();
+    return ['true', '1', 'yes', 'on'].includes(normalized);
+  }
+
+  return false;
+};
+
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
@@ -26,9 +54,7 @@ const swaggerDefinition = {
   },
   servers: [
     {
-      url: process.env.NODE_ENV === 'production' 
-        ? 'https://api.example.com' 
-        : `http://localhost:${process.env.PORT || 3000}`,
+      url: resolveServerUrl(),
       description: process.env.NODE_ENV === 'production' ? '生产环境' : '开发环境'
     }
   ],
@@ -318,5 +344,6 @@ const swaggerUiOptions = {
 module.exports = {
   swaggerDocument: swaggerSpec,
   swaggerUi,
-  swaggerOptions: swaggerUiOptions
+  swaggerOptions: swaggerUiOptions,
+  swaggerDocsEnabled: isSwaggerDocsEnabled()
 };

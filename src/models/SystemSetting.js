@@ -58,24 +58,46 @@ class SystemSetting {
       return defaultConfig;
     }
 
-    // 过滤和验证域名格式
-    const validOrigins = stored.allowed_origins.filter(origin => {
-      if (typeof origin !== 'string' || origin.trim() === '') {
-        return false;
+    const sanitizeOrigin = (origin) => {
+      if (typeof origin !== 'string') {
+        return null;
       }
 
-      // 基本URL格式验证
-      try {
-        new URL(origin);
-        return true;
-      } catch {
-        // 如果不是完整URL，检查是否是有效的域名格式
-        return /^https?:\/\/[a-zA-Z0-9.-]+(:[0-9]+)?$/.test(origin);
+      const trimmed = origin.trim();
+      if (!trimmed) {
+        return null;
       }
-    });
+
+      try {
+        const { protocol, host, port } = new URL(trimmed);
+        if (protocol !== 'http:' && protocol !== 'https:') {
+          return null;
+        }
+
+        const normalizedPort = port ? `:${port}` : '';
+        return `${protocol}//${host}${normalizedPort}`;
+      } catch {
+        // 允许直接配置域名/IP/本地域名，不限制端口和协议
+        if (/^([a-zA-Z0-9.-]+)$/.test(trimmed)) {
+          return trimmed.toLowerCase();
+        }
+
+        return null;
+      }
+    };
+
+    const sanitizedOrigins = stored.allowed_origins
+      .map(sanitizeOrigin)
+      .filter(Boolean);
+
+    const uniqueOrigins = Array.from(new Set(sanitizedOrigins));
+
+    if (uniqueOrigins.length === 0) {
+      return defaultConfig;
+    }
 
     return {
-      allowed_origins: validOrigins
+      allowed_origins: uniqueOrigins
     };
   }
 

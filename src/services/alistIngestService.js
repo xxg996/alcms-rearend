@@ -287,7 +287,7 @@ class AlistIngestService {
       if (!type) {
         skipped.push({
           folder: folderPath,
-          reason: record ? '无可更新文档' : '未发现可入库文档'
+          reason: record ? '无可更新文件' : '未发现可入库文件'
         });
         continue;
       }

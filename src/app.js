@@ -40,10 +40,10 @@ const { alistTokenScheduler } = require('./services/alistTokenScheduler');
 alistTokenScheduler.start();
 
 // 导入 Swagger 配置
-const { swaggerDocument, swaggerUi, swaggerOptions } = require('./config/swagger');
+const { swaggerDocument, swaggerUi, swaggerOptions, swaggerDocsEnabled } = require('./config/swagger');
 
 // 导入中间件
-const {
+const { 
   securityMiddleware,
   apiLimiter,
   corsOptions,
@@ -79,6 +79,29 @@ const app = express();
 // 基础安全中间件
 app.use(securityMiddleware);
 
+function resolveRequestOrigin(req, origin) {
+  if (origin) {
+    return origin;
+  }
+
+  const hostHeader = req.get('host');
+  if (!hostHeader) {
+    return null;
+  }
+
+  const forwardedProtoHeader = req.get('x-forwarded-proto');
+  const forwardedProto = forwardedProtoHeader
+    ? forwardedProtoHeader.split(',')[0].trim().toLowerCase()
+    : null;
+  const protocolCandidate = forwardedProto || (req.protocol ? req.protocol.toLowerCase() : null);
+
+  if (protocolCandidate !== 'http' && protocolCandidate !== 'https') {
+    return null;
+  }
+
+  return `${protocolCandidate}://${hostHeader}`;
+}
+
 // 动态CORS配置中间件
 app.use(async (req, res, next) => {
   try {
@@ -91,18 +114,32 @@ app.use(async (req, res, next) => {
             return callback(null, true);
           }
 
+          const resolvedOrigin = resolveRequestOrigin(req, origin);
+
+          if (!resolvedOrigin) {
+            logger.warn('CORS请求缺少有效来源', {
+              origin,
+              host: req.get('host'),
+              forwardedProto: req.get('x-forwarded-proto'),
+              method: req.method,
+              url: req.originalUrl
+            });
+            return callback(new Error('请求缺少有效来源'));  
+          }
+
           // 检查origin是否在白名单中
-          const isAllowed = await corsCache.isOriginAllowed(origin);
+          const isAllowed = await corsCache.isOriginAllowed(resolvedOrigin);
 
           if (isAllowed) {
             callback(null, true);
           } else {
             logger.warn('CORS请求被拒绝', {
-              origin,
+              origin: resolvedOrigin,
+              rawOrigin: origin,
               method: req.method,
               userAgent: req.get('user-agent')?.substring(0, 100)
             });
-            callback(new Error(`域名 ${origin} 不在CORS白名单中`));
+            callback(new Error(`域名 ${resolvedOrigin} 不在CORS白名单中`));
           }
         } catch (error) {
           logger.error('CORS验证失败:', error);
@@ -210,24 +247,34 @@ app.use('/api/admin/community', require('./routes/admin/community'));
 // Alist文件管理路由注册
 app.use('/api/alist', require('./routes/alist'));
 
-// Swagger API 文档
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
+if (swaggerDocsEnabled) {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
 
-// Swagger JSON 导出
-app.get('/api-docs.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Content-Disposition', 'attachment; filename="alcms-api-spec.json"');
-  res.json(swaggerDocument);
-});
+  app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="alcms-api-spec.json"');
+    res.json(swaggerDocument);
+  });
 
-// Swagger YAML 导出
-app.get('/api-docs.yaml', (req, res) => {
-  const yamljs = require('yamljs');
-  const yamlString = yamljs.stringify(swaggerDocument, 4);
-  res.setHeader('Content-Type', 'text/yaml');
-  res.setHeader('Content-Disposition', 'attachment; filename="alcms-api-spec.yaml"');
-  res.send(yamlString);
-});
+  app.get('/api-docs.yaml', (req, res) => {
+    const yamljs = require('yamljs');
+    const yamlString = yamljs.stringify(swaggerDocument, 4);
+    res.setHeader('Content-Type', 'text/yaml');
+    res.setHeader('Content-Disposition', 'attachment; filename="alcms-api-spec.yaml"');
+    res.send(yamlString);
+  });
+} else {
+  const disabledDocsHandler = (req, res) => {
+    res.status(404).json({
+      success: false,
+      message: '生产环境已禁用API文档访问'
+    });
+  };
+
+  app.use('/api-docs', disabledDocsHandler);
+  app.get('/api-docs.json', disabledDocsHandler);
+  app.get('/api-docs.yaml', disabledDocsHandler);
+}
 
 // Ping 端点
 app.get('/ping', (req, res) => {
@@ -256,12 +303,16 @@ let server;
 
 const startServer = (attempt = 1) => {
   server = app.listen(PORT, () => {
+    const docsInfo = swaggerDocsEnabled
+      ? `API文档: http://localhost:${PORT}/api-docs`
+      : 'API文档: 已禁用（设置 SWAGGER_DOCS_ENABLED=true 可启用）';
+
     logger.info(`
  Alcms 后端服务已启动！
  服务地址: http://localhost:${PORT}
  Ping检测: http://localhost:${PORT}/ping
  健康检查: http://localhost:${PORT}/health
- API文档: http://localhost:${PORT}/api-docs
+ ${docsInfo}
     `);
   });
 

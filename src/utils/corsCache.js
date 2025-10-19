@@ -147,8 +147,75 @@ class CorsCache {
       return process.env.NODE_ENV === 'development';
     }
 
+    const parseOrigin = (value) => {
+      if (!value || typeof value !== 'string') {
+        return null;
+      }
+
+      try {
+        const url = new URL(value);
+        const protocol = url.protocol.replace(/:$/u, '').toLowerCase();
+
+        if (protocol !== 'http' && protocol !== 'https') {
+          return null;
+        }
+
+        return {
+          type: 'origin',
+          protocol,
+          host: url.hostname.toLowerCase(),
+          port: url.port ? url.port : null
+        };
+      } catch {
+        const hostPattern = /^([a-z0-9.-]+)$/u;
+        if (hostPattern.test(value)) {
+          return {
+            type: 'host',
+            host: value.toLowerCase()
+          };
+        }
+
+        return null;
+      }
+    };
+
+    const defaultPort = (protocol) => (protocol === 'https' ? '443' : '80');
+
+    const matches = (entryValue, requestInfo) => {
+      const entryInfo = parseOrigin(entryValue);
+      if (!entryInfo || !requestInfo) {
+        return false;
+      }
+
+      if (entryInfo.type === 'host') {
+        return entryInfo.host === requestInfo.host;
+      }
+
+      if (entryInfo.type === 'origin') {
+        if (entryInfo.protocol !== requestInfo.protocol) {
+          return false;
+        }
+
+        if (entryInfo.host !== requestInfo.host) {
+          return false;
+        }
+
+        const entryPort = entryInfo.port || defaultPort(entryInfo.protocol);
+        const requestPort = requestInfo.port || defaultPort(requestInfo.protocol);
+
+        return entryPort === requestPort;
+      }
+
+      return false;
+    };
+
+    const requestInfo = parseOrigin(origin);
+    if (!requestInfo) {
+      return false;
+    }
+
     const config = await this.getCorsConfig();
-    return config.allowed_origins.includes(origin);
+    return config.allowed_origins.some((item) => matches(item, requestInfo));
   }
 
   /**
