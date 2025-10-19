@@ -75,24 +75,68 @@ class CardKey {
   /**
    * 创建单个卡密
    */
+  static normalizeAttributesByType(cardData) {
+    const sanitized = { ...cardData };
+
+    switch (sanitized.type) {
+      case 'points':
+        sanitized.vip_level = null;
+        sanitized.vip_days = null;
+        sanitized.download_credits = null;
+        sanitized.points = sanitized.points || 0;
+        break;
+      case 'download':
+        sanitized.vip_level = null;
+        sanitized.vip_days = null;
+        sanitized.points = null;
+        sanitized.download_credits = sanitized.download_credits || 0;
+        break;
+      case 'vip':
+      default:
+        sanitized.points = null;
+        sanitized.download_credits = null;
+        if (!Number.isFinite(Number(sanitized.vip_level))) {
+          sanitized.vip_level = 1;
+        }
+        if (!Number.isFinite(Number(sanitized.vip_days))) {
+          sanitized.vip_days = 30;
+        }
+        break;
+    }
+
+    return sanitized;
+  }
+
   static async createCardKey(cardData, createdBy = null) {
+    const normalizedData = this.normalizeAttributesByType({
+      type: 'vip',
+      vip_level: 1,
+      vip_days: 30,
+      points: 0,
+      download_credits: 0,
+      expire_at: null,
+      batch_id: null,
+      value_amount: null,
+      ...cardData
+    });
+
     const {
-      type = 'vip',
-      vip_level = 1,
-      vip_days = 30,
-      points = 0,
-      download_credits = 0,
-      expire_at = null,
-      batch_id = null,
-      value_amount = null
-    } = cardData;
+      type,
+      vip_level,
+      vip_days,
+      points,
+      download_credits,
+      expire_at,
+      batch_id,
+      value_amount
+    } = normalizedData;
 
     const code = this.generateCode();
 
     // 如果没有指定价值金额，自动计算
     let finalValueAmount = value_amount;
     if (finalValueAmount === null) {
-      finalValueAmount = await this.calculateCardValue(cardData);
+      finalValueAmount = await this.calculateCardValue(normalizedData);
     }
 
     const queryStr = `
@@ -101,7 +145,18 @@ class CardKey {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
-    const values = [code, type, vip_level, vip_days, points, download_credits, expire_at, batch_id, createdBy, finalValueAmount];
+    const values = [
+      code,
+      type,
+      vip_level,
+      vip_days,
+      points,
+      download_credits,
+      expire_at,
+      batch_id,
+      createdBy,
+      finalValueAmount
+    ];
     const result = await query(queryStr, values);
     return result.rows[0];
   }

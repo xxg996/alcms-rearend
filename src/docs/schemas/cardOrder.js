@@ -23,7 +23,7 @@
  *           example: "CARD_1758582465803_32"
  *         type:
  *           type: string
- *           enum: [vip, points]
+ *           enum: [vip, points, download]
  *           description: 卡密兑换类型
  *           example: "vip"
  *         price:
@@ -66,6 +66,20 @@
  *               type: integer
  *               description: 获得的积分数量
  *               example: 2000
+ *         download_info:
+ *           type: object
+ *           nullable: true
+ *           description: 下载卡密信息（仅下载类型订单）
+ *           properties:
+ *             credits:
+ *               type: integer
+ *               description: 授予的下载次数
+ *               example: 10
+ *             value_amount:
+ *               type: number
+ *               format: decimal
+ *               description: 下载卡密对应的价值金额
+ *               example: 10
  *         commission_info:
  *           type: object
  *           nullable: true
@@ -216,6 +230,10 @@
  *                       type: integer
  *                       description: 积分订单数
  *                       example: 5
+ *                     download_orders:
+ *                       type: integer
+ *                       description: 下载订单数
+ *                       example: 2
  *                     total_amount:
  *                       type: number
  *                       format: decimal
@@ -231,6 +249,11 @@
  *                       format: decimal
  *                       description: 积分订单总金额
  *                       example: 500.00
+ *                     download_total_amount:
+ *                       type: number
+ *                       format: decimal
+ *                       description: 下载订单总金额
+ *                       example: 200.00
  *
  *     CardOrderDetailResponse:
  *       allOf:

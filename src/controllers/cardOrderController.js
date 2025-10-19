@@ -27,8 +27,9 @@ class CardOrderController {
    *       - 丰富的统计信息
    *
    *       **订单类型说明：**
-   *       - VIP订单: vip_level > 0, 包含VIP等级和天数信息
-   *       - 积分订单: vip_level = 0, 包含积分获得信息
+   *       - VIP订单: vip_level > 0 或卡密类型为 vip，包含VIP等级和天数信息
+   *       - 积分订单: 卡密类型为 points 或默认积分卡密
+   *       - 下载订单: 卡密类型为 download，包含下载次数信息
    *     tags: [卡密兑换订单记录]
    *     security:
    *       - BearerAuth: []
@@ -37,7 +38,7 @@ class CardOrderController {
    *         name: type
    *         schema:
    *           type: string
-   *           enum: [all, vip, points]
+   *           enum: [all, vip, points, download]
    *           default: all
    *         description: 订单类型筛选
    *         example: "all"
@@ -102,7 +103,7 @@ class CardOrderController {
    *                             example: "CARD_1758582465803_32"
    *                           type:
    *                             type: string
-   *                             enum: [vip, points]
+   *                             enum: [vip, points, download]
    *                             example: "vip"
    *                           price:
    *                             type: number
@@ -134,6 +135,16 @@ class CardOrderController {
    *                               points:
    *                                 type: integer
    *                                 example: 2000
+   *                           download_info:
+   *                             type: object
+   *                             nullable: true
+   *                             properties:
+   *                               credits:
+   *                                 type: integer
+   *                                 example: 10
+   *                               value_amount:
+   *                                 type: number
+   *                                 example: 10
    *                           commission_info:
    *                             type: object
    *                             nullable: true
@@ -153,6 +164,25 @@ class CardOrderController {
    *                               inviter_username:
    *                                 type: string
    *                                 example: "updateduser"
+   *                     statistics:
+   *                       type: object
+   *                       properties:
+   *                         total_orders:
+   *                           type: integer
+   *                         vip_orders:
+   *                           type: integer
+   *                         download_orders:
+   *                           type: integer
+   *                         points_orders:
+   *                           type: integer
+   *                         total_amount:
+   *                           type: number
+   *                         vip_total_amount:
+   *                           type: number
+   *                         download_total_amount:
+   *                           type: number
+   *                         points_total_amount:
+   *                           type: number
    *       401:
    *         description: 未授权
    *       403:
@@ -164,7 +194,7 @@ class CardOrderController {
     try {
       const userId = req.user.id;
       const {
-        type = 'all', // all, vip, points
+        type = 'all', // all, vip, points, download
         page = 1,
         limit = 20,
         start_date = null,
@@ -172,15 +202,20 @@ class CardOrderController {
       } = req.query;
 
       const offset = (page - 1) * limit;
-      let whereConditions = ['vo.user_id = $1', 'vo.payment_method = \'card_key\''];
+      const normalizedType = typeof type === 'string' ? type.toLowerCase() : 'all';
+      let whereConditions = ['vo.user_id = $1', "vo.payment_method = 'card_key'"];
       let values = [userId];
       let paramCount = 2;
+      const fromClause = `FROM orders vo
+        LEFT JOIN card_keys ck ON vo.card_key_code = ck.code`;
 
-      // 类型筛选 (根据VIP等级判断类型)
-      if (type === 'vip') {
-        whereConditions.push(`vo.vip_level > 0`);
-      } else if (type === 'points') {
-        whereConditions.push(`vo.vip_level = 0`);
+      // 类型筛选 (根据卡密类型判断)
+      if (normalizedType === 'vip') {
+        whereConditions.push(`(vo.vip_level > 0 OR ck.type = 'vip')`);
+      } else if (normalizedType === 'points') {
+        whereConditions.push(`((ck.type IS NULL AND vo.vip_level = 0) OR ck.type = 'points')`);
+      } else if (normalizedType === 'download') {
+        whereConditions.push(`ck.type = 'download'`);
       }
 
       // 日期筛选
@@ -201,7 +236,7 @@ class CardOrderController {
       // 获取总数
       const countQuery = `
         SELECT COUNT(*) as total
-        FROM orders vo
+        ${fromClause}
         WHERE ${whereClause}
       `;
       const countResult = await query(countQuery, values);
@@ -222,14 +257,14 @@ class CardOrderController {
           ck.type as card_type,
           ck.points,
           ck.value_amount,
+          ck.download_credits,
           rc.id as commission_id,
           rc.commission_amount,
           rc.commission_rate,
           rc.event_type as commission_event_type,
           rc.status as commission_status,
           inviter.username as inviter_username
-        FROM orders vo
-        LEFT JOIN card_keys ck ON vo.card_key_code = ck.code
+        ${fromClause}
         LEFT JOIN referral_commissions rc ON rc.order_id = vo.id
         LEFT JOIN users inviter ON rc.inviter_id = inviter.id
         WHERE ${whereClause}
@@ -240,25 +275,47 @@ class CardOrderController {
       const dataResult = await query(dataQuery, dataValues);
 
       // 处理数据格式
+      const determineOrderType = (row) => {
+        if (row.card_type === 'download') {
+          return 'download';
+        }
+
+        if (row.card_type === 'vip' || row.vip_level > 0) {
+          return 'vip';
+        }
+
+        if (row.card_type) {
+          return row.card_type;
+        }
+
+        return row.vip_level > 0 ? 'vip' : 'points';
+      };
+
       const orders = dataResult.rows.map(row => {
+        const orderType = determineOrderType(row);
         const baseOrder = {
           id: row.id,
           order_no: row.order_no,
-          type: row.vip_level > 0 ? 'vip' : 'points',
+          type: orderType,
           price: Number(row.price || 0),
           status: row.status,
           created_at: row.created_at,
           card_key_code: row.card_key_code
         };
 
-        if (row.vip_level > 0) {
+        if (orderType === 'vip') {
           baseOrder.vip_info = {
             level: row.vip_level,
             days: row.duration_days
           };
-        } else if (row.card_type === 'points') {
+        } else if (orderType === 'points') {
           baseOrder.points_info = {
             points: row.points || 0
+          };
+        } else if (orderType === 'download') {
+          baseOrder.download_info = {
+            credits: row.download_credits || 0,
+            value_amount: Number(row.value_amount || 0)
           };
         }
 
@@ -281,12 +338,19 @@ class CardOrderController {
       const statsQuery = `
         SELECT
           COUNT(*) as total_orders,
-          COUNT(CASE WHEN vo.vip_level > 0 THEN 1 END) as vip_orders,
-          COUNT(CASE WHEN vo.vip_level = 0 THEN 1 END) as points_orders,
+          COUNT(CASE WHEN (vo.vip_level > 0 OR ck.type = 'vip') THEN 1 END) as vip_orders,
+          COUNT(CASE WHEN ck.type = 'download' THEN 1 END) as download_orders,
+          COUNT(
+            CASE WHEN ((ck.type IS NULL AND vo.vip_level = 0) OR ck.type = 'points') THEN 1 END
+          ) as points_orders,
           SUM(vo.price) as total_amount,
-          SUM(CASE WHEN vo.vip_level > 0 THEN vo.price ELSE 0 END) as vip_total_amount,
-          SUM(CASE WHEN vo.vip_level = 0 THEN vo.price ELSE 0 END) as points_total_amount
+          SUM(CASE WHEN (vo.vip_level > 0 OR ck.type = 'vip') THEN vo.price ELSE 0 END) as vip_total_amount,
+          SUM(CASE WHEN ck.type = 'download' THEN vo.price ELSE 0 END) as download_total_amount,
+          SUM(
+            CASE WHEN ((ck.type IS NULL AND vo.vip_level = 0) OR ck.type = 'points') THEN vo.price ELSE 0 END
+          ) as points_total_amount
         FROM orders vo
+        LEFT JOIN card_keys ck ON vo.card_key_code = ck.code
         WHERE vo.user_id = $1 AND vo.payment_method = 'card_key'
       `;
       const statsResult = await query(statsQuery, [userId]);
@@ -308,9 +372,11 @@ class CardOrderController {
           statistics: {
             total_orders: parseInt(stats.total_orders || 0),
             vip_orders: parseInt(stats.vip_orders || 0),
+            download_orders: parseInt(stats.download_orders || 0),
             points_orders: parseInt(stats.points_orders || 0),
             total_amount: Number(stats.total_amount || 0),
             vip_total_amount: Number(stats.vip_total_amount || 0),
+            download_total_amount: Number(stats.download_total_amount || 0),
             points_total_amount: Number(stats.points_total_amount || 0)
           }
         }
@@ -363,6 +429,7 @@ class CardOrderController {
           ck.type as card_type,
           ck.points,
           ck.value_amount,
+          ck.download_credits,
           rc.id as commission_id,
           rc.commission_amount,
           rc.commission_rate,
@@ -390,10 +457,28 @@ class CardOrderController {
       }
 
       const row = result.rows[0];
+
+      const determineOrderType = (record) => {
+        if (record.card_type === 'download') {
+          return 'download';
+        }
+
+        if (record.card_type === 'vip' || record.vip_level > 0) {
+          return 'vip';
+        }
+
+        if (record.card_type) {
+          return record.card_type;
+        }
+
+        return record.vip_level > 0 ? 'vip' : 'points';
+      };
+
+      const orderType = determineOrderType(row);
       const order = {
         id: row.id,
         order_no: row.order_no,
-        type: row.vip_level > 0 ? 'vip' : 'points',
+        type: orderType,
         price: Number(row.price || 0),
         status: row.status,
         created_at: row.created_at,
@@ -401,15 +486,20 @@ class CardOrderController {
         card_key_code: row.card_key_code
       };
 
-      if (row.vip_level > 0) {
+      if (orderType === 'vip') {
         order.vip_info = {
           level: row.vip_level,
           days: row.duration_days,
           expire_at: row.expire_at
         };
-      } else if (row.card_type === 'points') {
+      } else if (orderType === 'points') {
         order.points_info = {
           points: row.points || 0
+        };
+      } else if (orderType === 'download') {
+        order.download_info = {
+          credits: row.download_credits || 0,
+          value_amount: Number(row.value_amount || 0)
         };
       }
 

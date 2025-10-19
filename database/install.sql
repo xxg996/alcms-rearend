@@ -136,7 +136,7 @@ CREATE TABLE users (
     commission_pending_balance DECIMAL(12,2) DEFAULT 0,
 
     -- 下载限制
-    daily_download_limit INTEGER DEFAULT 10,
+    daily_download_limit INTEGER DEFAULT 0,
     daily_downloads_used INTEGER DEFAULT 0,
     last_download_reset_date DATE DEFAULT CURRENT_DATE,
 

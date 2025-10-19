@@ -32,8 +32,9 @@ initializeBuckets().catch(err => {
 });
 
 // 启动每日重置任务
-const { startDailyResetTask } = require('./tasks/dailyResetTask');
+const { startDailyResetTask, startVipExpirationTask } = require('./tasks/dailyResetTask');
 const dailyResetJob = startDailyResetTask();
+const vipExpirationJob = startVipExpirationTask();
 
 // 启动Alist token定时刷新任务
 const { alistTokenScheduler } = require('./services/alistTokenScheduler');

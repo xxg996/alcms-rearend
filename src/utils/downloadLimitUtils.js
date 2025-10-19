@@ -155,6 +155,10 @@ async function checkAndResetDailyDownloads(userId) {
  */
 async function getUserActualDownloadLimit(userId, user) {
   try {
+    const baseLimit = Number.isFinite(Number(user.daily_download_limit))
+      ? Number(user.daily_download_limit)
+      : 0;
+
     // 如果是VIP用户，获取VIP等级的下载限制
     if (user.is_vip && user.vip_level > 0) {
       const vipResult = await query(`
@@ -164,19 +168,24 @@ async function getUserActualDownloadLimit(userId, user) {
       `, [user.vip_level]);
 
       if (vipResult.rows.length > 0) {
-        const vipLimit = vipResult.rows[0].daily_download_limit;
+        const vipLimitRaw = vipResult.rows[0].daily_download_limit;
+        const vipLimit = Number.isFinite(Number(vipLimitRaw))
+          ? Number(vipLimitRaw)
+          : baseLimit;
         // 返回VIP限制和普通用户限制中的较大值
-        return Math.max(vipLimit, user.daily_download_limit);
+        return Math.max(vipLimit, baseLimit);
       }
     }
 
     // 返回普通用户限制
-    return user.daily_download_limit;
+    return baseLimit;
 
   } catch (error) {
     logger.error('获取用户下载限制失败:', error);
     // 出错时返回默认限制
-    return user.daily_download_limit || 10;
+    return Number.isFinite(Number(user.daily_download_limit))
+      ? Number(user.daily_download_limit)
+      : 0;
   }
 }
 

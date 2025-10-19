@@ -52,7 +52,7 @@ class User {
         u.daily_download_limit, u.daily_downloads_used, u.last_download_reset_date,
         vl.name AS vip_level_name,
         vl.display_name AS vip_level_display_name,
-        COALESCE(vl.daily_download_limit, u.daily_download_limit, 10) AS actual_daily_limit,
+        COALESCE(vl.daily_download_limit, u.daily_download_limit, 0) AS actual_daily_limit,
         COALESCE(
           (
             SELECT COUNT(*) FROM daily_purchases dp
@@ -636,7 +636,7 @@ class User {
              u.points, u.total_points,
              u.daily_download_limit, u.daily_downloads_used, u.last_download_reset_date,
              vl.name as vip_level_name, vl.display_name as vip_level_display_name,
-             COALESCE(vl.daily_download_limit, u.daily_download_limit, 10) as actual_daily_limit,
+             COALESCE(vl.daily_download_limit, u.daily_download_limit, 0) as actual_daily_limit,
              COALESCE(
                (SELECT COUNT(*) FROM daily_purchases dp
                 WHERE dp.user_id = u.id
