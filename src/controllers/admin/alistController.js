@@ -256,15 +256,71 @@ const scanTestAlistIngestSetting = async (req, res) => {
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
+/**
+ * @swagger
+ * /api/admin/alist/ingest/settings/{id}:
+ *   get:
+ *     summary: 获取单个Alist入库配置
+ *     description: 根据配置ID返回对应的入库配置详情
+ *     tags: [Alist管理相关]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 入库配置ID
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       404:
+ *         description: 入库配置不存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 const getAlistIngestSettings = async (req, res) => {
   try {
+    const idParam = req.params?.id ?? req.query?.id;
+
+    if (idParam !== undefined) {
+      const settingId = parseInt(idParam, 10);
+
+      if (!Number.isFinite(settingId)) {
+        return res.status(400).json({
+          success: false,
+          message: '配置ID无效'
+        });
+      }
+
+      const setting = await AlistIngestSetting.findById(settingId);
+
+      if (!setting) {
+        return res.status(404).json({
+          success: false,
+          message: '入库配置不存在'
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: '获取入库配置成功',
+        data: setting
+      });
+    }
+
     const { is_active } = req.query;
 
     const settings = await AlistIngestSetting.findAll({
       is_active: is_active === undefined ? undefined : String(is_active).toLowerCase() === 'true'
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: '获取入库配置成功',
       data: settings

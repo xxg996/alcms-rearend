@@ -9,17 +9,14 @@ const path = require('path');
 
 // Swagger JSDoc 配置
 const resolveServerUrl = () => {
-  const configuredUrl = process.env.SWAGGER_SERVER_URL && process.env.SWAGGER_SERVER_URL.trim();
+  const env = (process.env.NODE_ENV || 'development').trim().toLowerCase();
 
-  if (configuredUrl) {
-    return configuredUrl;
+  if (env === 'production') {
+    const configuredUrl = process.env.SWAGGER_SERVER_URL && process.env.SWAGGER_SERVER_URL.trim();
+    return configuredUrl || 'https://api.example.com';
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    return 'https://api.example.com';
-  }
-
-  return `http://localhost:${process.env.PORT || 3000}`;
+  return 'http://localhost:3000';
 };
 
 const isSwaggerDocsEnabled = () => {

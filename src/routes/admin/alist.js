@@ -43,6 +43,7 @@ router.put('/config', updateAlistConfig);
  * 入库配置管理
  */
 router.get('/ingest/settings', getAlistIngestSettings);
+router.get('/ingest/settings/:id', getAlistIngestSettings);
 router.post('/ingest/settings', createAlistIngestSetting);
 router.put('/ingest/settings/:id', updateAlistIngestSetting);
 router.delete('/ingest/settings/:id', deleteAlistIngestSetting);
