@@ -8,7 +8,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 require('dotenv').config();
-const { logger, shutdownLogger } = require('./utils/logger');
+const { logger, shutdownLogger, formatTimestamp } = require('./utils/logger');
 
 // JWT安全验证 - 应用启动时验证
 const { validateJWTSecurity } = require('./utils/secureJwt');
@@ -163,7 +163,8 @@ app.use(async (req, res, next) => {
 
 // 请求日志
 if (process.env.NODE_ENV !== 'test') {
-  app.use(morgan('combined'));
+  morgan.token('local-date', () => formatTimestamp());
+  app.use(morgan(':remote-addr - :remote-user [:local-date] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"'));
 }
 
 // 请求体解析中间件

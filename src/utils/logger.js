@@ -12,9 +12,24 @@ const logDir = path.join(__dirname, '../../logs');
 /**
  * 自定义日志格式
  */
+const LOG_TIMEZONE = process.env.LOG_TIMEZONE || 'Asia/Shanghai';
+
+const timestampFormatter = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: LOG_TIMEZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false
+});
+
+const formatTimestamp = () => timestampFormatter.format(new Date());
+
 const customFormat = winston.format.combine(
   winston.format.timestamp({
-    format: 'YYYY-MM-DD HH:mm:ss.SSS'
+    format: formatTimestamp
   }),
   winston.format.errors({ stack: true }),
   winston.format.colorize({ all: false }),
@@ -39,7 +54,9 @@ const customFormat = winston.format.combine(
  * 生产环境格式（JSON）
  */
 const productionFormat = winston.format.combine(
-  winston.format.timestamp(),
+  winston.format.timestamp({
+    format: formatTimestamp
+  }),
   winston.format.errors({ stack: true }),
   winston.format.json()
 );
@@ -392,5 +409,6 @@ module.exports = {
   Logger,
   createLogger: Logger.create,
   winston: logger,
-  shutdownLogger
+  shutdownLogger,
+  formatTimestamp
 };
