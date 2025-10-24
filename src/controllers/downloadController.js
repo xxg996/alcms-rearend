@@ -1072,7 +1072,7 @@ const getCurrentUserStats = async (req, res) => {
 
     // 获取用户基本信息
     const userResult = await query(`
-      SELECT id, username, nickname, points
+      SELECT id, username, nickname, points, download_count, is_vip
       FROM users
       WHERE id = $1
     `, [userId]);
@@ -1090,6 +1090,15 @@ const getCurrentUserStats = async (req, res) => {
     const downloadStats = await getUserDownloadStats(userId);
     const downloadStatus = await checkAndResetDailyDownloads(userId);
 
+    const todayDownloads = downloadStats?.daily?.used ?? downloadStatus?.dailyUsed ?? 0;
+    const dailyLimit = downloadStatus?.dailyLimit ?? downloadStats?.daily?.limit ?? 0;
+    const remainingDownloads =
+      typeof downloadStatus?.remainingDownloads === 'number'
+        ? downloadStatus.remainingDownloads
+        : Math.max(0, dailyLimit - todayDownloads);
+    const canDownload =
+      downloadStatus?.canDownload ?? downloadStats?.daily?.canDownload ?? remainingDownloads > 0;
+
     // 计算下次重置时间（明天凌晨）
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -1103,13 +1112,15 @@ const getCurrentUserStats = async (req, res) => {
           id: userInfo.id,
           username: userInfo.username,
           nickname: userInfo.nickname,
-          points: parseInt(userInfo.points) || 0
+          points: parseInt(userInfo.points) || 0,
+          download_count: parseInt(userInfo.download_count) || 0,
+          is_vip: Boolean(userInfo.is_vip)
         },
         download_stats: {
-          today_downloads: downloadStats.daily.used || 0,
-          remaining_downloads: downloadStats.daily.remaining || downloadStats.daily.limit || 10,
-          daily_limit: downloadStats.daily.limit || 10,
-          can_download: downloadStats.daily.canDownload !== false,
+          today_downloads: todayDownloads,
+          remaining_downloads: remainingDownloads,
+          daily_limit: dailyLimit,
+          can_download: canDownload,
           reset_time: tomorrow.toISOString()
         },
         statistics: downloadStats.statistics
