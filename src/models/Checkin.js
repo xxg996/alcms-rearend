@@ -486,7 +486,15 @@ class Checkin {
   static async getUserCheckinHistory(userId, limit = 30, offset = 0) {
     const queryStr = `
       SELECT 
-        uc.*,
+        uc.id,
+        uc.user_id,
+        TO_CHAR(uc.checkin_date, 'YYYY-MM-DD') AS checkin_date,
+        uc.points_earned,
+        uc.consecutive_days,
+        uc.is_bonus,
+        uc.bonus_points,
+        uc.config_id,
+        TO_CHAR(uc.created_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD HH24:MI:SS.US') AS created_at,
         cc.name as config_name,
         cc.daily_points as config_daily_points
       FROM user_checkins uc
@@ -539,6 +547,7 @@ class Checkin {
           u.id,
           u.username,
           u.nickname,
+          u.avatar_url,
           uc.consecutive_days,
           uc.checkin_date as last_checkin_date
         FROM (
@@ -561,12 +570,13 @@ class Checkin {
           u.id,
           u.username,
           u.nickname,
+          u.avatar_url,
           COUNT(uc.id) as total_checkins,
           SUM(uc.points_earned + uc.bonus_points) as total_points_earned
         FROM users u
         JOIN user_checkins uc ON u.id = uc.user_id
         WHERE u.status = 'normal'
-        GROUP BY u.id, u.username, u.nickname
+        GROUP BY u.id, u.username, u.nickname, u.avatar_url
         ORDER BY total_checkins DESC, total_points_earned DESC
         LIMIT $1
       `;
@@ -577,13 +587,14 @@ class Checkin {
           u.id,
           u.username,
           u.nickname,
+          u.avatar_url,
           COUNT(uc.id) as monthly_checkins,
           SUM(uc.points_earned + uc.bonus_points) as monthly_points_earned
         FROM users u
         JOIN user_checkins uc ON u.id = uc.user_id
         WHERE u.status = 'normal'
           AND uc.checkin_date >= date_trunc('month', CURRENT_DATE)
-        GROUP BY u.id, u.username, u.nickname
+        GROUP BY u.id, u.username, u.nickname, u.avatar_url
         ORDER BY monthly_checkins DESC, monthly_points_earned DESC
         LIMIT $1
       `;
