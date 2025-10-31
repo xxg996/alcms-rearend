@@ -96,14 +96,16 @@
  *           type: boolean
  *           description: 是否公开
  *           example: true
- *         is_free:
- *           type: boolean
- *           description: 是否免费
- *           example: false
- *         required_points:
+ *         category_parent_id:
  *           type: integer
- *           description: 所需积分
- *           example: 100
+ *           nullable: true
+ *           description: 父级分类ID（无父级为null）
+ *           example: 10
+ *         category_parent_display_name:
+ *           type: string
+ *           nullable: true
+ *           description: 父级分类显示名称
+ *           example: "摄影"
  *         view_count:
  *           type: integer
  *           description: 浏览次数
@@ -195,10 +197,6 @@
  *               type: boolean
  *               description: 是否公开过滤
  *               example: true
- *             is_free:
- *               type: boolean
- *               description: 是否免费过滤
- *               example: false
  *             search:
  *               type: string
  *               description: 搜索关键词
@@ -278,17 +276,6 @@
  *           default: true
  *           description: 是否公开
  *           example: true
- *         is_free:
- *           type: boolean
- *           default: true
- *           description: 是否免费
- *           example: false
- *         required_points:
- *           type: integer
- *           minimum: 0
- *           default: 0
- *           description: 所需积分
- *           example: 50
  *         tags:
  *           type: array
  *           items:
@@ -328,15 +315,6 @@
  *           type: boolean
  *           description: 是否公开
  *           example: false
- *         is_free:
- *           type: boolean
- *           description: 是否免费
- *           example: true
- *         required_points:
- *           type: integer
- *           minimum: 0
- *           description: 所需积分
- *           example: 100
  *         tags:
  *           type: array
  *           items:

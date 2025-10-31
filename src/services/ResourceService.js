@@ -286,7 +286,6 @@ class ResourceService extends BaseService {
       author_id,
       status,
       is_public,
-      is_free,
       search,
       tags,
       sort_by = 'created_at',
@@ -299,7 +298,6 @@ class ResourceService extends BaseService {
       author_id: author_id ? parseInt(author_id) : undefined,
       status,
       is_public: is_public !== undefined ? is_public === 'true' : undefined,
-      is_free: is_free !== undefined ? is_free === 'true' : undefined,
       search,
       tags: tags ? (Array.isArray(tags) ? tags : tags.split(',')) : undefined,
       sort_by,
@@ -363,7 +361,7 @@ class ResourceService extends BaseService {
     // 其他字段验证...
     const optionalFields = [
       'slug', 'summary', 'cover_image_url', 'resource_type_id',
-      'is_public', 'is_free', 'required_points', 'status'
+      'is_public', 'required_points', 'status'
     ];
 
     optionalFields.forEach(field => {

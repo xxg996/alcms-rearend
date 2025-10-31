@@ -89,11 +89,6 @@ class ResourceController {
    *           type: boolean
    *         description: 是否公开过滤
    *       - in: query
-   *         name: is_free
-   *         schema:
-   *           type: boolean
-   *         description: 是否免费过滤
-   *       - in: query
    *         name: search
    *         schema:
    *           type: string
@@ -289,7 +284,6 @@ class ResourceController {
  *                 author_avatar_url: "https://ui-avatars.com/api/?name=admin&background=random&size=128"
  *                 status: "published"
  *                 is_public: true
- *                 is_free: false
  *                 official: false
  *                 required_points: 100
  *                 view_count: 1251
@@ -410,7 +404,6 @@ class ResourceController {
    *             resource_type_id: 1
    *             cover_image_url: "https://example.com/cover.jpg"
    *             is_public: true
-   *             is_free: false
    *             required_points: 50
    *             tags: [1, 2, 3]
    *     responses:
@@ -467,7 +460,6 @@ class ResourceController {
         resource_type_id,
         cover_image_url,
         is_public = true,
-        is_free = true,
         required_points = 0,
         status,
         tags = [],
@@ -515,7 +507,6 @@ class ResourceController {
         resource_type_id: normalizedResourceTypeId,
         cover_image_url,
         is_public: toBoolean(is_public, true),
-        is_free: toBoolean(is_free, true),
         required_points: toNonNegativeInt(required_points),
         status: status || 'published',
         author_id: userId,
@@ -590,7 +581,6 @@ class ResourceController {
    *             cover_image_url: "https://example.com/new-cover.jpg"
    *             category_id: 2
    *             is_public: false
-   *             is_free: true
    *             required_points: 100
    *             tags: [1, 4, 5]
    *     responses:
@@ -710,7 +700,6 @@ class ResourceController {
       }
 
       assignIfPresent('is_public', (value) => toBoolean(value, resource.is_public));
-      assignIfPresent('is_free', (value) => toBoolean(value, resource.is_free));
       assignIfPresent('required_points', (value) => toNonNegativeInt(value, resource.required_points || 0));
       assignIfPresent('official', (value) => toBoolean(value, resource.official || false));
 
@@ -991,7 +980,7 @@ class ResourceController {
           COUNT(CASE WHEN status = 'published' THEN 1 END) as published_resources,
           COUNT(CASE WHEN status = 'draft' THEN 1 END) as draft_resources,
           COUNT(CASE WHEN is_public = true THEN 1 END) as public_resources,
-          COUNT(CASE WHEN is_free = true THEN 1 END) as free_resources,
+          COUNT(CASE WHEN required_points = 0 THEN 1 END) as free_resources,
           SUM(view_count) as total_views,
           SUM(download_count) as total_downloads,
           AVG(file_size) as avg_file_size

@@ -247,10 +247,13 @@ class Resource {
         r.is_public, r.official, r.view_count, r.download_count, r.like_count, r.created_at, r.published_at,
         rt.name as resource_type_name, rt.display_name as resource_type_display_name,
         c.name as category_name, c.display_name as category_display_name,
+        c.parent_id as category_parent_id,
+        cp.display_name as category_parent_display_name,
         u.username as author_username, u.nickname as author_nickname, u.avatar_url as author_avatar_url
       FROM resources r
       LEFT JOIN resource_types rt ON r.resource_type_id = rt.id
       LEFT JOIN categories c ON r.category_id = c.id
+      LEFT JOIN categories cp ON c.parent_id = cp.id
       LEFT JOIN users u ON r.author_id = u.id
       ${tagJoin}
       ${whereClause}
@@ -268,6 +271,7 @@ class Resource {
       FROM resources r
       LEFT JOIN resource_types rt ON r.resource_type_id = rt.id
       LEFT JOIN categories c ON r.category_id = c.id
+      LEFT JOIN categories cp ON c.parent_id = cp.id
       LEFT JOIN users u ON r.author_id = u.id
       ${tagJoin}
       ${whereClause}
