@@ -148,6 +148,49 @@
  *               nullable: true
  *               description: 邀请人昵称
  *               example: "导师"
+ *
+ *     UserFollowItem:
+ *       type: object
+ *       properties:
+ *         user_id:
+ *           type: integer
+ *           description: 用户ID
+ *           example: 12
+ *         username:
+ *           type: string
+ *           description: 用户名
+ *           example: "mentor"
+ *         nickname:
+ *           type: string
+ *           nullable: true
+ *           description: 昵称
+ *           example: "导师"
+ *         avatar_url:
+ *           type: string
+ *           format: uri
+ *           nullable: true
+ *           description: 头像URL
+ *           example: "https://example.com/avatar.jpg"
+ *         followed_at:
+ *           type: string
+ *           format: date-time
+ *           description: 关注时间
+ *           example: "2025-10-31T12:00:00.000Z"
+ *
+ *     UserFollowListResponse:
+ *       allOf:
+ *         - $ref: '#/components/schemas/SuccessResponse'
+ *         - type: object
+ *           properties:
+ *             data:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/UserFollowItem'
+ *                 pagination:
+ *                   $ref: '#/components/schemas/PaginationInfo'
  * 
  *     UserProfile:
  *       type: object
