@@ -213,6 +213,15 @@ CREATE TABLE user_follows (
 CREATE INDEX idx_user_follows_follower ON user_follows(follower_id);
 CREATE INDEX idx_user_follows_following ON user_follows(following_id);
 
+CREATE OR REPLACE VIEW creator_download_points AS
+SELECT
+  r.author_id,
+  SUM(dp.points_cost) AS total_points_amount
+FROM daily_purchases dp
+JOIN resources r ON dp.resource_id = r.id
+WHERE dp.points_cost > 0
+GROUP BY r.author_id;
+
 -- 系统设置表
 CREATE TABLE system_settings (
     key VARCHAR(100) PRIMARY KEY,

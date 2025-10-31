@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const userFollowController = require('../controllers/userFollowController');
+const creatorController = require('../controllers/creatorController');
 const {
   authenticateToken,
   optionalAuth
@@ -59,6 +60,12 @@ router.get('/followers',
 router.get('/following',
   authenticateToken,
   userFollowController.getFollowing
+);
+
+// 创作者统计
+router.get('/creator/stats',
+  authenticateToken,
+  creatorController.getCreatorStats
 );
 
 module.exports = router;

@@ -191,6 +191,34 @@
  *                     $ref: '#/components/schemas/UserFollowItem'
  *                 pagination:
  *                   $ref: '#/components/schemas/PaginationInfo'
+ *
+ *     CreatorStats:
+ *       type: object
+ *       properties:
+ *         total_followers:
+ *           type: integer
+ *           description: 粉丝总数
+ *           example: 256
+ *         total_views:
+ *           type: integer
+ *           description: 所有资源的总浏览量
+ *           example: 12567
+ *         total_comments:
+ *           type: integer
+ *           description: 所有资源的已审核评论总数
+ *           example: 342
+ *         total_likes:
+ *           type: integer
+ *           description: 所有资源收到的点赞数量
+ *           example: 980
+ *         total_favorites:
+ *           type: integer
+ *           description: 所有资源被收藏的次数
+ *           example: 210
+ *         total_points_earned:
+ *           type: integer
+ *           description: 通过资源下载累计获得的积分总数
+ *           example: 520
  * 
  *     UserProfile:
  *       type: object

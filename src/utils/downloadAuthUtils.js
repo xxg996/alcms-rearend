@@ -7,6 +7,7 @@ const { query } = require('../config/database');
 const { logger } = require('./logger');
 const { checkAndResetDailyDownloads, consumeDownload } = require('./downloadLimitUtils');
 const SystemSetting = require('../models/SystemSetting');
+const Points = require('../models/Points');
 
 /**
  * 检查文件下载权限
@@ -224,16 +225,21 @@ const executeDownloadPayment = async (file, userId, costInfo) => {
 
     // 如果需要扣积分（包括VIP折扣积分）
     if ((costInfo.type === 'points' || costInfo.type === 'vip_discounted_points') && costInfo.cost > 0) {
-      // 扣除用户积分
-      await query(`
-        UPDATE users SET points = points - $1 WHERE id = $2
-      `, [costInfo.cost, userId]);
+      const pointsReason = costInfo.type === 'vip_discounted_points'
+        ? `下载文件(VIP${costInfo.vipLevel}享受${costInfo.discountRate}折): ${file.name}`
+        : `下载文件: ${file.name}`;
 
-      // 记录积分消耗
-      const pointsReason = costInfo.type === 'vip_discounted_points' ?
-        `下载文件(VIP${costInfo.vipLevel}享受${costInfo.discountRate}折): ${file.name}` :
-        `下载文件: ${file.name}`;
+      // 扣除用户积分（记录在 points_records 中）
+      await Points.deductPoints(
+        userId,
+        costInfo.cost,
+        'resource_download',
+        pointsReason,
+        file.id,
+        'resource_file'
+      );
 
+      // 同步 user_points 旧表，保留历史兼容
       await query(`
         INSERT INTO user_points (user_id, points, reason, resource_id, created_at)
         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
@@ -249,22 +255,22 @@ const executeDownloadPayment = async (file, userId, costInfo) => {
       const authorId = fileInfo.rows[0]?.author_id;
 
       if (authorId && authorId !== userId) {
-        // 获取平台分成比例
         const { fee_rate: platformFeeRate } = await SystemSetting.getResourceSaleFeeConfig();
-
-        // 作者分成基于折扣后的积分计算，然后扣除手续费
         const authorEarning = Math.floor(costInfo.cost * (1 - platformFeeRate));
 
         if (authorEarning > 0) {
-          // 增加作者积分
-          await query(`
-            UPDATE users SET points = points + $1 WHERE id = $2
-          `, [authorEarning, authorId]);
+          const earningReason = costInfo.type === 'vip_discounted_points'
+            ? `文件销售收入(VIP折扣后): ${file.name}`
+            : `文件销售收入: ${file.name}`;
 
-          // 记录作者收入
-          const earningReason = costInfo.type === 'vip_discounted_points' ?
-            `文件销售收入(VIP折扣后): ${file.name}` :
-            `文件销售收入: ${file.name}`;
+          await Points.addPoints(
+            authorId,
+            authorEarning,
+            'resource_sale',
+            earningReason,
+            file.resource_id,
+            'resource'
+          );
 
           await query(`
             INSERT INTO user_points (user_id, points, reason, resource_id, created_at)
