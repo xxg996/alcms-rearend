@@ -177,7 +177,7 @@
  *           properties:
  *             category_id:
  *               type: integer
- *               description: 分类ID过滤
+ *               description: 分类ID过滤（填写父级ID时会包含其所有下级分类资源）
  *               example: 1
  *             resource_type_id:
  *               type: integer

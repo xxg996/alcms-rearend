@@ -122,20 +122,33 @@ class ResourceComment {
     const {
       limit = 20,
       offset = 0,
-      approved_only = true
+      approved_only = true,
+      user_id = null
     } = options;
+
+    const allowedUserId = Number.isFinite(user_id) ? user_id : null;
 
     let whereConditions = ['rc.resource_id = $1', 'rc.parent_id IS NULL']; // 只获取根评论
     let values = [resourceId];
     let paramCount = 2;
 
     if (approved_only) {
-      whereConditions.push('rc.is_approved = true');
+      if (allowedUserId) {
+        whereConditions.push('(rc.is_approved = true OR rc.user_id = $' + paramCount + ')');
+        values.push(allowedUserId);
+        paramCount++;
+      } else {
+        whereConditions.push('rc.is_approved = true');
+      }
     }
 
     const whereClause = 'WHERE ' + whereConditions.join(' AND ');
 
-    // 获取根评论总数
+    const countValues = values.slice();
+    if (!approved_only || !allowedUserId) {
+      // values already prepared
+    }
+
     const countQueryStr = `
       SELECT COUNT(*) as total
       FROM resource_comments rc
@@ -151,8 +164,7 @@ class ResourceComment {
         rc.*,
         u.username,
         u.nickname,
-        u.avatar_url,
-        (SELECT COUNT(*) FROM resource_comments WHERE parent_id = rc.id ${approved_only ? 'AND is_approved = true' : ''}) as reply_count
+        u.avatar_url
       FROM resource_comments rc
       LEFT JOIN users u ON rc.user_id = u.id
       ${whereClause}
@@ -160,10 +172,97 @@ class ResourceComment {
       LIMIT $${paramCount} OFFSET $${paramCount + 1}
     `;
 
-    const result = await query(queryStr, values);
+    const rootResult = await query(queryStr, values);
+    const rootRows = rootResult.rows;
+
+    // 构建根评论对象，预留replies数组
+    const rootComments = rootRows.map(row => ({
+      id: row.id,
+      resource_id: row.resource_id,
+      user_id: row.user_id,
+      parent_id: row.parent_id,
+      content: row.content,
+      is_approved: row.is_approved,
+      like_count: row.like_count,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      username: row.username,
+      nickname: row.nickname,
+      avatar_url: row.avatar_url,
+      reply_count: 0,
+      replies: []
+    }));
+
+    if (rootComments.length > 0) {
+      const rootIds = rootComments.map(comment => comment.id);
+      const repliesQuery = `
+        WITH RECURSIVE comment_tree AS (
+          SELECT rc.*, rc.id AS root_id, 0 AS depth
+          FROM resource_comments rc
+          WHERE rc.id = ANY($1::int[])
+            AND rc.resource_id = $2
+        UNION ALL
+          SELECT child.*, comment_tree.root_id, comment_tree.depth + 1
+          FROM resource_comments child
+          JOIN comment_tree ON child.parent_id = comment_tree.id
+          WHERE child.resource_id = $2
+            ${approved_only ? (allowedUserId ? 'AND (child.is_approved = true OR child.user_id = $3)' : 'AND child.is_approved = true') : ''}
+        )
+        SELECT ct.*, u.username, u.nickname, u.avatar_url
+        FROM comment_tree ct
+        LEFT JOIN users u ON ct.user_id = u.id
+        WHERE ct.parent_id IS NOT NULL
+        ORDER BY ct.created_at ASC
+      `;
+
+      const repliesParams = allowedUserId
+        ? [rootIds, resourceId, allowedUserId]
+        : [rootIds, resourceId];
+      const repliesResult = await query(repliesQuery, repliesParams);
+      const replyRows = repliesResult.rows;
+
+      if (replyRows.length > 0) {
+        const commentMap = new Map();
+        rootComments.forEach(comment => commentMap.set(comment.id, comment));
+
+        const replyObjects = replyRows.map(row => ({
+          id: row.id,
+          resource_id: row.resource_id,
+          user_id: row.user_id,
+          parent_id: row.parent_id,
+          content: row.content,
+          is_approved: row.is_approved,
+          like_count: row.like_count,
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          username: row.username,
+          nickname: row.nickname,
+          avatar_url: row.avatar_url,
+          reply_count: 0,
+          replies: []
+        }));
+
+        replyObjects.forEach(comment => {
+          commentMap.set(comment.id, comment);
+        });
+
+        replyObjects.forEach(comment => {
+          const parentComment = commentMap.get(comment.parent_id);
+          if (parentComment) {
+            parentComment.replies.push(comment);
+          }
+        });
+
+        commentMap.forEach(comment => {
+          if (comment.replies) {
+            comment.reply_count = comment.replies.length;
+          }
+        });
+      }
+    }
 
     return {
-      data: result.rows,
+      data: rootComments,
       pagination: {
         total,
         limit,
@@ -186,15 +285,24 @@ class ResourceComment {
     const {
       limit = 10,
       offset = 0,
-      approved_only = true
+      approved_only = true,
+      user_id = null
     } = options;
+
+    const allowedUserId = Number.isFinite(user_id) ? user_id : null;
 
     let whereConditions = ['rc.parent_id = $1'];
     let values = [parentId];
     let paramCount = 2;
 
     if (approved_only) {
-      whereConditions.push('rc.is_approved = true');
+      if (allowedUserId) {
+        whereConditions.push('(rc.is_approved = true OR rc.user_id = $' + paramCount + ')');
+        values.push(allowedUserId);
+        paramCount++;
+      } else {
+        whereConditions.push('rc.is_approved = true');
+      }
     }
 
     const whereClause = 'WHERE ' + whereConditions.join(' AND ');

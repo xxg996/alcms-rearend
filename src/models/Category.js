@@ -41,7 +41,21 @@ class Category {
         c.*,
         p.name as parent_name,
         p.display_name as parent_display_name,
-        (SELECT COUNT(*) FROM resources WHERE category_id = c.id AND status = 'published') as resource_count
+        (
+          WITH RECURSIVE category_tree AS (
+            SELECT id
+            FROM categories
+            WHERE id = c.id
+          UNION ALL
+            SELECT child.id
+            FROM categories child
+            INNER JOIN category_tree ct ON child.parent_id = ct.id
+          )
+          SELECT COUNT(*)
+          FROM resources r
+          WHERE r.category_id IN (SELECT id FROM category_tree)
+            AND r.status = 'published'
+        ) as resource_count
       FROM categories c
       LEFT JOIN categories p ON c.parent_id = p.id
       WHERE c.id = $1`,
@@ -56,10 +70,31 @@ class Category {
 
     // 获取子分类
     const childrenResult = await query(
-      `SELECT id, name, display_name, description, sort_order, icon_url
-       FROM categories 
-       WHERE parent_id = $1 AND is_active = true
-       ORDER BY sort_order ASC, display_name ASC`,
+      `SELECT 
+         child.id,
+         child.name,
+         child.display_name,
+         child.description,
+         child.sort_order,
+         child.icon_url,
+         (
+           WITH RECURSIVE category_tree AS (
+             SELECT id
+             FROM categories
+             WHERE id = child.id
+           UNION ALL
+             SELECT c.id
+             FROM categories c
+             INNER JOIN category_tree ct ON c.parent_id = ct.id
+           )
+           SELECT COUNT(*)
+           FROM resources r
+           WHERE r.category_id IN (SELECT id FROM category_tree)
+             AND r.status = 'published'
+         ) as resource_count
+       FROM categories child
+       WHERE child.parent_id = $1 AND child.is_active = true
+       ORDER BY child.sort_order ASC, child.display_name ASC`,
       [id]
     );
 
@@ -78,7 +113,21 @@ class Category {
     const result = await query(
       `SELECT 
         c.*,
-        (SELECT COUNT(*) FROM resources WHERE category_id = c.id AND status = 'published') as resource_count
+        (
+          WITH RECURSIVE category_tree AS (
+            SELECT id
+            FROM categories
+            WHERE id = c.id
+          UNION ALL
+            SELECT child.id
+            FROM categories child
+            INNER JOIN category_tree ct ON child.parent_id = ct.id
+          )
+          SELECT COUNT(*)
+          FROM resources r
+          WHERE r.category_id IN (SELECT id FROM category_tree)
+            AND r.status = 'published'
+        ) as resource_count
       FROM categories c
       ${whereClause}
       ORDER BY c.sort_order ASC, c.display_name ASC`
@@ -142,7 +191,21 @@ class Category {
         c.*,
         p.name as parent_name,
         p.display_name as parent_display_name,
-        (SELECT COUNT(*) FROM resources WHERE category_id = c.id AND status = 'published') as resource_count
+        (
+          WITH RECURSIVE category_tree AS (
+            SELECT id
+            FROM categories
+            WHERE id = c.id
+          UNION ALL
+            SELECT child.id
+            FROM categories child
+            INNER JOIN category_tree ct ON child.parent_id = ct.id
+          )
+          SELECT COUNT(*)
+          FROM resources r
+          WHERE r.category_id IN (SELECT id FROM category_tree)
+            AND r.status = 'published'
+        ) as resource_count
       FROM categories c
       LEFT JOIN categories p ON c.parent_id = p.id
       ${whereClause}

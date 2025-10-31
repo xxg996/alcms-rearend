@@ -68,8 +68,13 @@
  *           example: "https://example.com/avatar.jpg"
  *         reply_count:
  *           type: integer
- *           description: 回复数量（仅根评论显示）
+ *           description: 直接子回复数量
  *           example: 5
+ *         replies:
+ *           type: array
+ *           description: 子评论列表（按时间顺序）
+ *           items:
+ *             $ref: '#/components/schemas/ResourceComment'
  *
  *     ResourceCommentDetail:
  *       allOf:
@@ -161,7 +166,7 @@
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/ResourceComment'
- *                   description: 评论列表
+ *                   description: 评论列表（包含嵌套子评论）
  *                 pagination:
  *                   $ref: '#/components/schemas/PaginationInfo'
  *

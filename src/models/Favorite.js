@@ -162,8 +162,7 @@ class Favorite {
         r.description,
         r.summary,
         r.cover_image_url,
-        r.is_free,
-        r.required_points,
+        0 as required_points,
         r.status,
         r.view_count,
         r.download_count,
@@ -226,7 +225,7 @@ class Favorite {
     const queryStr = `
       SELECT 
         COUNT(*) as total_favorites,
-        COUNT(CASE WHEN r.is_free = FALSE THEN 1 END) as paid_favorites,
+        0 as paid_favorites,
         0 as vip_favorites,
         COUNT(CASE WHEN c.id IS NOT NULL THEN 1 END) as categorized_favorites
       FROM user_favorites uf

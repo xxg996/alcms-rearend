@@ -131,6 +131,7 @@ class ResourceCommentController {
    * /api/resources/{id}/comments:
    *   get:
    *     summary: 获取资源评论列表
+   *     description: 返回资源的评论及嵌套回复；未登录用户仅看到已审核评论，登录用户可同时看到自己待审核的评论
    *     tags: [资源评论]
    *     parameters:
    *       - in: path
@@ -161,13 +162,15 @@ class ResourceCommentController {
     try {
       const { id: resourceId } = req.params;
       const { page = 1, limit = 20 } = req.query;
+      const authUserId = req.user?.id ? parseInt(req.user.id) : null;
 
       const offset = (parseInt(page) - 1) * parseInt(limit);
 
       const result = await ResourceComment.getResourceComments(parseInt(resourceId), {
         limit: parseInt(limit),
         offset,
-        approved_only: true
+        approved_only: true,
+        user_id: authUserId
       });
 
       res.json({
@@ -189,10 +192,11 @@ class ResourceCommentController {
 
   /**
    * @swagger
-   * /api/comments/{id}/replies:
-   *   get:
-   *     summary: 获取评论回复列表
-   *     tags: [资源评论]
+  * /api/comments/{id}/replies:
+  *   get:
+  *     summary: 获取评论回复列表
+  *     description: 返回指定评论的回复；未登录用户仅看到已审核回复，登录用户可同时看到自己待审核的回复
+  *     tags: [资源评论]
    *     parameters:
    *       - in: path
    *         name: id
@@ -222,13 +226,15 @@ class ResourceCommentController {
     try {
       const { id: parentId } = req.params;
       const { page = 1, limit = 10 } = req.query;
+      const authUserId = req.user?.id ? parseInt(req.user.id) : null;
 
       const offset = (parseInt(page) - 1) * parseInt(limit);
 
       const result = await ResourceComment.getCommentReplies(parseInt(parentId), {
         limit: parseInt(limit),
         offset,
-        approved_only: true
+        approved_only: true,
+        user_id: authUserId
       });
 
       res.json({

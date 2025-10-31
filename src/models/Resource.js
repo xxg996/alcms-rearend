@@ -97,6 +97,37 @@ class Resource {
   }
 
   /**
+   * 获取指定分类及其所有下级分类ID
+   * @param {number} categoryId - 分类ID
+   * @returns {Promise<number[]>} 分类ID列表
+   */
+  static async getCategoryAndDescendants(categoryId) {
+    if (!categoryId) {
+      return [];
+    }
+
+    const result = await query(
+      `WITH RECURSIVE category_tree AS (
+         SELECT id, parent_id
+         FROM categories
+         WHERE id = $1
+       UNION ALL
+         SELECT c.id, c.parent_id
+         FROM categories c
+         INNER JOIN category_tree ct ON c.parent_id = ct.id
+       )
+       SELECT id FROM category_tree`,
+      [categoryId]
+    );
+
+    if (!result.rows || result.rows.length === 0) {
+      return [categoryId];
+    }
+
+    return result.rows.map(row => row.id);
+  }
+
+  /**
    * 根据ID获取资源
    * @param {number} id - 资源ID
    * @param {number} userId - 用户ID（用于权限检查）
@@ -177,9 +208,17 @@ class Resource {
       paramIndex++;
     }
 
+    let categoryIdsFilter = null;
     if (category_id) {
-      conditions.push(`r.category_id = $${paramIndex}`);
-      values.push(category_id);
+      const normalizedCategoryId = parseInt(category_id, 10);
+      if (Number.isFinite(normalizedCategoryId)) {
+        categoryIdsFilter = await Resource.getCategoryAndDescendants(normalizedCategoryId);
+      }
+    }
+
+    if (categoryIdsFilter && categoryIdsFilter.length > 0) {
+      conditions.push(`r.category_id = ANY($${paramIndex}::int[])`);
+      values.push(categoryIdsFilter);
       paramIndex++;
     }
 

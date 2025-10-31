@@ -170,7 +170,8 @@ async function generateDownloadInfoArray(resource, userId = null) {
     }
   } else {
     // 未登录用户
-    if (hasDownloadableFiles && resource.is_public && resource.is_free) {
+    const requiredPoints = Number(resource.required_points ?? 0);
+    if (hasDownloadableFiles && resource.is_public && requiredPoints === 0) {
       permissionCheck = { allowed: false, reason: '需要登录后下载' };
     } else {
       permissionCheck = { allowed: false, reason: '未登录用户无法下载' };

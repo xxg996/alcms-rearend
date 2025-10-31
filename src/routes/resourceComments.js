@@ -5,7 +5,7 @@
 
 const express = require('express');
 const ResourceCommentController = require('../controllers/resourceCommentController');
-const { authenticateToken, requirePermission } = require('../middleware/auth');
+const { authenticateToken, requirePermission, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -20,11 +20,13 @@ router.post('/resources/:id/comments',
 
 // 获取资源评论列表（公开）
 router.get('/resources/:id/comments',
+  optionalAuth,
   ResourceCommentController.getResourceComments
 );
 
 // 获取评论回复列表（公开）
 router.get('/comments/:id/replies',
+  optionalAuth,
   ResourceCommentController.getCommentReplies
 );
 
