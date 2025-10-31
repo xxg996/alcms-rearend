@@ -49,6 +49,8 @@ class Resource {
       }
 
       // 插入资源
+      const publishedAt = status === 'published' ? new Date() : null;
+
       const resourceResult = await client.query(
         `INSERT INTO resources (
           title, slug, description, summary, category_id, resource_type_id,
@@ -69,7 +71,7 @@ class Resource {
           is_public,
           status,
           author_id,
-          new Date(),
+          publishedAt,
           official
         ]
       );
@@ -347,7 +349,8 @@ class Resource {
       'cover_image_url',
       'is_public',
       'status',
-      'official'
+      'official',
+      'published_at'
     ];
 
     const updateFields = [];

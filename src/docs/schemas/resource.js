@@ -274,8 +274,13 @@
  *         is_public:
  *           type: boolean
  *           default: true
- *           description: 是否公开
+ *           description: 是否公开（仅拥有发布权限的用户可生效）
  *           example: true
+ *         status:
+ *           type: string
+ *           enum: [draft, published, archived, banned, deleted]
+ *           description: 资源状态（仅拥有发布权限的用户可设置）
+ *           example: "draft"
  *         tags:
  *           type: array
  *           items:
@@ -313,8 +318,13 @@
  *           example: 2
  *         is_public:
  *           type: boolean
- *           description: 是否公开
+ *           description: 是否公开（仅拥有发布权限的用户可生效）
  *           example: false
+ *         status:
+ *           type: string
+ *           enum: [draft, published, archived, banned, deleted]
+ *           description: 资源状态（仅拥有发布权限的用户可设置）
+ *           example: "published"
  *         tags:
  *           type: array
  *           items:

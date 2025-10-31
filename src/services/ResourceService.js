@@ -361,7 +361,7 @@ class ResourceService extends BaseService {
     // 其他字段验证...
     const optionalFields = [
       'slug', 'summary', 'cover_image_url', 'resource_type_id',
-      'is_public', 'required_points', 'status'
+      'is_public', 'status'
     ];
 
     optionalFields.forEach(field => {

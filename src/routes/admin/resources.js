@@ -76,6 +76,19 @@ router.patch('/batch-update',
   batchUpdateResources
 );
 
+router.post('/:id/review',
+  authenticateToken,
+  requirePermission('resource:publish'),
+  clearResourceCache,
+  ResourceController.reviewResource
+);
+
+router.get('/pending',
+  authenticateToken,
+  requirePermission('resource:publish'),
+  ResourceController.getPendingResources
+);
+
 // 获取详细统计信息
 router.get('/stats/detailed',
   authenticateToken,

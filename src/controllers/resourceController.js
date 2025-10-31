@@ -25,6 +25,8 @@ const getRequestMeta = (req) => ({
   userAgent: req.get('user-agent') || ''
 });
 
+const RESOURCE_STATUSES = ['draft', 'published', 'archived', 'banned', 'deleted'];
+
 class ResourceController {
   /**
    * @swagger
@@ -35,15 +37,14 @@ class ResourceController {
    *     description: |
    *       获取分页的资源列表，支持多种过滤和排序选项。
    *
-   *       **权限控制说明：**
-   *       - 未登录用户：只能看到公开的已发布资源（is_public=true, status='published'）
-   *       - 已登录用户：额外可以看到自己创建的所有状态资源
-   *       - 管理员：可以通过 include_all=true 参数查看所有资源
+   *       **显示规则：**
+   *       - 游客与普通登录用户默认只看到公开的已发布资源（is_public=true, status='published'）。
+   *       - 登录用户额外可以看到自己提交的草稿，但不会看到其他人的草稿。
+   *       - 拥有 `resource:publish` 权限的用户，可通过 include_all=true 查看所有状态的资源。
    *
    *       **默认过滤：**
-   *       - 默认只返回已发布的资源（status='published'）
-   *       - 使用 include_all=true 可以返回所有状态的资源（需要相应权限）
-   *       - 搜索关键词启用 PostgreSQL 全文检索，自动匹配标题和描述
+   *       - 默认仅返回已发布资源；传入 include_all=true 且具备相应权限时才会关闭该限制。
+   *       - 搜索关键词启用 PostgreSQL 全文检索，自动匹配标题和描述。
    *
    *     security:
  *       - BearerAuth: []
@@ -285,8 +286,7 @@ class ResourceController {
  *                 status: "published"
  *                 is_public: true
  *                 official: false
- *                 required_points: 100
- *                 view_count: 1251
+*                 view_count: 1251
  *                 download_count: 89
  *                 like_count: 45
  *                 created_at: "2025-09-11T10:00:00.000Z"
@@ -387,7 +387,7 @@ class ResourceController {
    *   post:
    *     tags: [资源管理相关]
    *     summary: 创建新资源
-   *     description: 创建一个新的资源，需要认证
+   *     description: 创建一个新的资源，需要认证。普通用户提交后资源将以草稿状态保存，待具有发布权限的管理员审核后才会公开。
    *     security:
    *       - BearerAuth: []
    *     requestBody:
@@ -403,36 +403,35 @@ class ResourceController {
    *             category_id: 1
    *             resource_type_id: 1
    *             cover_image_url: "https://example.com/cover.jpg"
-   *             is_public: true
-   *             required_points: 50
    *             tags: [1, 2, 3]
    *     responses:
    *       201:
    *         description: 资源创建成功
    *         content:
    *           application/json:
-   *             schema:
-   *               allOf:
-   *                 - $ref: '#/components/schemas/SuccessResponse'
-   *                 - type: object
-   *                   properties:
-   *                     data:
-   *                       $ref: '#/components/schemas/Resource'
-   *                     message:
-   *                       type: string
-   *                       example: "资源创建成功"
-   *             example:
-   *               success: true
-   *               message: "资源创建成功"
-   *               data:
-   *                 id: 1
-   *                 title: "新的Vue.js教程"
-   *                 slug: "new-vue-tutorial"
-   *                 description: "这是一个全面的Vue.js学习教程"
-   *                 author_id: 1
-   *                 status: "draft"
-   *                 created_at: "2025-09-12T10:00:00.000Z"
-   *                 updated_at: "2025-09-12T10:00:00.000Z"
+  *             schema:
+  *               allOf:
+  *                 - $ref: '#/components/schemas/SuccessResponse'
+  *                 - type: object
+  *                   properties:
+  *                     data:
+  *                       $ref: '#/components/schemas/Resource'
+  *                     message:
+  *                       type: string
+   *                       example: "资源已提交审核，等待管理员审核"
+  *             example:
+  *               success: true
+   *               message: "资源已提交审核，等待管理员审核"
+  *               data:
+  *                 id: 1
+  *                 title: "新的Vue.js教程"
+  *                 slug: "new-vue-tutorial"
+  *                 description: "这是一个全面的Vue.js学习教程"
+  *                 author_id: 1
+  *                 status: "draft"
+  *                 is_public: false
+  *                 created_at: "2025-09-12T10:00:00.000Z"
+  *                 updated_at: "2025-09-12T10:00:00.000Z"
    *       400:
    *         description: 请求参数错误
    *         content:
@@ -460,7 +459,6 @@ class ResourceController {
         resource_type_id,
         cover_image_url,
         is_public = true,
-        required_points = 0,
         status,
         tags = [],
         official = false
@@ -498,6 +496,19 @@ class ResourceController {
         });
       }
 
+      const canPublishDirectly = await ResourceController.hasPermission(userId, 'resource:publish');
+
+      let finalStatus = 'published';
+      if (canPublishDirectly) {
+        if (status && RESOURCE_STATUSES.includes(status)) {
+          finalStatus = status;
+        }
+      } else {
+        finalStatus = 'draft';
+      }
+
+      const finalIsPublic = canPublishDirectly ? toBoolean(is_public, true) : false;
+
       const resourceData = {
         title,
         slug,
@@ -506,9 +517,8 @@ class ResourceController {
         category_id: normalizedCategoryId,
         resource_type_id: normalizedResourceTypeId,
         cover_image_url,
-        is_public: toBoolean(is_public, true),
-        required_points: toNonNegativeInt(required_points),
-        status: status || 'published',
+        is_public: finalIsPublic,
+        status: finalStatus,
         author_id: userId,
         tags: tagIds,
         official: toBoolean(official, false)
@@ -529,7 +539,7 @@ class ResourceController {
 
       res.status(201).json({
         success: true,
-        message: '资源创建成功',
+        message: canPublishDirectly ? '资源创建成功' : '资源已提交审核，等待管理员审核',
         data: resource
       });
     } catch (error) {
@@ -581,7 +591,6 @@ class ResourceController {
    *             cover_image_url: "https://example.com/new-cover.jpg"
    *             category_id: 2
    *             is_public: false
-   *             required_points: 100
    *             tags: [1, 4, 5]
    *     responses:
    *       200:
@@ -682,7 +691,7 @@ class ResourceController {
         }
       };
 
-      ['title', 'slug', 'description', 'summary', 'cover_image_url', 'status'].forEach((field) => {
+      ['title', 'slug', 'description', 'summary', 'cover_image_url'].forEach((field) => {
         assignIfPresent(field);
       });
 
@@ -699,9 +708,45 @@ class ResourceController {
         sanitizedUpdate.resource_type_id = normalized;
       }
 
-      assignIfPresent('is_public', (value) => toBoolean(value, resource.is_public));
-      assignIfPresent('required_points', (value) => toNonNegativeInt(value, resource.required_points || 0));
       assignIfPresent('official', (value) => toBoolean(value, resource.official || false));
+
+      const canPublishDirectly = await ResourceController.hasPermission(userId, 'resource:publish');
+
+      if (Object.prototype.hasOwnProperty.call(updateData, 'status')) {
+        if (!canPublishDirectly) {
+          return res.status(403).json({
+            success: false,
+            message: '无权修改资源状态'
+          });
+        }
+
+        const requestedStatus = updateData.status;
+        if (!RESOURCE_STATUSES.includes(requestedStatus)) {
+          return res.status(400).json({
+            success: false,
+            message: '无效的资源状态'
+          });
+        }
+
+        sanitizedUpdate.status = requestedStatus;
+
+        if (requestedStatus === 'published' && resource.status !== 'published') {
+          sanitizedUpdate.published_at = new Date();
+        } else if (requestedStatus !== 'published') {
+          sanitizedUpdate.published_at = null;
+        }
+      }
+
+      if (Object.prototype.hasOwnProperty.call(updateData, 'is_public')) {
+        if (!canPublishDirectly) {
+          return res.status(403).json({
+            success: false,
+            message: '无权修改资源公开状态'
+          });
+        }
+
+        sanitizedUpdate.is_public = toBoolean(updateData.is_public, resource.is_public);
+      }
 
       if (Object.keys(sanitizedUpdate).length === 0 && !updateData.tags) {
         return res.status(400).json({
@@ -750,6 +795,190 @@ class ResourceController {
         success: false,
         message: '更新资源失败',
         error: error.message
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/admin/resources/{id}/review:
+   *   post:
+   *     tags: [资源管理相关]
+   *     summary: 审核资源
+   *     description: 管理员审核用户提交的资源，可调整状态与公开性
+   *     security:
+   *       - BearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: 资源ID
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               status:
+   *                 type: string
+   *                 enum: [draft, published, archived, banned, deleted]
+   *                 description: 审核后的资源状态
+   *               is_public:
+   *                 type: boolean
+   *                 description: 是否对外公开
+   *     responses:
+   *       200:
+   *         description: 审核成功
+   *       400:
+   *         $ref: '#/components/responses/BadRequest'
+   *       404:
+   *         description: 资源不存在
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
+   */
+  static async reviewResource(req, res) {
+    const { ipAddress, userAgent } = getRequestMeta(req);
+    try {
+      const resourceId = parseInt(req.params.id, 10);
+      if (!Number.isFinite(resourceId) || resourceId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: '资源ID格式不正确'
+        });
+      }
+
+      const { status, is_public } = req.body || {};
+
+      if (status === undefined && is_public === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: '请提供要更新的审核字段'
+        });
+      }
+
+      if (status !== undefined && !RESOURCE_STATUSES.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: '无效的资源状态'
+        });
+      }
+
+      const resource = await Resource.findById(resourceId);
+      if (!resource) {
+        return res.status(404).json({
+          success: false,
+          message: '资源不存在'
+        });
+      }
+
+      const updatePayload = {};
+
+      if (status !== undefined) {
+        updatePayload.status = status;
+        if (status === 'published' && resource.status !== 'published') {
+          updatePayload.published_at = new Date();
+        } else if (status !== 'published') {
+          updatePayload.published_at = null;
+        }
+      }
+
+      if (is_public !== undefined) {
+        updatePayload.is_public = toBoolean(is_public, resource.is_public);
+      }
+
+      const updatedResource = await Resource.update(resourceId, updatePayload);
+
+      await AuditLog.createSystemLog({
+        operatorId: req.user.id,
+        targetType: 'resource',
+        targetId: resourceId,
+        action: 'review',
+        summary: `审核资源 ${updatedResource.title}`,
+        detail: {
+          previous_status: resource.status,
+          new_status: updatedResource.status,
+          is_public: updatedResource.is_public
+        },
+        ipAddress,
+        userAgent
+      });
+
+      res.json({
+        success: true,
+        message: '资源审核结果已更新',
+        data: updatedResource
+      });
+    } catch (error) {
+      logger.error('审核资源失败:', error);
+      await AuditLog.createSystemLog({
+        operatorId: req.user?.id || null,
+        targetType: 'resource',
+        targetId: req.params?.id || null,
+        action: 'review_failed',
+        summary: '审核资源失败',
+        detail: { error: error.message },
+        ipAddress,
+        userAgent
+      });
+      res.status(500).json({
+        success: false,
+        message: '审核资源失败',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/admin/resources/pending:
+   *   get:
+   *     tags: [资源管理相关]
+   *     summary: 获取待审核资源列表
+   *     description: 返回状态为草稿的资源列表，供管理员审核。
+   *     security:
+   *       - BearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           default: 1
+   *         description: 页码
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 20
+   *           maximum: 100
+   *         description: 每页数量
+   *     responses:
+   *       200:
+   *         description: 获取成功
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
+   */
+  static async getPendingResources(req, res) {
+    try {
+      const { page = 1, limit = 20 } = req.query;
+
+      const result = await Resource.findAll({
+        page: parseInt(page, 10) || 1,
+        limit: Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100),
+        status: 'draft'
+      });
+
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      logger.error('获取待审核资源失败:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取待审核资源失败'
       });
     }
   }
@@ -1395,12 +1624,4 @@ const toIntegerOrNull = (value, defaultValue = null) => {
   }
 
   return Math.trunc(numeric);
-};
-
-const toNonNegativeInt = (value, defaultValue = 0) => {
-  const numeric = Number(value);
-  if (Number.isFinite(numeric) && numeric >= 0) {
-    return Math.trunc(numeric);
-  }
-  return defaultValue;
 };
