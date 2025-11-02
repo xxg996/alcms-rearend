@@ -230,6 +230,18 @@
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Resource'
+ *
+ *     HotResourceResponse:
+ *       type: object
+ *       properties:
+ *         period:
+ *           type: string
+ *           description: 返回的数据周期（all/day/month/year）
+ *           example: "day"
+ *         resources:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Resource'
  * 
  *     CreateResourceRequest:
  *       type: object

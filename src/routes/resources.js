@@ -19,6 +19,9 @@ router.get('/', optionalAuth, resourceListCache, ResourceController.getResources
 // 前端展示资源
 router.get('/frontend', FrontendContentController.getRandomVideoResources);
 
+// 热门资源
+router.get('/hot', optionalAuth, ResourceController.getHotResources);
+
 // 获取单个资源详情（添加缓存）
 router.get('/:id', optionalAuth, resourceDetailCache, ResourceController.getResource);
 

@@ -537,6 +537,82 @@ class Resource {
 
     return result.rows;
   }
+
+  /**
+   * 获取热门资源
+   * @param {Object} options
+   * @param {string} [options.period] - 统计周期：day、month、year 或 all
+   * @param {number} [options.limit] - 返回数量，默认10
+   * @returns {Promise<Array>}
+   */
+  static async getPopularResources({ period = 'all', limit = 10 } = {}) {
+    const resolvedLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50);
+
+    const normalizedPeriod = typeof period === 'string' ? period.trim().toLowerCase() : 'all';
+    let startDate = null;
+
+    const now = new Date();
+
+    if (['today', 'day', 'daily'].includes(normalizedPeriod)) {
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (['month', 'monthly'].includes(normalizedPeriod)) {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (['year', 'yearly'].includes(normalizedPeriod)) {
+      startDate = new Date(now.getFullYear(), 0, 1);
+    }
+
+    const conditions = [
+      "r.status = 'published'",
+      'r.is_public = TRUE'
+    ];
+    const values = [];
+    let paramIndex = 1;
+
+    if (startDate) {
+      conditions.push(`r.created_at >= $${paramIndex}`);
+      values.push(startDate.toISOString());
+      paramIndex += 1;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const queryText = `
+      SELECT
+        r.id,
+        r.title,
+        r.slug,
+        r.summary,
+        r.description,
+        r.cover_image_url,
+        r.view_count,
+        r.download_count,
+        r.like_count,
+        r.created_at,
+        r.published_at,
+        r.author_id,
+        r.category_id,
+        r.official,
+        rt.id AS resource_type_id,
+        rt.name AS resource_type_name,
+        rt.display_name AS resource_type_display_name,
+        c.name AS category_name,
+        c.display_name AS category_display_name,
+        u.username AS author_username,
+        u.nickname AS author_nickname
+      FROM resources r
+      LEFT JOIN resource_types rt ON r.resource_type_id = rt.id
+      LEFT JOIN categories c ON r.category_id = c.id
+      LEFT JOIN users u ON r.author_id = u.id
+      ${whereClause}
+      ORDER BY r.view_count DESC, r.like_count DESC, r.created_at DESC
+      LIMIT $${paramIndex}
+    `;
+
+    values.push(resolvedLimit);
+
+    const result = await query(queryText, values);
+    return result.rows;
+  }
 }
 
 module.exports = Resource;

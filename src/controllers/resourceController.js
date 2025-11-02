@@ -241,6 +241,74 @@ class ResourceController {
 
   /**
    * @swagger
+   * /api/resources/hot:
+   *   get:
+   *     tags: [资源管理相关]
+   *     summary: 获取热门资源
+   *     description: 按浏览量排序的热门资源列表，可按周期筛选今日、本月或今年，并指定返回数量。
+   *     parameters:
+   *       - in: query
+   *         name: period
+   *         schema:
+   *           type: string
+   *           enum: [all, today, day, month, year]
+   *           default: all
+   *         description: 热门统计周期；today/day=今日，本月=month，今年=year；默认全部
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 50
+   *           default: 10
+   *         description: 返回的资源数量
+   *     responses:
+   *       200:
+   *         description: 获取热门资源成功
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
+   */
+  static async getHotResources(req, res) {
+    try {
+      const { period = 'all', limit = 10 } = req.query;
+
+      const normalizedPeriod = typeof period === 'string' ? period.trim().toLowerCase() : 'all';
+      const supportedPeriods = new Set(['all', 'today', 'day', 'daily', 'month', 'monthly', 'year', 'yearly']);
+
+      if (!supportedPeriods.has(normalizedPeriod)) {
+        return res.status(400).json({
+          success: false,
+          message: '周期参数不合法'
+        });
+      }
+
+      const sanitizedLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50);
+
+      const resources = await Resource.getPopularResources({
+        period: normalizedPeriod,
+        limit: sanitizedLimit
+      });
+
+      const enrichedResources = await generateSecureResourceInfoBatch(resources, req.user?.id);
+
+      res.json({
+        success: true,
+        data: {
+          period: normalizedPeriod,
+          resources: enrichedResources
+        }
+      });
+    } catch (error) {
+      logger.error('获取热门资源失败:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取热门资源失败'
+      });
+    }
+  }
+
+  /**
+   * @swagger
    * /api/resources/{id}:
    *   get:
    *     tags: [资源管理相关]
