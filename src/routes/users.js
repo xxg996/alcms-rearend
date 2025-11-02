@@ -68,4 +68,10 @@ router.get('/creator/stats',
   creatorController.getCreatorStats
 );
 
+// 创作者资源列表
+router.get('/creator/resources',
+  authenticateToken,
+  creatorController.getCreatorResources
+);
+
 module.exports = router;

@@ -19,6 +19,7 @@ const { query } = require('../config/database');
 const { logger } = require('../utils/logger');
 const AuditLog = require('../models/AuditLog');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
+const SearchRecord = require('../models/SearchRecord');
 
 const getRequestMeta = (req) => ({
   ipAddress: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip,
@@ -189,6 +190,17 @@ class ResourceController {
       };
 
       logger.debug('解析后的查询选项', options);
+
+      const searchKeyword = typeof search === 'string' ? search.trim() : '';
+      if (searchKeyword) {
+        const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || null;
+        SearchRecord.logSearch({
+          keyword: searchKeyword,
+          searchType: 'resource',
+          userId: req.user?.id || null,
+          ipAddress
+        });
+      }
       
       const result = await Resource.findAll(options);
 

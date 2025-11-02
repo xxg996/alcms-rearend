@@ -181,8 +181,16 @@ class TagController {
   static async getTag(req, res) {
     try {
       const { id } = req.params;
+      const normalizedId = Number.parseInt(String(id).trim(), 10);
 
-      const tag = await Tag.findById(parseInt(id));
+      if (!Number.isFinite(normalizedId) || normalizedId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: '标签ID无效'
+        });
+      }
+
+      const tag = await Tag.findById(normalizedId);
 
       if (!tag) {
         return res.status(404).json({
@@ -528,9 +536,13 @@ class TagController {
    */
   static async getPopularTags(req, res) {
     try {
-      const { limit = 20 } = req.query;
+      const rawLimit = req.query.limit;
+      const parsedLimit = Number.parseInt(String(rawLimit ?? '20').trim(), 10);
+      const sanitizedLimit = Number.isFinite(parsedLimit) && parsedLimit > 0
+        ? Math.min(parsedLimit, 100)
+        : 20;
 
-      const tags = await Tag.getPopularTags(parseInt(limit));
+      const tags = await Tag.getPopularTags(sanitizedLimit);
 
       res.json({
         success: true,

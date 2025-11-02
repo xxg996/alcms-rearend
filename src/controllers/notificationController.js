@@ -10,12 +10,22 @@ const { logger } = require('../utils/logger');
 class NotificationController {
   static async handleCategoryList(req, res, category) {
     try {
-      const { page, limit, is_read: isReadQuery, read } = req.query;
+      const {
+        page,
+        limit,
+        is_read: isReadQuery,
+        read,
+        unread
+      } = req.query;
+
+      const unreadFlag = Notification.parseBoolean(unread);
+      const resolvedIsRead = unreadFlag === true ? false : (isReadQuery ?? read);
+
       const result = await Notification.getUserNotifications(req.user.id, {
         page,
         limit,
         category,
-        isRead: isReadQuery ?? read
+        isRead: resolvedIsRead
       });
 
       return successResponse(res, '获取通知列表成功', result);
@@ -51,12 +61,23 @@ class NotificationController {
 
   static async getMyNotifications(req, res) {
     try {
-      const { page, limit, category, is_read: isReadQuery, read } = req.query;
+      const {
+        page,
+        limit,
+        category,
+        is_read: isReadQuery,
+        read,
+        unread
+      } = req.query;
+
+      const unreadFlag = Notification.parseBoolean(unread);
+      const resolvedIsRead = unreadFlag === true ? false : (isReadQuery ?? read);
+
       const result = await Notification.getUserNotifications(req.user.id, {
         page,
         limit,
         category,
-        isRead: isReadQuery ?? read
+        isRead: resolvedIsRead
       });
 
       return successResponse(res, '获取通知列表成功', result);
@@ -80,13 +101,18 @@ class NotificationController {
    *         required: true
    *         schema:
    *           type: string
-   *           enum: [resource, community, system]
-   *         description: 通知类别
+   *           enum: [resource, community, system, all]
+   *         description: 通知类别，填写 all 返回所有类别
    *       - in: query
    *         name: page
    *         schema:
    *           type: integer
    *           default: 1
+   *       - in: query
+   *         name: unread
+   *         schema:
+   *           type: boolean
+   *         description: 仅返回未读通知（true 时忽略 is_read 参数）
    *       - in: query
    *         name: limit
    *         schema:
@@ -105,9 +131,18 @@ class NotificationController {
    *         $ref: '#/components/responses/UnauthorizedError'
    *       500:
    *         $ref: '#/components/responses/ServerError'
-   */
+  */
   static async getCategoryNotifications(req, res) {
     const categoryParam = Notification.normalizeCategory(req.params.category);
+
+    if (!categoryParam) {
+      return errorResponse(res, '通知类别不合法', 400);
+    }
+
+    if (categoryParam === 'all') {
+      return NotificationController.handleCategoryList(req, res, null);
+    }
+
     if (!Notification.isValidCategory(categoryParam)) {
       return errorResponse(res, '通知类别不合法', 400);
     }

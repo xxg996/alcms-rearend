@@ -3,6 +3,8 @@
  */
 
 const { query } = require('../config/database');
+const Resource = require('../models/Resource');
+const { generateSecureResourceInfoBatch } = require('../utils/downloadUtilsBatch');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 const { logger } = require('../utils/logger');
 
@@ -85,6 +87,136 @@ const getCreatorStats = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/users/creator/resources:
+ *   get:
+ *     tags: [创作者相关]
+ *     summary: 获取当前创作者的资源列表
+ *     description: |
+ *       返回当前登录用户创建的所有资源，包含待审核或已下线的资源。
+ *       支持按状态与公开性筛选，默认返回全部状态的资源。
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 页码，默认1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *         description: 每页数量，默认20
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [draft, published, archived, banned, deleted]
+ *         description: 按资源状态筛选
+ *       - in: query
+ *         name: is_public
+ *         schema:
+ *           type: boolean
+ *         description: 是否按公开状态筛选
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: 关键字模糊搜索
+ *       - in: query
+ *         name: sort_by
+ *         schema:
+ *           type: string
+ *           enum: [created_at, updated_at, title, view_count, download_count, like_count]
+ *         description: 排序字段
+ *       - in: query
+ *         name: sort_order
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
+ *         description: 排序方向，默认DESC
+ *     responses:
+ *       200:
+ *         description: 获取成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/SuccessResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/CreatorResourceList'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+const getCreatorResources = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const parsePositiveInt = (value, defaultValue) => {
+      const parsed = parseInt(value, 10);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        return defaultValue;
+      }
+      return parsed;
+    };
+
+    const parseBoolean = (value) => {
+      if (value === undefined || value === null) {
+        return undefined;
+      }
+      const normalized = String(value).trim().toLowerCase();
+      if (['true', '1', 'yes', 'on'].includes(normalized)) {
+        return true;
+      }
+      if (['false', '0', 'no', 'off'].includes(normalized)) {
+        return false;
+      }
+      return undefined;
+    };
+
+    const page = parsePositiveInt(req.query.page, 1);
+    const limit = Math.min(parsePositiveInt(req.query.limit, 20), 100);
+    const status = typeof req.query.status === 'string' && req.query.status.trim()
+      ? req.query.status.trim()
+      : undefined;
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const sortBy = typeof req.query.sort_by === 'string' ? req.query.sort_by : undefined;
+    const sortOrder = typeof req.query.sort_order === 'string' ? req.query.sort_order : undefined;
+    const isPublic = parseBoolean(req.query.is_public);
+
+    const result = await Resource.findAll({
+      page,
+      limit,
+      author_id: userId,
+      status,
+      search,
+      sort_by: sortBy,
+      sort_order: sortOrder,
+      is_public: isPublic
+    });
+
+    const resources = await generateSecureResourceInfoBatch(result.resources, userId);
+
+    return successResponse(res, '获取创作者资源列表成功', {
+      resources,
+      pagination: result.pagination
+    });
+  } catch (error) {
+    logger.error('获取创作者资源列表失败:', error);
+    return errorResponse(res, '获取创作者资源列表失败', 500);
+  }
+};
+
 module.exports = {
-  getCreatorStats
+  getCreatorStats,
+  getCreatorResources
 };

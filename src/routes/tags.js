@@ -15,12 +15,12 @@ const { logger } = require('../utils/logger');
 // 获取标签列表（添加缓存）
 router.get('/', tagListCache, TagController.getTags);
 
+// 获取热门标签
+router.get('/popular', TagController.getPopularTags);
+router.get('/popular/list', TagController.getPopularTags);
+
 // 获取单个标签详情
 router.get('/:id', TagController.getTag);
-
-
-// 获取热门标签
-router.get('/popular/list', TagController.getPopularTags);
 
 // 需要认证和权限的路由
 

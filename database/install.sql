@@ -356,6 +356,23 @@ CREATE TABLE resource_comments (
 );
 
 -- ============================================================================
+-- 搜索记录
+-- ============================================================================
+
+CREATE TABLE search_records (
+    id SERIAL PRIMARY KEY,
+    keyword TEXT NOT NULL,
+    normalized_keyword TEXT NOT NULL,
+    search_type VARCHAR(20) NOT NULL CHECK (search_type IN ('resource','community')),
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_search_records_type_keyword ON search_records(search_type, normalized_keyword);
+CREATE INDEX idx_search_records_created_at ON search_records(created_at);
+
+-- ============================================================================
 -- 社区模块
 -- ============================================================================
 

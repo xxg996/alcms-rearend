@@ -12,6 +12,7 @@ const CommunityBoard = require('../models/CommunityBoard');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 const { generateSecurePostInfoBatch } = require('../utils/downloadUtilsBatch');
 const { logger } = require('../utils/logger');
+const SearchRecord = require('../models/SearchRecord');
 
 class CommunityPostController {
   /**
@@ -139,6 +140,17 @@ class CommunityPostController {
         search,
         tags: tags ? tags.split(',') : undefined
       };
+
+      const searchKeyword = typeof search === 'string' ? search.trim() : '';
+      if (searchKeyword) {
+        const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || null;
+        SearchRecord.logSearch({
+          keyword: searchKeyword,
+          searchType: 'community',
+          userId: req.user?.id || null,
+          ipAddress
+        });
+      }
 
       const result = await CommunityPost.findAll(options);
       
@@ -542,6 +554,14 @@ class CommunityPostController {
         limit: parseInt(limit),
         boardId: boardId ? parseInt(boardId) : undefined
       };
+
+      const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || null;
+      SearchRecord.logSearch({
+        keyword,
+        searchType: 'community',
+        userId: req.user?.id || null,
+        ipAddress
+      });
 
       const result = await CommunityPost.search(keyword, options);
       

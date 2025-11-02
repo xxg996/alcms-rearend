@@ -120,7 +120,7 @@
  *           example: 45
  *         status:
  *           type: string
- *           enum: [draft, published, archived, deleted]
+ *           enum: [draft, published, archived, banned, deleted]
  *           description: 资源状态
  *           example: "published"
  *         published_at:
@@ -189,7 +189,7 @@
  *               example: 1
  *             status:
  *               type: string
- *               enum: [draft, published, archived, deleted]
+ *               enum: [draft, published, archived, banned, deleted]
  *               default: published
  *               description: 状态过滤
  *               example: "published"

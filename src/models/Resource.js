@@ -285,7 +285,7 @@ class Resource {
       SELECT
         r.id, r.title, r.slug, r.description, r.summary, r.cover_image_url,
         r.category_id, r.author_id,
-        r.is_public, r.official, r.view_count, r.download_count, r.like_count, r.created_at, r.published_at,
+        r.is_public, r.official, r.status, r.view_count, r.download_count, r.like_count, r.created_at, r.published_at,
         rt.name as resource_type_name, rt.display_name as resource_type_display_name,
         c.name as category_name, c.display_name as category_display_name,
         c.parent_id as category_parent_id,
@@ -528,6 +528,7 @@ class Resource {
        LEFT JOIN users u ON r.author_id = u.id
        WHERE r.status = 'published'
          AND r.is_public = TRUE
+         AND r.official = TRUE
          AND rt.name = $1
        ORDER BY RANDOM()
        LIMIT $2`,

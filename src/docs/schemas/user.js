@@ -219,6 +219,47 @@
  *           type: integer
  *           description: 通过资源下载累计获得的积分总数
  *           example: 520
+ *
+ *     CreatorResourceList:
+ *       type: object
+ *       properties:
+ *         resources:
+ *           type: array
+ *           description: 当前创作者的资源列表
+ *           items:
+ *             $ref: '#/components/schemas/Resource'
+ *         pagination:
+ *           $ref: '#/components/schemas/PaginationInfo'
+ *       example:
+ *         resources:
+ *           - id: 101
+ *             title: "音频采集教程"
+ *             status: "draft"
+ *             is_public: false
+ *             view_count: 0
+ *             download_count: 0
+ *             like_count: 0
+ *             created_at: "2025-10-30T10:00:00.000Z"
+ *             updated_at: "2025-10-30T10:00:00.000Z"
+ *             tags: []
+ *           - id: 95
+ *             title: "高质量ASMR示例"
+ *             status: "published"
+ *             is_public: true
+ *             view_count: 1234
+ *             download_count: 87
+ *             like_count: 56
+ *             created_at: "2025-09-20T09:12:10.000Z"
+ *             updated_at: "2025-10-01T12:30:00.000Z"
+ *             tags:
+ *               - id: 3
+ *                 name: "audio"
+ *                 display_name: "音频"
+ *         pagination:
+ *           page: 1
+ *           limit: 20
+ *           total: 2
+ *           totalPages: 1
  * 
  *     UserProfile:
  *       type: object

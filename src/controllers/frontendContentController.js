@@ -44,7 +44,7 @@ const FrontendContentController = {
    *   get:
    *     tags: [前端调用]
    *     summary: 获取随机视频资源
-   *     description: 随机返回指定数量的公开视频资源，供前端模块展示。
+   *     description: 随机返回指定数量的官方公开视频资源，供前端模块展示。
    *     parameters:
    *       - in: query
    *         name: limit

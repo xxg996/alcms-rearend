@@ -73,6 +73,7 @@ const rolePermissionRoutes = require('./routes/admin/rolePermissions');
 const permissionRoutes = require('./routes/admin/permissions');
 const cacheRoutes = require('./routes/admin/cache');
 const uploadRoutes = require('./routes/upload');
+const searchRoutes = require('./routes/search');
 
 // 创建Express应用实例
 const app = express();
@@ -201,6 +202,7 @@ app.use('/api/points', pointsRoutes);
 app.use('/api/checkin', checkinRoutes);
 app.use('/api/referral', referralRoutes);
 app.use('/api/frontend', frontendRoutes);
+app.use('/api/search', searchRoutes);
 app.use('/api', require('./routes/download'));
 
 // 管理员功能API路由注册 - 角色权限管理
