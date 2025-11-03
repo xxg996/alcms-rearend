@@ -73,7 +73,11 @@ const rolePermissionRoutes = require('./routes/admin/rolePermissions');
 const permissionRoutes = require('./routes/admin/permissions');
 const cacheRoutes = require('./routes/admin/cache');
 const uploadRoutes = require('./routes/upload');
+const { applyDefaultTimezone } = require('./config/timezone');
 const searchRoutes = require('./routes/search');
+
+// 应用默认时区配置
+applyDefaultTimezone();
 
 // 创建Express应用实例
 const app = express();

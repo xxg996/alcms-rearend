@@ -1,3 +1,4 @@
+const moment = require('moment-timezone');
 /**
  * 优化的数据库配置
  * 提升连接池性能和查询效率
@@ -41,6 +42,10 @@ pool.on('connect', (client) => {
   client.query('SET statement_timeout = 30000');
   client.query('SET lock_timeout = 10000');
   client.query('SET idle_in_transaction_session_timeout = 60000');
+  if (process.env.TZ) {
+    const tz = process.env.TZ.replace(/'/g, "''");
+    client.query(`SET TIME ZONE '${tz}'`);
+  }
   
   if (process.env.NODE_ENV === 'development') {
     logger.info('新的数据库连接已建立');
