@@ -435,9 +435,17 @@ class ResourceCommentController {
       const { id: commentId } = req.params;
       const userId = req.user.id;
 
-      const updatedComment = await ResourceComment.updateLikeCount(parseInt(commentId), 1);
+      const parsedCommentId = parseInt(commentId, 10);
+      if (Number.isNaN(parsedCommentId) || parsedCommentId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: '评论ID格式不正确'
+        });
+      }
 
-      logger.info('用户点赞评论', { userId, commentId });
+      const updatedComment = await ResourceComment.likeComment(parsedCommentId, userId);
+
+      logger.info('用户点赞评论', { userId, commentId: parsedCommentId });
 
       res.json({
         success: true,
@@ -449,6 +457,13 @@ class ResourceCommentController {
       });
     } catch (error) {
       logger.error('点赞评论失败:', error);
+
+      if (error.code === 'ALREADY_LIKED') {
+        return res.status(400).json({
+          success: false,
+          message: '您已赞过该评论'
+        });
+      }
 
       if (error.message.includes('评论不存在')) {
         return res.status(404).json({

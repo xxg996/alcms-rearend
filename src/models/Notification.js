@@ -128,6 +128,23 @@ class Notification {
       notification.sender = null;
     }
 
+    const typeLower = (row.type || '').toLowerCase();
+    if ((typeLower.includes('comment') || typeLower.includes('reply')) && metadata) {
+      if (Object.prototype.hasOwnProperty.call(metadata, 'comment_id')) {
+        const parsedCommentId = parseInt(metadata.comment_id, 10);
+        if (!Number.isNaN(parsedCommentId) && parsedCommentId > 0) {
+          notification.comment_id = parsedCommentId;
+        }
+      }
+
+      if (Object.prototype.hasOwnProperty.call(metadata, 'resource_id')) {
+        const parsedResourceId = parseInt(metadata.resource_id, 10);
+        if (!Number.isNaN(parsedResourceId) && parsedResourceId > 0) {
+          notification.resource_id = parsedResourceId;
+        }
+      }
+    }
+
     return notification;
   }
 

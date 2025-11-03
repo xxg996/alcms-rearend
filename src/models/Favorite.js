@@ -159,7 +159,6 @@ class Favorite {
         r.id,
         r.title,
         r.slug,
-        r.description,
         r.summary,
         r.cover_image_url,
         0 as required_points,

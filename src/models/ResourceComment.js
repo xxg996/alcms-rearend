@@ -73,39 +73,6 @@ class ResourceComment {
     const result = await query(queryStr, [resource_id, user_id, content, parent_id]);
     const newComment = result.rows[0];
 
-    // 异步创建通知，不阻塞主流程
-    if (resourceInfo && commenterInfo) {
-      if (parent_id && parentCommentInfo) {
-        // 这是回复评论，通知原评论者
-        if (parentCommentInfo.user_id !== user_id) {
-          NotificationService.createResourceReplyNotification({
-            originalCommentId: parent_id,
-            originalCommenterId: parentCommentInfo.user_id,
-            replierId: user_id,
-            replierName: commenterInfo.nickname || commenterInfo.username,
-            replyContent: content,
-            resourceTitle: resourceInfo.title
-          }).catch(error => {
-            console.error('创建资源回复通知失败:', error);
-          });
-        }
-      } else {
-        // 这是新评论，通知资源作者
-        if (resourceInfo.author_id && resourceInfo.author_id !== user_id) {
-          NotificationService.createResourceCommentNotification({
-            resourceId: resource_id,
-            resourceTitle: resourceInfo.title,
-            authorId: resourceInfo.author_id,
-            commenterId: user_id,
-            commenterName: commenterInfo.nickname || commenterInfo.username,
-            commentContent: content
-          }).catch(error => {
-            console.error('创建资源评论通知失败:', error);
-          });
-        }
-      }
-    }
-
     return newComment;
   }
 
@@ -175,7 +142,12 @@ class ResourceComment {
     const rootResult = await query(queryStr, values);
     const rootRows = rootResult.rows;
 
-    // 构建根评论对象，预留replies数组
+    const resourceAuthorResult = await query(
+      'SELECT author_id FROM resources WHERE id = $1',
+      [resourceId]
+    );
+    const resourceAuthorId = resourceAuthorResult.rows[0]?.author_id || null;
+
     const rootComments = rootRows.map(row => ({
       id: row.id,
       resource_id: row.resource_id,
@@ -190,75 +162,42 @@ class ResourceComment {
       nickname: row.nickname,
       avatar_url: row.avatar_url,
       reply_count: 0,
-      replies: []
+      is_author: resourceAuthorId !== null && row.user_id === resourceAuthorId
     }));
 
     if (rootComments.length > 0) {
       const rootIds = rootComments.map(comment => comment.id);
-      const repliesQuery = `
-        WITH RECURSIVE comment_tree AS (
-          SELECT rc.*, rc.id AS root_id, 0 AS depth
-          FROM resource_comments rc
-          WHERE rc.id = ANY($1::int[])
-            AND rc.resource_id = $2
-        UNION ALL
-          SELECT child.*, comment_tree.root_id, comment_tree.depth + 1
-          FROM resource_comments child
-          JOIN comment_tree ON child.parent_id = comment_tree.id
-          WHERE child.resource_id = $2
-            ${approved_only ? (allowedUserId ? 'AND (child.is_approved = true OR child.user_id = $3)' : 'AND child.is_approved = true') : ''}
-        )
-        SELECT ct.*, u.username, u.nickname, u.avatar_url
-        FROM comment_tree ct
-        LEFT JOIN users u ON ct.user_id = u.id
-        WHERE ct.parent_id IS NOT NULL
-        ORDER BY ct.created_at ASC
+      let replyCountWhere = 'WHERE parent_id = ANY($1::int[]) AND resource_id = $2';
+      const params = [rootIds, resourceId];
+      let paramIndex = 3;
+
+      if (approved_only) {
+        if (allowedUserId) {
+          replyCountWhere += ` AND (is_approved = true OR user_id = $${paramIndex})`;
+          params.push(allowedUserId);
+          paramIndex += 1;
+        } else {
+          replyCountWhere += ' AND is_approved = true';
+        }
+      }
+
+      const replyCountQuery = `
+        SELECT parent_id, COUNT(*) AS reply_count
+        FROM resource_comments
+        ${replyCountWhere}
+        GROUP BY parent_id
       `;
 
-      const repliesParams = allowedUserId
-        ? [rootIds, resourceId, allowedUserId]
-        : [rootIds, resourceId];
-      const repliesResult = await query(repliesQuery, repliesParams);
-      const replyRows = repliesResult.rows;
+      const countRows = await query(replyCountQuery, params);
+      const countMap = new Map();
+      countRows.rows.forEach(row => {
+        countMap.set(row.parent_id, parseInt(row.reply_count, 10) || 0);
+      });
 
-      if (replyRows.length > 0) {
-        const commentMap = new Map();
-        rootComments.forEach(comment => commentMap.set(comment.id, comment));
-
-        const replyObjects = replyRows.map(row => ({
-          id: row.id,
-          resource_id: row.resource_id,
-          user_id: row.user_id,
-          parent_id: row.parent_id,
-          content: row.content,
-          is_approved: row.is_approved,
-          like_count: row.like_count,
-          created_at: row.created_at,
-          updated_at: row.updated_at,
-          username: row.username,
-          nickname: row.nickname,
-          avatar_url: row.avatar_url,
-          reply_count: 0,
-          replies: []
-        }));
-
-        replyObjects.forEach(comment => {
-          commentMap.set(comment.id, comment);
-        });
-
-        replyObjects.forEach(comment => {
-          const parentComment = commentMap.get(comment.parent_id);
-          if (parentComment) {
-            parentComment.replies.push(comment);
-          }
-        });
-
-        commentMap.forEach(comment => {
-          if (comment.replies) {
-            comment.reply_count = comment.replies.length;
-          }
-        });
-      }
+      rootComments.forEach(comment => {
+        const count = countMap.get(comment.id) || 0;
+        comment.reply_count = count;
+      });
     }
 
     return {
@@ -333,8 +272,74 @@ class ResourceComment {
 
     const result = await query(queryStr, values);
 
+    const parentResourceResult = await query(
+      'SELECT resource_id FROM resource_comments WHERE id = $1',
+      [parentId]
+    );
+    const parentResourceId = parentResourceResult.rows[0]?.resource_id || null;
+    let resourceAuthorId = null;
+
+    if (parentResourceId) {
+      const authorResult = await query(
+        'SELECT author_id FROM resources WHERE id = $1',
+        [parentResourceId]
+      );
+      resourceAuthorId = authorResult.rows[0]?.author_id || null;
+    }
+
+    const replies = result.rows.map(row => ({
+      id: row.id,
+      resource_id: row.resource_id,
+      user_id: row.user_id,
+      parent_id: row.parent_id,
+      content: row.content,
+      is_approved: row.is_approved,
+      like_count: row.like_count,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      username: row.username,
+      nickname: row.nickname,
+      avatar_url: row.avatar_url,
+      reply_count: 0,
+      is_author: resourceAuthorId !== null && row.user_id === resourceAuthorId
+    }));
+
+    if (replies.length > 0) {
+      const replyIds = replies.map(comment => comment.id);
+      let replyCountWhere = 'WHERE parent_id = ANY($1::int[])';
+      const params = [replyIds];
+      let paramIndex = 2;
+
+      if (approved_only) {
+        if (allowedUserId) {
+          replyCountWhere += ` AND (is_approved = true OR user_id = $${paramIndex})`;
+          params.push(allowedUserId);
+          paramIndex += 1;
+        } else {
+          replyCountWhere += ' AND is_approved = true';
+        }
+      }
+
+      const replyCountQuery = `
+        SELECT parent_id, COUNT(*) AS reply_count
+        FROM resource_comments
+        ${replyCountWhere}
+        GROUP BY parent_id
+      `;
+
+      const countRows = await query(replyCountQuery, params);
+      const countMap = new Map();
+      countRows.rows.forEach(row => {
+        countMap.set(row.parent_id, parseInt(row.reply_count, 10) || 0);
+      });
+
+      replies.forEach(comment => {
+        comment.reply_count = countMap.get(comment.id) || 0;
+      });
+    }
+
     return {
-      data: result.rows,
+      data: replies,
       pagination: {
         total,
         limit,
@@ -428,19 +433,98 @@ class ResourceComment {
    * @returns {Promise<Object>} 更新后的评论信息
    */
   static async approveComment(commentId, approved = true) {
-    const queryStr = `
-      UPDATE resource_comments
-      SET is_approved = $2, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-      RETURNING *
-    `;
+    const existingResult = await query(
+      'SELECT * FROM resource_comments WHERE id = $1',
+      [commentId]
+    );
 
-    const result = await query(queryStr, [commentId, approved]);
-    if (result.rows.length === 0) {
+    if (existingResult.rows.length === 0) {
       throw new Error('评论不存在');
     }
 
-    return result.rows[0];
+    const existing = existingResult.rows[0];
+
+    const updateResult = await query(
+      `UPDATE resource_comments
+       SET is_approved = $2, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [commentId, approved]
+    );
+
+    const updated = updateResult.rows[0];
+
+    if (approved && existing.is_approved !== true) {
+      this.sendApprovalNotification(updated).catch(error => {
+        console.error('发送评论审核通过通知失败:', error);
+      });
+    }
+
+    return updated;
+  }
+
+  static async sendApprovalNotification(commentRow) {
+    if (!commentRow) {
+      return;
+    }
+
+    const {
+      id,
+      resource_id: resourceId,
+      user_id: userId,
+      parent_id: parentId,
+      content
+    } = commentRow;
+
+    try {
+      const [resourceResult, commenterResult] = await Promise.all([
+        query('SELECT id, title, author_id FROM resources WHERE id = $1', [resourceId]),
+        query('SELECT username, nickname FROM users WHERE id = $1', [userId])
+      ]);
+
+      const resourceInfo = resourceResult.rows[0];
+      const commenterInfo = commenterResult.rows[0];
+
+      if (!resourceInfo || !commenterInfo) {
+        return;
+      }
+
+      if (parentId) {
+        const parentResult = await query(
+          'SELECT user_id FROM resource_comments WHERE id = $1',
+          [parentId]
+        );
+        const parentInfo = parentResult.rows[0];
+
+        if (parentInfo && parentInfo.user_id !== userId) {
+          await NotificationService.createResourceReplyNotification({
+            originalCommentId: parentId,
+            originalCommenterId: parentInfo.user_id,
+            replierId: userId,
+            replierName: commenterInfo.nickname || commenterInfo.username,
+            replyContent: content,
+            resourceTitle: resourceInfo.title,
+            resourceId: resourceId,
+            commentId: id
+          });
+        }
+      } else {
+        if (resourceInfo.author_id && resourceInfo.author_id !== userId) {
+          await NotificationService.createResourceCommentNotification({
+            resourceId,
+            resourceTitle: resourceInfo.title,
+            authorId: resourceInfo.author_id,
+            commenterId: userId,
+            commenterName: commenterInfo.nickname || commenterInfo.username,
+            commentContent: content,
+            resourceId,
+            commentId: id
+          });
+        }
+      }
+    } catch (error) {
+      console.error('评论审核通知发送失败:', error);
+    }
   }
 
   /**
@@ -463,6 +547,56 @@ class ResourceComment {
     }
 
     return result.rows[0];
+  }
+
+  static async likeComment(commentId, userId) {
+    const client = await getClient();
+
+    try {
+      await client.query('BEGIN');
+
+      const commentResult = await client.query(
+        'SELECT id FROM resource_comments WHERE id = $1 FOR UPDATE',
+        [commentId]
+      );
+
+      if (commentResult.rows.length === 0) {
+        throw new Error('评论不存在');
+      }
+
+      const existingLike = await client.query(
+        'SELECT 1 FROM resource_comment_likes WHERE comment_id = $1 AND user_id = $2',
+        [commentId, userId]
+      );
+
+      if (existingLike.rows.length > 0) {
+        const error = new Error('已经点赞该评论');
+        error.code = 'ALREADY_LIKED';
+        throw error;
+      }
+
+      await client.query(
+        'INSERT INTO resource_comment_likes (comment_id, user_id) VALUES ($1, $2)',
+        [commentId, userId]
+      );
+
+      const updatedResult = await client.query(
+        `UPDATE resource_comments
+         SET like_count = like_count + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1
+         RETURNING id, like_count`,
+        [commentId]
+      );
+
+      await client.query('COMMIT');
+
+      return updatedResult.rows[0];
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   /**

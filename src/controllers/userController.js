@@ -198,6 +198,99 @@ const changePassword = async (req, res) => {
 
 /**
  * @swagger
+ * /api/users/email:
+ *   put:
+ *     summary: 修改邮箱
+ *     description: 更新当前登录用户的邮箱地址，修改前需通过验证码校验，验证成功后直接生效。
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - verificationCode
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: 新邮箱地址
+ *                 example: "new-email@example.com"
+ *               verificationCode:
+ *                 type: string
+ *                 description: 邮箱验证验证码
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: 邮箱修改成功
+ *       400:
+ *         description: 请求参数错误或邮箱已存在
+ *       401:
+ *         description: 未授权
+ */
+const changeEmail = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { email, verificationCode } = req.body;
+    const { ipAddress, userAgent } = getRequestMeta(req);
+
+    const result = await UserService.changeEmail(userId, { email, verificationCode });
+
+    if (result?.success) {
+      await AuditLog.createSystemLog({
+        operatorId: userId,
+        targetType: 'user_email',
+        targetId: userId,
+        action: 'email_change',
+        summary: '用户修改邮箱',
+        detail: { newEmail: email },
+        ipAddress,
+        userAgent
+      });
+    }
+
+    res.json(result);
+  } catch (error) {
+    logger.error('修改邮箱失败:', error);
+    const { ipAddress, userAgent } = getRequestMeta(req);
+    await AuditLog.createSystemLog({
+      operatorId: req.user?.id || null,
+      targetType: 'user_email',
+      targetId: req.user?.id || null,
+      action: 'email_change_failed',
+      summary: '用户修改邮箱失败',
+      detail: { error: error.message },
+      ipAddress,
+      userAgent
+    });
+
+    if (['邮箱已存在', '邮箱格式不正确', '验证码无效或已过期', '新邮箱不能与当前邮箱相同'].includes(error.message)) {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    if (error.message === '用户不存在') {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error.message || '邮箱修改失败'
+    });
+  }
+};
+
+/**
+ * @swagger
  * /api/users/profile:
  *   get:
  *     summary: 获取当前用户资料
@@ -536,8 +629,8 @@ const getUserStats = async (req, res) => {
  * @swagger
  * /api/admin/users/{id}:
  *   get:
- *     summary: 获取指定用户信息
- *     description: 根据用户ID获取指定用户的详细信息（管理员功能）
+ *     summary: 获取指定用户信息（管理员）
+ *     description: 根据用户ID获取指定用户的详细信息，需要管理员权限。
  *     tags: [Users]
  *     security:
  *       - BearerAuth: []
@@ -569,12 +662,58 @@ const getUserStats = async (req, res) => {
  *         description: 用户不存在
  *       500:
  *         $ref: '#/components/responses/ServerError'
+ *
+ * /api/users/{id}:
+ *   get:
+ *     summary: 获取指定用户公开信息
+ *     description: 根据用户ID获取公开可见的用户信息。
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 用户ID
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: 获取用户信息成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/User'
+ *       404:
+ *         description: 用户不存在
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 const getUserById = async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
     const result = await UserService.getUserById(userId);
-    
+
+    const isPublicRequest = !req.baseUrl.includes('/admin');
+
+    if (isPublicRequest && result?.data) {
+      const cleanedData = { ...result.data };
+      delete cleanedData.points;
+      delete cleanedData.total_points;
+      delete cleanedData.download_count;
+      delete cleanedData.download_stats;
+      delete cleanedData.email;
+
+      return res.json({
+        ...result,
+        data: cleanedData
+      });
+    }
+
     res.json(result);
   } catch (error) {
     logger.error('获取用户信息失败:', error);
@@ -1146,6 +1285,12 @@ const validateChangePassword = [
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('密码必须包含大小写字母和数字')
 ];
 
+const validateChangeEmail = [
+  body('email').notEmpty().withMessage('邮箱不能为空').bail()
+    .isEmail().withMessage('邮箱格式不正确'),
+  body('verificationCode').notEmpty().withMessage('验证码不能为空')
+];
+
 const validateUpdateUserStatus = [
   body('status').isIn(['normal', 'frozen', 'banned']).withMessage('无效的状态值')
 ];
@@ -1524,6 +1669,7 @@ const resetUserPassword = async (req, res) => {
 module.exports = {
   updateProfile: [validateUpdateProfile, handleValidationErrors, updateProfile],
   changePassword: [validateChangePassword, handleValidationErrors, changePassword],
+  changeEmail: [validateChangeEmail, handleValidationErrors, changeEmail],
   getProfile,
   getUserList,
   getUserById,

@@ -73,6 +73,14 @@ class User {
     return result.rows[0] || null;
   }
 
+  static async getPasswordHashById(id) {
+    const result = await query(
+      'SELECT password_hash FROM users WHERE id = $1',
+      [id]
+    );
+    return result.rows[0] || null;
+  }
+
   /**
    * 根据邀请码查找用户
    */
@@ -390,6 +398,30 @@ class User {
     );
 
     return result.rows;
+  }
+
+  /**
+   * 获取用户粉丝数量
+   */
+  static async getFollowerCount(userId) {
+    const result = await query(
+      'SELECT COUNT(*) AS total FROM user_follows WHERE following_id = $1',
+      [userId]
+    );
+
+    return parseInt(result.rows[0]?.total || 0, 10);
+  }
+
+  /**
+   * 获取用户关注数量
+   */
+  static async getFollowingCount(userId) {
+    const result = await query(
+      'SELECT COUNT(*) AS total FROM user_follows WHERE follower_id = $1',
+      [userId]
+    );
+
+    return parseInt(result.rows[0]?.total || 0, 10);
   }
 
   /**

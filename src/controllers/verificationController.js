@@ -5,7 +5,7 @@
 
 const VerificationCode = require('../models/VerificationCode');
 const User = require('../models/User');
-const { generateVerificationCode, sendRegistrationCode, sendPasswordResetCode } = require('../utils/emailService');
+const { generateVerificationCode, sendRegistrationCode, sendPasswordResetCode, sendEmailChangeCode } = require('../utils/emailService');
 const { logger } = require('../utils/logger');
 
 const getRequestMeta = (req) => ({
@@ -18,7 +18,7 @@ const getRequestMeta = (req) => ({
  * /api/auth/send-verification-code:
  *   post:
  *     summary: 发送邮箱验证码
- *     description: 向指定邮箱发送验证码，支持注册和密码重置两种类型
+ *     description: 向指定邮箱发送验证码，支持注册、密码重置与修改邮箱三种类型
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -37,7 +37,7 @@ const getRequestMeta = (req) => ({
  *                 example: "user@example.com"
  *               type:
  *                 type: string
- *                 enum: [register, reset_password]
+ *                 enum: [register, reset_password, change_email]
  *                 description: 验证码类型
  *                 example: "register"
  *           examples:
@@ -51,6 +51,11 @@ const getRequestMeta = (req) => ({
  *               value:
  *                 email: "user@example.com"
  *                 type: "reset_password"
+ *             changeEmail:
+ *               summary: 修改邮箱验证码
+ *               value:
+ *                 email: "new-email@example.com"
+ *                 type: "change_email"
  *     responses:
  *       200:
  *         description: 验证码发送成功
@@ -142,7 +147,7 @@ const sendVerificationCode = async (req, res) => {
     }
 
     // 验证类型
-    if (!['register', 'reset_password'].includes(type)) {
+    if (!['register', 'reset_password', 'change_email'].includes(type)) {
       return res.status(400).json({
         success: false,
         message: '验证码类型无效'
@@ -176,6 +181,14 @@ const sendVerificationCode = async (req, res) => {
           message: '账户已被封禁，无法重置密码'
         });
       }
+    } else if (type === 'change_email') {
+      const existingUser = await User.findByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: '邮箱已被使用'
+        });
+      }
     }
 
     // 检查发送频率（1分钟内只能发送一次）
@@ -205,6 +218,8 @@ const sendVerificationCode = async (req, res) => {
       emailSent = await sendRegistrationCode(email, code);
     } else if (type === 'reset_password') {
       emailSent = await sendPasswordResetCode(email, code);
+    } else if (type === 'change_email') {
+      emailSent = await sendEmailChangeCode(email, code);
     }
 
     if (!emailSent) {

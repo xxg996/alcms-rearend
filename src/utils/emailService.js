@@ -154,6 +154,61 @@ const sendPasswordResetCode = async (email, code) => {
   }
 };
 
+const sendEmailChangeCode = async (email, code) => {
+  try {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: {
+        name: process.env.SMTP_FROM_NAME,
+        address: process.env.SMTP_FROM_EMAIL
+      },
+      to: email,
+      subject: '【ALCMS】邮箱修改验证码',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; border-bottom: 2px solid #e0e0e0; padding-bottom: 20px; margin-bottom: 30px;">
+            <h1 style="color: #2c3e50; margin: 0;">ALCMS 系统</h1>
+          </div>
+
+          <div style="background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin-bottom: 25px;">
+            <h2 style="color: #2c3e50; margin-top: 0;">邮箱修改验证码</h2>
+            <p style="color: #555; font-size: 16px; line-height: 1.6;">
+              您正在修改 ALCMS 账户绑定的邮箱，请使用以下验证码完成操作：
+            </p>
+            <div style="text-align: center; margin: 25px 0;">
+              <span style="background-color: #16a085; color: white; font-size: 28px; font-weight: bold; padding: 15px 30px; border-radius: 5px; letter-spacing: 5px;">
+                ${code}
+              </span>
+            </div>
+            <p style="color: #e74c3c; font-size: 14px; margin-bottom: 0;">
+              ⚠️ 验证码有效期为 10 分钟，请勿泄露给他人。
+            </p>
+          </div>
+
+          <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin-bottom: 25px;">
+            <p style="color: #856404; margin: 0; font-size: 14px;">
+              如果您未发起该操作，请立即忽略此邮件并检查账户安全。
+            </p>
+          </div>
+
+          <div style="text-align: center; color: #7f8c8d; font-size: 12px; border-top: 1px solid #e0e0e0; padding-top: 20px;">
+            <p>此邮件由系统自动发送，请勿回复</p>
+            <p>© ${new Date().getFullYear()} ALCMS 系统</p>
+          </div>
+        </div>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    logger.info(`邮箱修改验证码发送成功: ${email}`, { messageId: result.messageId });
+    return true;
+  } catch (error) {
+    logger.error(`邮箱修改验证码发送失败: ${email}`, error);
+    return false;
+  }
+};
+
 /**
  * 测试SMTP连接
  * @returns {Promise<Object>} 连接测试结果
@@ -189,5 +244,6 @@ module.exports = {
   generateVerificationCode,
   sendRegistrationCode,
   sendPasswordResetCode,
+  sendEmailChangeCode,
   testEmailConnection
 };

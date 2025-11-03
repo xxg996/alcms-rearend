@@ -12,7 +12,9 @@ const minioConfig = {
   port: parseInt(process.env.MINIO_PORT) || 9000,
   useSSL: process.env.MINIO_USE_SSL === 'true',
   accessKey: process.env.MINIO_ACCESS_KEY || '5553621',
-  secretKey: process.env.MINIO_SECRET_KEY || '5553621555'
+  secretKey: process.env.MINIO_SECRET_KEY || '5553621555',
+  publicBaseUrl: process.env.MINIO_PUBLIC_BASE_URL || '',
+  skipBucketSetup: process.env.MINIO_SKIP_BUCKET_SETUP === 'true'
 };
 
 // 创建MinIO客户端实例
@@ -26,6 +28,11 @@ const BUCKETS = {
 
 // 初始化存储桶
 const initializeBuckets = async () => {
+  if (minioConfig.skipBucketSetup) {
+    logger.info('已跳过 MinIO 存储桶初始化（MINIO_SKIP_BUCKET_SETUP=true）');
+    return;
+  }
+
   try {
     for (const [key, bucketName] of Object.entries(BUCKETS)) {
       const exists = await minioClient.bucketExists(bucketName);
@@ -51,12 +58,25 @@ const initializeBuckets = async () => {
       }
     }
   } catch (error) {
+    if (error.code === 'AccessDenied' || error.code === 'Unauthorized') {
+      logger.warn('初始化MinIO存储桶失败: 无权限执行 bucketExists/makeBucket 操作，已忽略', {
+        error: error.message,
+        code: error.code
+      });
+      return;
+    }
+
     logger.error('初始化MinIO存储桶失败:', error);
   }
 };
 
 // 生成文件访问URL
 const getFileUrl = (bucketName, objectName) => {
+  if (minioConfig.publicBaseUrl) {
+    const base = minioConfig.publicBaseUrl.trim().replace(/\/$/, '');
+    return `${base}/${bucketName}/${objectName}`;
+  }
+
   const protocol = minioConfig.useSSL ? 'https' : 'http';
   const port = minioConfig.port === 80 || minioConfig.port === 443 ? '' : `:${minioConfig.port}`;
   return `${protocol}://${minioConfig.endPoint}${port}/${bucketName}/${objectName}`;

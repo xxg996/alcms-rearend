@@ -255,7 +255,8 @@ class CommunityComment {
                   replierId: authorId,
                   replierName: commenterInfo.nickname || commenterInfo.username,
                   replyContent: content,
-                  postTitle: postInfo.title
+                  postTitle: postInfo.title,
+                  commentId: comment.id
                 });
               }
             } else {
@@ -267,7 +268,8 @@ class CommunityComment {
                   authorId: postInfo.author_id,
                   commenterId: authorId,
                   commenterName: commenterInfo.nickname || commenterInfo.username,
-                  commentContent: content
+                  commentContent: content,
+                  commentId: comment.id
                 });
               }
             }

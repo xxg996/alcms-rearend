@@ -5,8 +5,8 @@
 
 const BaseService = require('./BaseService');
 const User = require('../models/User');
-const bcrypt = require('bcrypt');
-const { checkPasswordStrength } = require('../utils/password');
+const VerificationCode = require('../models/VerificationCode');
+const { checkPasswordStrength, hashPassword, verifyPassword } = require('../utils/password');
 
 class UserService extends BaseService {
   constructor() {
@@ -21,7 +21,15 @@ class UserService extends BaseService {
       try {
         this.validateRequired({ userId }, ['userId']);
 
-        const { nickname, avatar_url, bio } = profileData;
+        const { nickname, avatar_url, bio, email, ...rest } = profileData;
+
+        if (email !== undefined) {
+          throw new Error('请通过专用接口修改邮箱');
+        }
+
+        if (Object.keys(rest).length > 0) {
+          this.log('warn', '忽略未支持的资料字段', { userId, restKeys: Object.keys(rest) });
+        }
         const updateData = {};
 
         // 验证昵称
@@ -94,8 +102,14 @@ class UserService extends BaseService {
           throw new Error('用户不存在');
         }
 
+        const passwordRecord = await User.getPasswordHashById(userId);
+        const passwordHash = passwordRecord?.password_hash || null;
+        if (!passwordHash) {
+          throw new Error('该账户未设置密码，请联系管理员');
+        }
+
         // 验证当前密码
-        const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+        const isCurrentPasswordValid = await verifyPassword(currentPassword, passwordHash);
         if (!isCurrentPasswordValid) {
           throw new Error('当前密码错误');
         }
@@ -106,17 +120,17 @@ class UserService extends BaseService {
         }
 
         // 检查新密码是否与当前密码相同
-        const isSamePassword = await bcrypt.compare(newPassword, user.password);
+        const isSamePassword = await verifyPassword(newPassword, passwordHash);
         if (isSamePassword) {
           throw new Error('新密码不能与当前密码相同');
         }
 
         // 加密新密码
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        const hashedPassword = await hashPassword(newPassword);
 
         // 更新密码
         await User.updateById(userId, { 
-          password: hashedPassword,
+          password_hash: hashedPassword,
           password_updated_at: new Date()
         });
 
@@ -126,6 +140,73 @@ class UserService extends BaseService {
 
       } catch (error) {
         this.handleError(error, 'changePassword');
+      }
+    });
+  }
+
+  /**
+   * 修改邮箱
+   */
+  async changeEmail(userId, emailData) {
+    return this.withPerformanceMonitoring('changeEmail', async () => {
+      try {
+        this.validateRequired({ userId }, ['userId']);
+        this.validateRequired(emailData, ['email', 'verificationCode']);
+
+        const rawEmail = emailData.email;
+        const verificationCode = emailData.verificationCode;
+        if (typeof rawEmail !== 'string') {
+          throw new Error('邮箱格式不正确');
+        }
+
+        const trimmedEmail = rawEmail.trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+          throw new Error('邮箱格式不正确');
+        }
+
+        const normalizedEmail = trimmedEmail.toLowerCase();
+
+        const verifyResult = await VerificationCode.verify(normalizedEmail, verificationCode, 'change_email');
+        if (!verifyResult?.valid) {
+          throw new Error(verifyResult?.reason || '验证码无效或已过期');
+        }
+
+        const currentUser = await User.findById(userId);
+        if (!currentUser) {
+          throw new Error('用户不存在');
+        }
+
+        if (currentUser.email && currentUser.email.toLowerCase() === normalizedEmail) {
+          throw new Error('新邮箱不能与当前邮箱相同');
+        }
+
+        const existingUser = await User.findByEmailExcludeId(normalizedEmail, userId);
+        if (existingUser) {
+          throw new Error('邮箱已存在');
+        }
+
+        const updatedUser = await User.updateById(userId, {
+          email: normalizedEmail,
+          email_verified: true,
+          email_verified_at: new Date(),
+          email_verification_token: null,
+          email_verification_sent_at: null
+        });
+
+        await this.clearCache(`user:${userId}:*`);
+
+        this.log('info', '用户邮箱更新成功', {
+          userId,
+          email: normalizedEmail
+        });
+
+        return this.formatSuccessResponse(
+          this.sanitizeUserData(updatedUser),
+          '邮箱更新成功'
+        );
+      } catch (error) {
+        this.handleError(error, 'changeEmail');
       }
     });
   }
@@ -261,6 +342,7 @@ class UserService extends BaseService {
 
     // 删除敏感和内部字段
     delete sanitized.password;
+    delete sanitized.password_hash;
     delete sanitized.password_updated_at;
 
     // 删除冗余的下载相关字段，统一到download_stats中
@@ -343,12 +425,17 @@ class UserService extends BaseService {
             throw new Error('用户不存在');
           }
 
-          // 获取用户角色
-          const roles = await User.getUserRoles(userId);
+          const [roles, followerCount, followingCount] = await Promise.all([
+            User.getUserRoles(userId),
+            User.getFollowerCount(userId),
+            User.getFollowingCount(userId)
+          ]);
 
           const userWithRoles = {
             ...this.sanitizeUserData(user),
-            roles: roles
+            roles,
+            follower_count: followerCount,
+            following_count: followingCount
           };
 
           return this.formatSuccessResponse(userWithRoles, '获取用户信息成功');

@@ -22,8 +22,14 @@ router.get('/profile',
 
 // 更新当前用户资料
 router.put('/profile',
-  authenticateToken,
+ authenticateToken,
   userController.updateProfile
+);
+
+// 修改邮箱
+router.put('/email',
+  authenticateToken,
+  userController.changeEmail
 );
 
 // 修改密码
@@ -72,6 +78,12 @@ router.get('/creator/stats',
 router.get('/creator/resources',
   authenticateToken,
   creatorController.getCreatorResources
+);
+
+// 获取指定用户详情（公开）
+router.get('/:id',
+  optionalAuth,
+  userController.getUserById
 );
 
 module.exports = router;

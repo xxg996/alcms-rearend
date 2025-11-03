@@ -131,10 +131,20 @@ class NotificationService {
    * @returns {Promise<Object|null>}
    */
   static async createResourceCommentNotification(params) {
-    const { resourceId, resourceTitle, authorId, commenterId, commenterName, commentContent } = params;
+    const {
+      resourceId,
+      resourceTitle,
+      authorId,
+      commenterId,
+      commenterName,
+      commentContent,
+      commentId
+    } = params;
 
     const title = `${commenterName} 评论了你的资源《${resourceTitle}》`;
     const content = JSON.stringify({
+      comment_id: commentId || null,
+      resource_id: resourceId || null,
       comment_content: commentContent?.substring(0, 100) || '',
       resource_title: resourceTitle
     });
@@ -162,10 +172,21 @@ class NotificationService {
    * @returns {Promise<Object|null>}
    */
   static async createResourceReplyNotification(params) {
-    const { originalCommentId, originalCommenterId, replierId, replierName, replyContent, resourceTitle } = params;
+    const {
+      originalCommentId,
+      originalCommenterId,
+      replierId,
+      replierName,
+      replyContent,
+      resourceTitle,
+      resourceId,
+      commentId
+    } = params;
 
     const title = `${replierName} 回复了你在《${resourceTitle}》下的评论`;
     const content = JSON.stringify({
+      comment_id: commentId || null,
+      resource_id: resourceId || null,
       reply_content: replyContent?.substring(0, 100) || '',
       resource_title: resourceTitle
     });
@@ -193,10 +214,19 @@ class NotificationService {
    * @returns {Promise<Object|null>}
    */
   static async createCommunityCommentNotification(params) {
-    const { postId, postTitle, authorId, commenterId, commenterName, commentContent } = params;
+    const {
+      postId,
+      postTitle,
+      authorId,
+      commenterId,
+      commenterName,
+      commentContent,
+      commentId
+    } = params;
 
     const title = `${commenterName} 评论了你的帖子《${postTitle}》`;
     const content = JSON.stringify({
+      comment_id: commentId || null,
       comment_content: commentContent?.substring(0, 100) || '',
       post_title: postTitle
     });
@@ -224,10 +254,19 @@ class NotificationService {
    * @returns {Promise<Object|null>}
    */
   static async createCommunityReplyNotification(params) {
-    const { originalCommentId, originalCommenterId, replierId, replierName, replyContent, postTitle } = params;
+    const {
+      originalCommentId,
+      originalCommenterId,
+      replierId,
+      replierName,
+      replyContent,
+      postTitle,
+      commentId
+    } = params;
 
     const title = `${replierName} 回复了你在《${postTitle}》下的评论`;
     const content = JSON.stringify({
+      comment_id: commentId || null,
       reply_content: replyContent?.substring(0, 100) || '',
       post_title: postTitle
     });
