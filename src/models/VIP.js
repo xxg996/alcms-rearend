@@ -377,6 +377,11 @@ class VIP {
       return 0;
     }
 
+    const customValue = Number(cardKey.value_amount || 0);
+    if (customValue > 0) {
+      return Number(customValue.toFixed(2));
+    }
+
     const vipLevel = await this.getLevelById(cardKey.vip_level);
     if (!vipLevel || !vipLevel.price) {
       return 0;

@@ -460,7 +460,22 @@ const redeemCard = async (req, res) => {
       });
     }
 
-    const result = await CardKey.redeemCardKey(code.trim().toUpperCase(), req.user.id);
+    const normalizedCode = code.trim().toUpperCase();
+
+    let result;
+
+    try {
+      result = await CardKey.redeemCardKey(normalizedCode, req.user.id);
+    } catch (error) {
+      if (error.message === '卡密不存在' || error.message === '卡密已过期' || error.message === '卡密已被使用或已失效') {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
+      }
+
+      throw error;
+    }
 
     let commissionRecord = null;
     if (result.cardKey && result.cardKey.type === 'vip' && result.order) {
