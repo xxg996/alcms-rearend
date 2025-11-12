@@ -201,6 +201,17 @@ const getCommissionConfig = async (req, res) => {
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/CommissionConfig'
+ *           examples:
+ *             updateRates:
+ *               summary: 更新佣金配置
+ *               value:
+ *                 enabled: true
+ *                 first_rate: 0.12
+ *                 renewal_rate: 0.04
+ *                 card_type_rates:
+ *                   points: 0.08
+ *                   download: 0.15
+ *                   vip_special: 0.20
  *     responses:
  *       200:
  *         description: 更新成功
