@@ -62,7 +62,6 @@
  *           example: false
  *         category_id:
  *           type: integer
- *           nullable: true
  *           description: 分类ID
  *           example: 1
  *         category_name:
@@ -141,7 +140,7 @@
  *           example: "2025-09-12T08:00:00.000Z"
  *         tags:
  *           type: array
- *           description: 标签列表
+ *           description: 标签列表（`/api/resources` 列表接口默认不返回，仅在详情或需要标签的接口中提供）
  *           items:
  *             $ref: '#/components/schemas/Tag'
  * 
@@ -248,6 +247,8 @@
  *       required:
  *         - title
  *         - description
+ *         - category_id
+ *         - resource_type_id
  *       properties:
  *         title:
  *           type: string

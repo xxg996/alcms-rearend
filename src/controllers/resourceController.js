@@ -218,8 +218,10 @@ class ResourceController {
           const normalizedAvatar = rawAvatar.toLowerCase();
           const hasValidAvatar = rawAvatar && normalizedAvatar !== 'null' && normalizedAvatar !== 'undefined';
 
+          const { tags, ...rest } = resource;
+
           return {
-            ...resource,
+            ...rest,
             author_avatar_url: hasValidAvatar ? rawAvatar : fallbackUrl
           };
         });
@@ -290,12 +292,25 @@ class ResourceController {
       });
 
       const enrichedResources = await generateSecureResourceInfoBatch(resources, req.user?.id);
+      const sanitizedResources = enrichedResources.map(resource => {
+        const { tags, ...rest } = resource;
+        const displayName = rest.author_nickname || rest.author_username || '未知用户';
+        const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&size=128`;
+        const rawAvatar = typeof rest.author_avatar_url === 'string' ? rest.author_avatar_url.trim() : '';
+        const normalizedAvatar = rawAvatar.toLowerCase();
+        const hasValidAvatar = rawAvatar && normalizedAvatar !== 'null' && normalizedAvatar !== 'undefined';
+
+        return {
+          ...rest,
+          author_avatar_url: hasValidAvatar ? rawAvatar : fallbackUrl
+        };
+      });
 
       res.json({
         success: true,
         data: {
           period: normalizedPeriod,
-          resources: enrichedResources
+          resources: sanitizedResources
         }
       });
     } catch (error) {
@@ -551,6 +566,13 @@ class ResourceController {
         });
       }
 
+      if (category_id === undefined || category_id === null) {
+        return res.status(400).json({
+          success: false,
+          message: '分类为必填项'
+        });
+      }
+
       // 检查设置official字段的权限
       if (official === true) {
         const userPermissions = await require('../models/User').getUserPermissions(userId);
@@ -572,7 +594,14 @@ class ResourceController {
       if (normalizedResourceTypeId === null) {
         return res.status(400).json({
           success: false,
-          message: '资源类型ID无效'
+          message: '资源类型无效'
+        });
+      }
+
+      if (normalizedCategoryId === null) {
+        return res.status(400).json({
+          success: false,
+          message: '分类无效'
         });
       }
 

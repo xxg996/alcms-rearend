@@ -38,6 +38,13 @@ class CategoryController {
    *           default: 'false'
    *         description: 是否包含未激活的分类
    *       - in: query
+   *         name: includeChildren
+   *         schema:
+   *           type: string
+   *           enum: ['true', 'false']
+   *           default: 'true'
+   *         description: 是否在响应中包含子分类（树形结构时可用于减少数据量）
+   *       - in: query
    *         name: parentId
    *         schema:
    *           type: string
@@ -72,7 +79,14 @@ class CategoryController {
    */
   static async getCategories(req, res) {
     try {
-      const { tree = 'true', includeInactive = 'false', parentId } = req.query;
+      const {
+        tree = 'true',
+        includeInactive = 'false',
+        parentId,
+        includeChildren = 'true'
+      } = req.query;
+
+      const shouldIncludeChildren = includeChildren !== 'false';
 
       let categories;
       
@@ -90,9 +104,14 @@ class CategoryController {
         categories = result.data;
       }
 
+      const normalizedCategories = Array.isArray(categories) ? categories : [];
+      const data = shouldIncludeChildren
+        ? CategoryController.cloneCategories(normalizedCategories)
+        : CategoryController.removeChildren(normalizedCategories);
+
       res.json({
         success: true,
-        data: categories
+        data
       });
     } catch (error) {
       logger.error('获取分类列表失败:', error);
@@ -102,6 +121,45 @@ class CategoryController {
         error: error.message
       });
     }
+  }
+
+  /**
+   * 深拷贝分类树，避免修改缓存源数据
+   */
+  static cloneCategories(categories) {
+    if (!Array.isArray(categories)) {
+      return categories;
+    }
+
+    return categories.map(category => {
+      if (!category || typeof category !== 'object') {
+        return category;
+      }
+
+      const cloned = { ...category };
+      if (Array.isArray(category.children)) {
+        cloned.children = CategoryController.cloneCategories(category.children);
+      }
+      return cloned;
+    });
+  }
+
+  /**
+   * 去除子分类字段，仅保留当前层级数据
+   */
+  static removeChildren(categories) {
+    if (!Array.isArray(categories)) {
+      return categories;
+    }
+
+    return categories.map(category => {
+      if (!category || typeof category !== 'object') {
+        return category;
+      }
+
+      const { children, ...rest } = category;
+      return rest;
+    });
   }
 
   /**

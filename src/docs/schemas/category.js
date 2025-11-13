@@ -64,7 +64,7 @@
  *           example: "2025-09-12T10:00:00.000Z"
  *         children:
  *           type: array
- *           description: 子分类列表（仅在树形结构时返回）
+ *           description: 子分类列表（仅当请求 includeChildren=true 且为树形结构时返回）
  *           items:
  *             $ref: '#/components/schemas/Category'
  *         path:
