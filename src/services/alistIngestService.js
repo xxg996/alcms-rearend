@@ -224,16 +224,6 @@ class AlistIngestService {
       const folderModifiedAt = dir.modified ? new Date(dir.modified) : null;
       const recordModifiedAt = record?.folder_modified_at ? new Date(record.folder_modified_at) : null;
 
-      if (
-        record
-        && recordModifiedAt
-        && folderModifiedAt
-        && recordModifiedAt.getTime() === folderModifiedAt.getTime()
-      ) {
-        skipped.push({ folder: folderPath, reason: '未修改' });
-        continue;
-      }
-
       const folderFiles = await fetchDirectoryEntries(folderPath, 200);
 
       const markdownFile = folderFiles.find((file) => !file.is_dir && file.name.toLowerCase() === 'markdown.txt');
@@ -273,6 +263,12 @@ class AlistIngestService {
         }
       }
 
+      const folderUnchanged =
+        record
+        && recordModifiedAt
+        && folderModifiedAt
+        && recordModifiedAt.getTime() === folderModifiedAt.getTime();
+
       const newDocumentCount = Math.max(allowedDocumentFiles.length - existingDocumentCount, 0);
 
       let type = null;
@@ -285,9 +281,10 @@ class AlistIngestService {
       }
 
       if (!type) {
+        const reason = folderUnchanged ? '未修改' : (record ? '无可更新文件' : '未发现可入库文件');
         skipped.push({
           folder: folderPath,
-          reason: record ? '无可更新文件' : '未发现可入库文件'
+          reason
         });
         continue;
       }
@@ -379,11 +376,6 @@ class AlistIngestService {
       try {
         const record = await AlistIngestRecord.findBySettingAndPath(setting.id, folderPath);
 
-        if (record && record.folder_modified_at && folderModifiedAt && record.folder_modified_at.getTime() === folderModifiedAt.getTime()) {
-          results.skipped.push({ folder: folderPath, reason: '未修改' });
-          continue;
-        }
-
         const files = await fetchDirectoryEntries(folderPath);
 
         let baseDescription = DEFAULT_DESCRIPTION;
@@ -410,6 +402,36 @@ class AlistIngestService {
         const allowedFiles = files.filter((file) => !file.is_dir && alistClient.isExtensionAllowed(file.name));
         const allowedDocumentFiles = allowedFiles.filter((file) => !isImageFile(file.name));
         const imageFiles = files.filter((file) => !file.is_dir && isImageFile(file.name));
+
+        let existingDocumentCount = 0;
+        if (record?.resource_id) {
+          try {
+            const existingResources = await AlistResource.getByResourceId(record.resource_id);
+            existingDocumentCount = existingResources.filter((file) => {
+              if (!file || file.is_folder) {
+                return false;
+              }
+              return !isImageFile(file.alist_name || '');
+            }).length;
+          } catch (error) {
+            logger.warn('获取已入库资源文件失败', {
+              resourceId: record.resource_id,
+              error: error.message
+            });
+          }
+        }
+
+        const newDocumentCount = Math.max(allowedDocumentFiles.length - existingDocumentCount, 0);
+        const folderUnchanged =
+          record
+          && record.folder_modified_at
+          && folderModifiedAt
+          && record.folder_modified_at.getTime() === folderModifiedAt.getTime();
+
+        if (folderUnchanged && newDocumentCount === 0) {
+          results.skipped.push({ folder: folderPath, reason: '未修改' });
+          continue;
+        }
 
         let resourceId = record?.resource_id || null;
 

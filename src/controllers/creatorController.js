@@ -204,7 +204,14 @@ const getCreatorResources = async (req, res) => {
       is_public: isPublic
     });
 
-    const resources = await generateSecureResourceInfoBatch(result.resources, userId);
+    const resourcesWithSecureInfo = await generateSecureResourceInfoBatch(result.resources, userId);
+    const resources = resourcesWithSecureInfo.map(resource => {
+      if (!resource || typeof resource !== 'object') {
+        return resource;
+      }
+      const { tags, ...rest } = resource;
+      return rest;
+    });
 
     return successResponse(res, '获取创作者资源列表成功', {
       resources,

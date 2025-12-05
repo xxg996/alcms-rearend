@@ -30,6 +30,27 @@ class ReferralService extends BaseService {
           Referral.getPayoutSetting(userId)
         ]);
 
+        const sanitizedInvitees = Array.isArray(invitees)
+          ? invitees.map(invitee => {
+              if (!invitee || typeof invitee !== 'object') {
+                return invitee;
+              }
+              const { email, avatar_url, nickname, username, ...rest } = invitee;
+              const displayName = nickname || username || '未知用户';
+              const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&size=128`;
+              const rawAvatar = typeof avatar_url === 'string' ? avatar_url.trim() : '';
+              const normalizedAvatar = rawAvatar.toLowerCase();
+              const hasValidAvatar = rawAvatar && normalizedAvatar !== 'null' && normalizedAvatar !== 'undefined';
+
+              return {
+                ...rest,
+                username,
+                nickname,
+                avatar_url: hasValidAvatar ? rawAvatar : fallbackUrl
+              };
+            })
+          : [];
+
         const normalizedStats = {
           invite_count: stats.invite_count,
           commission_balance: Number(stats.commission_balance || 0),
@@ -43,7 +64,7 @@ class ReferralService extends BaseService {
         return this.formatSuccessResponse({
           referral_code: code,
           stats: normalizedStats,
-          invites: invitees,
+          invites: sanitizedInvitees,
           inviter: inviterInfo,
           payout_setting: payoutSetting
         }, '获取邀请信息成功');

@@ -5,6 +5,7 @@
 const UserFollow = require('../models/UserFollow');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
+const { UserService } = require('../services');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 const { logger } = require('../utils/logger');
 
@@ -43,6 +44,19 @@ const createAuditLog = async ({ operatorId, targetId, action, detail }) => {
     });
   } catch (error) {
     logger.warn('记录关注操作审计日志失败', { error: error.message });
+  }
+};
+
+const invalidateUserCaches = async (...userIds) => {
+  const uniqueIds = [...new Set(userIds.filter(id => Number.isFinite(id) && id > 0))];
+  if (!uniqueIds.length) {
+    return;
+  }
+
+  try {
+    await Promise.all(uniqueIds.map(id => UserService.clearCache(`user:${id}:*`)));
+  } catch (error) {
+    logger.warn('清理用户缓存失败', { userIds: uniqueIds, error: error.message });
   }
 };
 
@@ -100,6 +114,8 @@ const followUser = async (req, res) => {
       action: 'follow',
       detail: { follower_id: followerId, following_id: targetId }
     });
+
+    await invalidateUserCaches(followerId, targetId);
 
     return successResponse(res, '关注成功', { is_following: true });
   } catch (error) {
@@ -160,6 +176,8 @@ const unfollowUser = async (req, res) => {
       action: 'unfollow',
       detail: { follower_id: followerId, following_id: targetId }
     });
+
+    await invalidateUserCaches(followerId, targetId);
 
     return successResponse(res, '已取消关注', { is_following: false });
   } catch (error) {

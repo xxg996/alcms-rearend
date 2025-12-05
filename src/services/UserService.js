@@ -219,7 +219,7 @@ class UserService extends BaseService {
       try {
         this.validateRequired({ userId }, ['userId']);
 
-        const cacheKey = `user:${userId}:profile:v2`;
+        const cacheKey = `user:${userId}:profile:v3`;
         
         return await this.getCached(cacheKey, async () => {
           const user = await User.findById(userId);
@@ -228,8 +228,17 @@ class UserService extends BaseService {
             throw new Error('用户不存在');
           }
 
+          const [followerCount, followingCount] = await Promise.all([
+            User.getFollowerCount(userId),
+            User.getFollowingCount(userId)
+          ]);
+
+          const sanitizedUser = this.sanitizeUserData(user);
+          sanitizedUser.follower_count = followerCount;
+          sanitizedUser.following_count = followingCount;
+
           return this.formatSuccessResponse(
-            this.sanitizeUserData(user),
+            sanitizedUser,
             '获取用户资料成功'
           );
         }, 600); // 缓存10分钟

@@ -326,6 +326,8 @@ const changeEmail = async (req, res) => {
  *                   daily_limit: 10
  *                   today_consumed: 3
  *                   remaining_downloads: 7
+ *                 follower_count: 256
+ *                 following_count: 34
  *                 last_login_at: "2025-09-12T08:00:00.000Z"
  *                 created_at: "2025-09-11T10:00:00.000Z"
  *                 updated_at: "2025-09-12T08:00:00.000Z"

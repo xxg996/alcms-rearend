@@ -50,16 +50,17 @@
  *           type: string
  *           description: 下级用户名
  *           example: "newbie"
- *         email:
- *           type: string
- *           format: email
- *           description: 下级邮箱
- *           example: "newbie@example.com"
  *         nickname:
  *           type: string
  *           nullable: true
  *           description: 下级昵称
  *           example: "新手"
+ *         avatar_url:
+ *           type: string
+ *           format: uri
+ *           nullable: true
+ *           description: 下级头像URL（若缺失则返回系统生成的默认头像）
+ *           example: "https://ui-avatars.com/api/?name=%E6%96%B0%E6%89%8B&background=random&size=128"
  *         created_at:
  *           type: string
  *           format: date-time

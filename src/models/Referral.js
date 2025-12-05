@@ -188,8 +188,8 @@ class Referral {
       `SELECT 
          u.id,
          u.username,
-         u.email,
          u.nickname,
+         u.avatar_url,
          u.created_at,
          ur.created_at AS invited_at,
          u.is_vip,

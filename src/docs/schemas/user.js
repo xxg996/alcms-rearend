@@ -92,6 +92,14 @@
  *               type: integer
  *               description: 当日剩余次数
  *               example: 7
+ *         follower_count:
+ *           type: integer
+ *           description: 粉丝数量
+ *           example: 256
+ *         following_count:
+ *           type: integer
+ *           description: 关注数量
+ *           example: 42
  *         is_vip:
  *           type: boolean
  *           description: 是否为VIP用户
@@ -225,7 +233,7 @@
  *       properties:
  *         resources:
  *           type: array
- *           description: 当前创作者的资源列表
+ *           description: 当前创作者的资源列表（默认不返回 tags 字段以减小载荷）
  *           items:
  *             $ref: '#/components/schemas/Resource'
  *         pagination:
@@ -241,7 +249,6 @@
  *             like_count: 0
  *             created_at: "2025-10-30T10:00:00.000Z"
  *             updated_at: "2025-10-30T10:00:00.000Z"
- *             tags: []
  *           - id: 95
  *             title: "高质量ASMR示例"
  *             status: "published"
@@ -251,10 +258,6 @@
  *             like_count: 56
  *             created_at: "2025-09-20T09:12:10.000Z"
  *             updated_at: "2025-10-01T12:30:00.000Z"
- *             tags:
- *               - id: 3
- *                 name: "audio"
- *                 display_name: "音频"
  *         pagination:
  *           page: 1
  *           limit: 20
