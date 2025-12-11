@@ -298,7 +298,7 @@ async function getTodayConsumedDownloads(userId) {
       FROM daily_purchases
       WHERE user_id = $1
         AND purchase_date = CURRENT_DATE
-        AND points_cost = 0
+        AND cost_type IN ('daily_limit', 'vip_download_count')
     `, [userId]);
 
     return parseInt(result.rows[0].consumed_count) || 0;
@@ -358,6 +358,13 @@ async function getUserDownloadStats(userId) {
     const todayCount = await getTodayDownloadCount(userId);
     const todayConsumed = await getTodayConsumedDownloads(userId);
 
+    // 对齐口径：以“已扣额度”与“实际扣减计数”取最大，避免 remaining 计算与 used 不一致
+    const normalizedUsed = Math.max(
+      Number(todayConsumed) || 0,
+      Number(downloadStatus.dailyUsed) || 0
+    );
+    const normalizedRemaining = Math.max(0, (downloadStatus.dailyLimit || 0) - normalizedUsed);
+
     // 获取本周下载次数
     const weekResult = await query(`
       SELECT COUNT(*) as week_count
@@ -386,9 +393,9 @@ async function getUserDownloadStats(userId) {
     return {
       daily: {
         limit: downloadStatus.dailyLimit,
-        used: todayConsumed, // 使用实际消耗的下载配额次数
-        remaining: Math.max(0, downloadStatus.dailyLimit - todayConsumed), // 基于实际消耗计算剩余
-        canDownload: todayConsumed < downloadStatus.dailyLimit
+        used: normalizedUsed,
+        remaining: normalizedRemaining,
+        canDownload: normalizedUsed < downloadStatus.dailyLimit
       },
       statistics: {
         today: todayCount,

@@ -1091,13 +1091,13 @@ const getCurrentUserStats = async (req, res) => {
     const downloadStatus = await checkAndResetDailyDownloads(userId);
 
     const todayDownloads = downloadStats?.daily?.used ?? downloadStatus?.dailyUsed ?? 0;
-    const dailyLimit = downloadStatus?.dailyLimit ?? downloadStats?.daily?.limit ?? 0;
-    const remainingDownloads =
-      typeof downloadStatus?.remainingDownloads === 'number'
-        ? downloadStatus.remainingDownloads
-        : Math.max(0, dailyLimit - todayDownloads);
+    const dailyLimit = downloadStats?.daily?.limit ?? downloadStatus?.dailyLimit ?? 0;
+    const remainingDownloads = downloadStats?.daily?.remaining ?? Math.max(0, dailyLimit - todayDownloads);
     const canDownload =
-      downloadStatus?.canDownload ?? downloadStats?.daily?.canDownload ?? remainingDownloads > 0;
+      downloadStats?.daily?.canDownload ??
+      (typeof dailyLimit === 'number' && typeof todayDownloads === 'number'
+        ? todayDownloads < dailyLimit
+        : true);
 
     // 计算下次重置时间（明天凌晨）
     const tomorrow = new Date();

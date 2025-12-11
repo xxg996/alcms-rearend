@@ -219,29 +219,25 @@ class UserService extends BaseService {
       try {
         this.validateRequired({ userId }, ['userId']);
 
-        const cacheKey = `user:${userId}:profile:v3`;
+        const user = await User.findById(userId);
         
-        return await this.getCached(cacheKey, async () => {
-          const user = await User.findById(userId);
-          
-          if (!user) {
-            throw new Error('用户不存在');
-          }
+        if (!user) {
+          throw new Error('用户不存在');
+        }
 
-          const [followerCount, followingCount] = await Promise.all([
-            User.getFollowerCount(userId),
-            User.getFollowingCount(userId)
-          ]);
+        const [followerCount, followingCount] = await Promise.all([
+          User.getFollowerCount(userId),
+          User.getFollowingCount(userId)
+        ]);
 
-          const sanitizedUser = this.sanitizeUserData(user);
-          sanitizedUser.follower_count = followerCount;
-          sanitizedUser.following_count = followingCount;
+        const sanitizedUser = this.sanitizeUserData(user);
+        sanitizedUser.follower_count = followerCount;
+        sanitizedUser.following_count = followingCount;
 
-          return this.formatSuccessResponse(
-            sanitizedUser,
-            '获取用户资料成功'
-          );
-        }, 600); // 缓存10分钟
+        return this.formatSuccessResponse(
+          sanitizedUser,
+          '获取用户资料成功'
+        );
 
       } catch (error) {
         this.handleError(error, 'getProfile');
@@ -368,8 +364,12 @@ class UserService extends BaseService {
 
     // 计算今日剩余下载次数
     if (user.actual_daily_limit !== undefined && user.today_consumed !== undefined) {
-      const actualLimit = parseInt(user.actual_daily_limit) || 10;
-      const todayConsumed = parseInt(user.today_consumed) || 0;
+      const actualLimit = Number.isFinite(Number(user.actual_daily_limit))
+        ? Number(user.actual_daily_limit)
+        : 0;
+      const todayConsumed = Number.isFinite(Number(user.today_consumed))
+        ? Number(user.today_consumed)
+        : 0;
 
       sanitized.download_stats = {
         daily_limit: actualLimit,

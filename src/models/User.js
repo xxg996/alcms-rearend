@@ -53,18 +53,19 @@ class User {
         vl.name AS vip_level_name,
         vl.display_name AS vip_level_display_name,
         COALESCE(vl.daily_download_limit, u.daily_download_limit, 0) AS actual_daily_limit,
-        COALESCE(
-          (
-            SELECT COUNT(*) FROM daily_purchases dp
-            WHERE dp.user_id = u.id
-              AND dp.purchase_date = CURRENT_DATE
-              AND dp.points_cost = 0
-          ),
-          CASE
-            WHEN u.last_download_reset_date::date < CURRENT_DATE THEN 0
-            ELSE u.daily_downloads_used
-          END
-        ) AS today_consumed
+        CASE
+          WHEN u.last_download_reset_date::date < CURRENT_DATE THEN 0
+          ELSE GREATEST(
+            COALESCE((
+              SELECT COALESCE(SUM(dp.download_count_cost), 0)
+              FROM daily_purchases dp
+              WHERE dp.user_id = u.id
+                AND dp.purchase_date = CURRENT_DATE
+                AND dp.cost_type IN ('daily_limit', 'vip_download_count')
+            ), 0),
+            COALESCE(u.daily_downloads_used, 0)
+          )
+        END AS today_consumed
        FROM users u
        LEFT JOIN vip_levels vl ON u.vip_level = vl.level AND vl.is_active = TRUE
        WHERE u.id = $1`,
@@ -669,16 +670,19 @@ class User {
              u.daily_download_limit, u.daily_downloads_used, u.last_download_reset_date,
              vl.name as vip_level_name, vl.display_name as vip_level_display_name,
              COALESCE(vl.daily_download_limit, u.daily_download_limit, 0) as actual_daily_limit,
-             COALESCE(
-               (SELECT COUNT(*) FROM daily_purchases dp
-                WHERE dp.user_id = u.id
-                  AND dp.purchase_date = CURRENT_DATE
-                  AND dp.points_cost = 0),
-               CASE
-                 WHEN u.last_download_reset_date::date < CURRENT_DATE THEN 0
-                 ELSE u.daily_downloads_used
-               END
-             ) as today_consumed,
+             CASE
+               WHEN u.last_download_reset_date::date < CURRENT_DATE THEN 0
+               ELSE GREATEST(
+                 COALESCE((
+                   SELECT COALESCE(SUM(dp.download_count_cost), 0)
+                   FROM daily_purchases dp
+                   WHERE dp.user_id = u.id
+                     AND dp.purchase_date = CURRENT_DATE
+                     AND dp.cost_type IN ('daily_limit', 'vip_download_count')
+                 ), 0),
+                 COALESCE(u.daily_downloads_used, 0)
+               )
+             END as today_consumed,
              array_agg(DISTINCT r.name) as roles
       FROM users u
       LEFT JOIN user_roles ur ON u.id = ur.user_id
