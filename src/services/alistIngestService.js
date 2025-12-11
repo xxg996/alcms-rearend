@@ -9,6 +9,7 @@ const { minioClient, BUCKETS, generateFileName, getFileUrl } = require('../confi
 const { logger } = require('../utils/logger');
 const AlistIngestUploadWorker = require('./alistIngestUploadWorker');
 
+const VIDEO_TYPE_ID = 2; // resource_types.name = 'video'
 const DEFAULT_DESCRIPTION = '自动入库无需描述';
 
 function joinAlistPath(basePath, segment) {
@@ -402,6 +403,7 @@ class AlistIngestService {
         const allowedFiles = files.filter((file) => !file.is_dir && alistClient.isExtensionAllowed(file.name));
         const allowedDocumentFiles = allowedFiles.filter((file) => !isImageFile(file.name));
         const imageFiles = files.filter((file) => !file.is_dir && isImageFile(file.name));
+        const isVideoResource = Number(setting.resource_type_id) === VIDEO_TYPE_ID;
 
         let existingDocumentCount = 0;
         if (record?.resource_id) {
@@ -483,16 +485,20 @@ class AlistIngestService {
         let finalDescription = baseDescription;
         let coverImageUrl = null;
         if (imageTasks.length > 0) {
-          const imageMarkdown = imageTasks
-            .map(({ file_name, file_url }) => `![${file_name}](${file_url})`)
-            .join('\n');
-
-          finalDescription = baseDescription
-            ? `${baseDescription.replace(/\s+$/u, '')}\n\n${imageMarkdown}`
-            : imageMarkdown;
-
           const randomTask = imageTasks[Math.floor(Math.random() * imageTasks.length)];
           coverImageUrl = randomTask?.file_url || null;
+
+          if (!isVideoResource) {
+            const imageMarkdown = imageTasks
+              .map(({ file_name, file_url }) => `![${file_name}](${file_url})`)
+              .join('\n');
+
+            finalDescription = baseDescription
+              ? `${baseDescription.replace(/\s+$/u, '')}\n\n${imageMarkdown}`
+              : imageMarkdown;
+          } else {
+            finalDescription = baseDescription || DEFAULT_DESCRIPTION;
+          }
         }
 
         const updatePayload = { description: finalDescription };
